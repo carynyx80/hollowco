@@ -13,7 +13,7 @@ export async function ledger(kind: string, data: any) {
 async function saveAsset(img: { mime: string; data: Buffer; provider: string }) {
   const aid = id('a'); await db.put('assets', aid, { mime: img.mime, b64: img.data.toString('base64'), provider: img.provider }); return `${publicBase()}/assets/${aid}`;
 }
-export async function createShop(idea: string, log: (s: string) => void = () => {}, ownerId?: string, onPlan?: (p: { shopId: string; name: string; kinds: string[]; color: string }) => Promise<any> | void) {
+export async function createShop(idea: string, log: (s: string) => void = () => {}, ownerId?: string, onPlan?: (p: { shopId: string; name: string; kinds: string[]; color: string; text?: string }) => Promise<any> | void) {
   idea = String(idea || '').slice(0, 500).trim();
   if (idea.length < 3) throw new Error('Tell the founder a business idea first.');
   const shopId = id('shop');
@@ -22,7 +22,7 @@ export async function createShop(idea: string, log: (s: string) => void = () => 
   log(`Founder agent: brand "${b.name}" ready, briefing team`);
   const colors = (b.colors || []).filter((c) => /^#[0-9a-f]{6}$/i.test(c)).slice(0, 3);
   while (colors.length < 3) colors.push(['#2B2B2B', '#FF8A70', '#FBF8F2'][colors.length]);
-  await onPlan?.({ shopId, name: String(b.name).slice(0, 40), kinds: (b.products || []).slice(0, 6).map((p: any) => ['ebook', 'tshirt', 'mug'].includes(p.kind) ? p.kind : 'ebook'), color: colors[1] });
+  await onPlan?.({ shopId, name: String(b.name).slice(0, 40), kinds: (b.products || []).slice(0, 6).map((p: any) => ['ebook', 'tshirt', 'mug'].includes(p.kind) ? p.kind : 'ebook'), color: colors[1], text: [idea, b.name, b.tagline, ...(b.products || []).map((p: any) => p.name)].join(' ') });
   const logoP = ai.image(`Minimal flat vector logo symbol for "${b.name}", ${b.tagline}. Colors ${colors.join(', ')}. No text.`, shopId + 'logo', colors).then(saveAsset);
   const products: any[] = await Promise.all((b.products || []).slice(0, 6).map(async (p: any) => {
     const kind = ['ebook', 'tshirt', 'mug'].includes(p.kind) ? p.kind : 'ebook';

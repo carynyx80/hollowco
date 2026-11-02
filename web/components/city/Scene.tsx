@@ -87,11 +87,12 @@ function ConstructionSite({ s }: { s: Site }) {
   </group>;
 }
 function DistrictLabels({ shops, hl, onPick }: { shops: CityShop[]; hl: string | null; onPick: (d: string) => void }) {
-  const { camera } = useThree(); const [far, setFar] = useState(true);
-  useFrame(() => { const f = camera.position.y > 45; if (f !== far) setFar(f); });
-  const c = useMemo(() => { const m: Record<string, { x: number; z: number; n: number }> = {}; shops.forEach((s) => { const d = (m[s.plot.district] ||= { x: 0, z: 0, n: 0 }); d.x += s.x; d.z += s.z; d.n++; }); return m; }, [shops]);
-  if (!far && !hl) return null;
-  return <>{Object.entries(c).map(([k, v]) => { const info = DISTRICT_INFO[k]; if (!info) return null; return <Billboard key={k} position={[v.x / v.n, 26, v.z / v.n]}><Html center zIndexRange={[9, 0]} className="city-label"><button className="city-district" style={{ borderColor: info.color, color: info.color, opacity: hl && hl !== k ? 0.35 : 1 }} onClick={() => onPick(k)} data-testid={`district-${k}`}>{info.icon} {info.label}<small>{v.n} stores</small></button></Html></Billboard>; })}</>;
+  const { camera } = useThree(); const [fade, setFade] = useState(1);
+  // Labels sit well above the skyline and fade out as you zoom in, so they never cover shop signs.
+  useFrame(() => { const f = Math.round(Math.max(0, Math.min(1, (camera.position.y - 58) / 30)) * 10) / 10; if (f !== fade) setFade(f); });
+  const c = useMemo(() => { const m: Record<string, { x: number; z: number; n: number; h?: number }> = {}; shops.forEach((s) => { const d = (m[s.plot.district] ||= { x: 0, z: 0, n: 0 }); d.x += s.x; d.z += s.z; d.n++; d.h = Math.max(d.h || 0, s.h); }); return m; }, [shops]);
+  if (fade <= 0) return null;
+  return <>{Object.entries(c).map(([k, v]) => { const info = DISTRICT_INFO[k]; if (!info) return null; return <Billboard key={k} position={[v.x / v.n, (v.h || 10) + 16, v.z / v.n]}><Html center zIndexRange={[9, 0]} className="city-label"><button className="city-district" style={{ borderColor: info.color, color: info.color, opacity: fade * (hl && hl !== k ? 0.35 : 0.92), pointerEvents: fade < 0.4 ? 'none' : 'auto' }} onClick={() => onPick(k)} data-testid={`district-${k}`}>{info.icon} {info.label}<small>{v.n} stores</small></button></Html></Billboard>; })}</>;
 }
 function Beacon({ onPick }: { onPick: () => void }) {
   const ring = useRef<THREE.Group>(null); const dot = useRef<THREE.Mesh>(null); const beam = useRef<THREE.MeshBasicMaterial>(null);
