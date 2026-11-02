@@ -42,3 +42,10 @@ export async function payout(receiver: string, amount: number, note: string, ite
   const i = await pp('POST', '/v2/invoicing/invoices', { detail: { currency_code: 'USD', note }, primary_recipients: [{ billing_info: { email_address: receiver } }], items: [{ name: note.slice(0, 200), quantity: '1', unit_amount: { currency_code: 'USD', value: money(amount) }, unit_of_measure: 'QUANTITY' }] });
   return { ok: i.ok, method: 'invoicing', ref: i.j.id || i.j.href || null, status: i.ok ? 'DRAFT' : 'FAILED', error: r.j.message };
 }
+
+export async function payoutStatus(batchId: string) {
+  const { ok, j } = await pp('GET', `/v1/payments/payouts/${encodeURIComponent(batchId)}`);
+  if (!ok) return null;
+  const it = (j.items || [])[0] || {};
+  return { batch: j.batch_header?.batch_status as string, item: it.transaction_status as string, error: it.errors?.name as string | undefined };
+}

@@ -9,7 +9,7 @@ import { env } from './env.js';
 import { aiMode } from './ai.js';
 import { printfulMode } from './printful.js';
 import { createOrder, captureOrder, getOrder } from './paypal.js';
-import { createShop, fulfil, id, jailbreak, ledger, ledgerView } from './core.js';
+import { createShop, fulfil, id, jailbreak, ledger, ledgerView, refreshPayouts } from './core.js';
 import { LIMITS } from './guardrails.js';
 
 const app = express();
@@ -92,7 +92,7 @@ app.post('/orders', wrap(async (q: any, r: any) => {
   await db.put('orders', 'pp_' + pp.j.id, { ref: orderId });
   r.json({ orderId, paypalOrderId: pp.j.id, approve: pp.j.links?.find((l: any) => l.rel === 'approve' || l.rel === 'payer-action')?.href });
 }));
-const orderView = async (o: any) => ({ shop: await db.get('shops', o.shopId).then((s: any) => s && { id: s.id, name: s.name, logo: s.logo }).catch(() => null), paypalOrderId: o.paypalOrderId, captureId: o.captureId, captureStatus: o.captureStatus, payer: o.payer, paymentSource: o.paymentSource, simulated: !!o.simulated, failure: o.failure, createdAt: o.createdAt, id: o.id, status: o.status, total: o.total, items: o.items, supplier: o.supplier, payouts: o.payouts, downloads: o.status === 'COMPLETED' ? o.items.filter((i: any) => i.digital).map((i: any) => ({ title: i.name, pdf: `/download/${o.id}/${i.productId}.pdf`, md: `/download/${o.id}/${i.productId}.md` })) : [] });
+const orderView = async (o: any) => (await refreshPayouts(o).catch(() => o), { shop: await db.get('shops', o.shopId).then((s: any) => s && { id: s.id, name: s.name, logo: s.logo }).catch(() => null), paypalOrderId: o.paypalOrderId, captureId: o.captureId, captureStatus: o.captureStatus, payer: o.payer, paymentSource: o.paymentSource, simulated: !!o.simulated, failure: o.failure, createdAt: o.createdAt, id: o.id, status: o.status, total: o.total, items: o.items, supplier: o.supplier, payouts: o.payouts, downloads: o.status === 'COMPLETED' ? o.items.filter((i: any) => i.digital).map((i: any) => ({ title: i.name, pdf: `/download/${o.id}/${i.productId}.pdf`, md: `/download/${o.id}/${i.productId}.md` })) : [] });
 // Pull the authoritative state from PayPal and apply it. Used by capture, return-handling and webhooks (idempotent).
 async function syncOrder(ppId: string, tryCapture: boolean) {
   const ref = await db.get('orders', 'pp_' + ppId); if (!ref) { const e: any = new Error('order not found'); e.status = 404; throw e; }

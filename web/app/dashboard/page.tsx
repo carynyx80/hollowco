@@ -8,7 +8,7 @@ import { CompanyFloor } from '@/components/CompanyFloor';
 import { useToast } from '@/components/Toast';
 import { api, usd } from '@/lib/api';
 const ago = (s: string) => { const m = Math.round((Date.now() - new Date(s).getTime()) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`; };
-const KIND: Record<string, string> = { shop_created: 'Opened shop', revenue: 'Sale', supplier_cost: 'Supplier order', payout: 'Agent payout', rejected: 'Guardrail blocked', capture_failed: 'Capture failed' };
+const KIND: Record<string, string> = { shop_created: 'Opened shop', revenue: 'Sale', supplier_cost: 'Supplier order', payout: 'Agent payout', rejected: 'Guardrail blocked', capture_failed: 'Capture failed', payout_reversed: 'Payout reversed' };
 export default function Dashboard() {
   const [d, setD] = useState<any>(null); const [job, setJob] = useState<{ log: string[] } | null>(null);
   const toast = useToast(); const router = useRouter();

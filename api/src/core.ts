@@ -3,7 +3,7 @@ import * as db from './db.js';
 import * as ai from './ai.js';
 import { checkPrice, checkPayout, LIMITS } from './guardrails.js';
 import { draftOrder } from './printful.js';
-import { payout } from './paypal.js';
+import { payout, payoutStatus } from './paypal.js';
 import { env } from './env.js';
 export const id = (p: string) => p + '_' + crypto.randomBytes(6).toString('hex');
 const publicBase = () => env('PUBLIC_API_URL', `http://localhost:${env('PORT', '4000')}`);
@@ -121,10 +121,31 @@ export async function ledgerView() {
     if (r.kind === 'revenue') { o.revenue += r.amount; o.test = !!r.test; o.sim = !!r.sim; o.at = r.at; }
     if (r.kind === 'supplier_cost') o.supplierCost += r.amount;
     if (r.kind === 'payout') o.payouts += r.amount;
+    if (r.kind === 'payout_reversed') o.payouts -= r.amount;
     if (r.kind === 'rejected') o.rejected++;
     byOrder.set(r.orderId, o);
   }
   const orders = [...byOrder.values()].map((o) => ({ ...o, profit: Math.round((o.revenue - o.supplierCost - o.payouts) * 100) / 100 }));
   const t = orders.reduce((s, o) => ({ revenue: s.revenue + o.revenue, supplierCost: s.supplierCost + o.supplierCost, payouts: s.payouts + o.payouts, profit: s.profit + o.profit }), { revenue: 0, supplierCost: 0, payouts: 0, profit: 0 });
   return { totals: t, orders, events: rows, limits: LIMITS };
+}
+
+// Reconcile PayPal Payouts that were PENDING when created. A denied/failed/returned payout is reversed on the ledger.
+const FINAL_BAD = new Set(['DENIED', 'FAILED', 'RETURNED', 'BLOCKED', 'REFUNDED', 'REVERSED', 'CANCELED']);
+export async function refreshPayouts(o: any) {
+  if (!o?.payouts?.length || o.simulated) return o;
+  let changed = false;
+  for (const p of o.payouts) {
+    if (p.method !== 'payouts' || !p.ref || ['SUCCESS', 'REVERSED_IN_LEDGER'].includes(p.status) || p.reversed) continue;
+    if (p.checkedAt && Date.now() - p.checkedAt < 20000) continue;
+    const st = await payoutStatus(p.ref).catch(() => null); p.checkedAt = Date.now(); changed = true;
+    if (!st) continue;
+    p.status = st.item || st.batch; p.batchStatus = st.batch; if (st.error) p.error = st.error;
+    if (FINAL_BAD.has(st.item) || FINAL_BAD.has(st.batch)) {
+      p.reversed = true; p.ok = false;
+      await ledger('payout_reversed', { orderId: o.id, shopId: o.shopId, agent: p.agent, amount: p.amount, detail: `PayPal payout ${p.ref} ${st.batch}/${st.item}${st.error ? ' ' + st.error : ''} — reversed`, ok: false });
+    }
+  }
+  if (changed) await db.put('orders', o.id, o);
+  return o;
 }
