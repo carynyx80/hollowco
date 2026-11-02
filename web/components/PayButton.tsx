@@ -33,10 +33,10 @@ export function PayButton({ shopId, productId, onDone, onError }: { shopId: stri
     return () => { cancelled = true; };
   }, [shopId, productId, onDone, onError, nonce]);
   return <div>
-    {st.kind === 'processing' && <div className="mb-3 rounded-xl border border-coral/30 bg-coral/10 px-4 py-3 text-sm flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-coral animate-pulse" />Capturing payment and briefing your agents…</div>}
+    {st.kind === 'processing' && <div className="mb-3 rounded-xl border border-coral/30 bg-coral/10 px-4 py-3 text-sm flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-full border-2 border-coral border-t-transparent ring-spin" />Capturing payment and briefing your agents…</div>}
     {st.kind === 'cancelled' && <div className="mb-3 rounded-xl border border-white/10 bg-white/[.04] px-4 py-3 text-sm text-char/70">Checkout cancelled — nothing was charged. You can try again below.</div>}
     {(st.kind === 'declined' || st.kind === 'error') && <div className="mb-3 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200" role="alert" data-testid="pay-error"><b>Payment didn’t go through.</b> {st.msg}{st.kind === 'error' && <button onClick={() => { setReady(false); setSt({ kind: 'idle' }); setNonce((n) => n + 1); }} className="ml-2 underline">Retry</button>}</div>}
-    <div className="rounded-2xl bg-white p-3 pb-1">{!ready && <div className="h-[110px] animate-pulse rounded-xl bg-black/5" />}<div ref={ref} data-testid="paypal-buttons" /></div>
+    <div className={`rounded-2xl bg-white p-3 pb-1 transition-shadow duration-300 hover:shadow-[0_18px_50px_-20px_rgba(139,123,255,.6)] ${st.kind === 'processing' ? 'pay-pop ring-2 ring-iris/60' : ''} ${st.kind === 'declined' || st.kind === 'error' ? 'shake-x' : ''}`}>{!ready && <div className="h-[110px] animate-pulse rounded-xl bg-black/5" />}<div ref={ref} data-testid="paypal-buttons" /></div>
   </div>;
 }
 export function Receipt({ order }: { order: any }) {

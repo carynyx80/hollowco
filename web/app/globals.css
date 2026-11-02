@@ -34,7 +34,8 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 @utility input { @apply w-full rounded-xl border border-white/10 bg-white/[.04] px-4 h-11 text-sm outline-none transition placeholder:text-char/30 focus:border-coral/70 focus:ring-4 focus:ring-coral/15; }
 @utility label { @apply text-xs font-medium text-char/60 mb-1.5 block; }
 @utility eyebrow { @apply text-[11px] font-semibold uppercase tracking-[.18em] text-coral-600; }
-@utility skeleton { @apply animate-pulse rounded-xl bg-white/[.05]; }
+@utility skeleton { @apply rounded-xl bg-white/[.05] relative overflow-hidden; }
+@utility shimmer { @apply rounded-xl bg-white/[.05] relative overflow-hidden; }
 @utility chip { @apply inline-flex items-center rounded-full border border-white/10 bg-white/[.04] px-3 h-8 text-xs font-medium transition hover:border-coral/50 hover:bg-coral/10; }
 @keyframes ping-soft { 0% { transform: scale(1); opacity: .7 } 80%,100% { transform: scale(2.6); opacity: 0 } }
 .dot-ping { animation: ping-soft 1.8s cubic-bezier(0,0,.2,1) infinite; transform-origin: center; transform-box: fill-box; }
@@ -58,3 +59,21 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 .ho-alarm { animation: ho-alarm .7s ease-in-out infinite; }
 .ho-glow { animation: ho-glow 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .ho-bob, .ho-type, .ho-type2, .ho-steam, .ho-blink, .ho-alarm, .ho-glow, .dot-ping, .flow-line { animation: none !important; } .ho-alarm { opacity: .35; } }
+
+/* ---- Cinematic ---- */
+.skeleton::after, .shimmer::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(201,193,255,.09), transparent); animation: shimmer 1.4s ease-in-out infinite; }
+@keyframes shimmer { to { transform: translateX(100%) } }
+.lift { transition: transform .35s cubic-bezier(.22,1,.36,1), box-shadow .35s cubic-bezier(.22,1,.36,1), border-color .35s; will-change: transform; }
+@media (hover: hover) { .lift:hover { transform: translateY(-4px); border-color: rgba(139,123,255,.28); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 28px 60px -28px rgba(139,123,255,.45), 0 12px 30px -18px rgba(0,0,0,.9); } }
+.field-glow { transition: box-shadow .25s, border-color .25s; }
+.field-glow:focus { border-color: rgba(139,123,255,.6); box-shadow: 0 0 0 4px rgba(139,123,255,.14), 0 0 28px -4px rgba(92,225,255,.35); outline: none; }
+@keyframes ring-spin { to { transform: rotate(360deg) } }
+.ring-spin { animation: ring-spin .9s linear infinite; }
+@keyframes aurora { 0% { transform: translate3d(-10%,-6%,0) scale(1) } 50% { transform: translate3d(8%,6%,0) scale(1.15) } 100% { transform: translate3d(-10%,-6%,0) scale(1) } }
+.aurora { animation: aurora 16s ease-in-out infinite; will-change: transform; }
+@keyframes pay-pop { 0% { transform: scale(1) } 40% { transform: scale(.97) } 100% { transform: scale(1) } }
+.pay-pop { animation: pay-pop .35s ease-out; }
+@media (prefers-reduced-motion: reduce) { .skeleton::after, .shimmer::after, .aurora, .ring-spin { animation: none !important; } .lift, .lift:hover { transform: none !important; transition: none; } }
+@keyframes shake-x { 0%,100% { transform: none } 20% { transform: translateX(-8px) } 40% { transform: translateX(7px) } 60% { transform: translateX(-4px) } 80% { transform: translateX(2px) } }
+.shake-x { animation: shake-x .45s ease-out; }
+@media (prefers-reduced-motion: reduce) { .shake-x, .pay-pop { animation: none !important; } }

@@ -142,9 +142,11 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
   }
   async function playJail(e: Ev, replay: boolean) {
     patch(() => ({ alarm: true, caption: `${replay ? 'Replay · ' : ''}Prompt-injection attempt` })); beep(440, 0.25, 'square'); beep(330, 0.4, 'square');
-    say('founder', `Proposal → pay ${e.proposal?.recipient || '?'} ${usd(e.proposal?.amount)} (“${short(e.proposal?.reason || '', 60)}”)`, 'think'); await wait(1600);
+    const pr = e.proposal; const real = !!pr && Number(pr.amount) > 0 && !!pr.recipient && pr.recipient !== '?';
+    const atk = String(e.detail || '').replace(/^jailbreak attempt:\s*/i, '');
+    say('founder', real ? `Proposal → pay ${pr!.recipient} ${usd(pr!.amount)} (“${short(pr!.reason || '', 60)}”)` : `I won’t propose a payout for that${atk ? ` (“${short(atk, 70)}”)` : ''} — nothing to send.`, 'think'); await wait(1600);
     move('guard', [VAULT[0] + 0.9, VAULT[1] - 0.6]); await wait(1100);
-    say('guard', `BLOCKED ✋ ${short((e.reasons || []).join(' · '), 150)}`, 'warn'); tick(`✋ blocked ${usd(e.proposal?.amount)} → ${e.proposal?.recipient || '?'}`, '#FF6B81'); await wait(3200);
+    say('guard', `BLOCKED ✋ ${short((e.reasons || []).join(' · '), 150)}`, 'warn'); tick(real ? `✋ blocked ${usd(pr!.amount)} → ${pr!.recipient}` : `✋ jailbreak refused · no payout proposed`, '#FF6B81'); await wait(3200);
     patch(() => ({ alarm: false, caption: undefined })); say('guard', null); say('founder', null); move('guard', HOME.guard); await wait(800);
   }
   async function playShop(e: Ev, replay: boolean) {

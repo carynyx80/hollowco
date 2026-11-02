@@ -6,6 +6,7 @@ import { Nav } from '@/components/Nav';
 import { AuthProvider } from '@/components/Auth';
 import { ToastProvider } from '@/components/Toast';
 import { Ring } from '@/components/Logo';
+import { Intro } from '@/components/Cinema';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const serif = Instrument_Serif({ subsets: ['latin'], weight: '400', style: ['normal', 'italic'], variable: '--font-serif' });
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' });
@@ -15,6 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${serif.variable} ${mono.variable}`}><body className="min-h-screen font-sans flex flex-col">
       <ToastProvider><AuthProvider>
+        <Intro />
         <Nav />
         <main className="flex-1">{children}</main>
         <footer className="border-t border-white/[.06] mt-24">

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { usd } from '@/lib/api';
 export function ProductCard({ p }: { p: any }) {
-  return <Link href={`/p/${p.shopId}/${p.id}`} className="group card overflow-hidden flex flex-col hover:-translate-y-0.5 hover:shadow-lg transition" data-testid="product-card">
+  return <Link href={`/p/${p.shopId}/${p.id}`} className="group card lift overflow-hidden flex flex-col" data-testid="product-card">
     <div className="relative aspect-square bg-sand overflow-hidden">
       <img src={p.image} alt={p.title} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]" />
       <span className="absolute left-3 top-3 rounded-full bg-black/50 backdrop-blur border border-white/10 px-2.5 py-1 text-[11px] font-medium">{p.category}</span>
@@ -13,5 +13,5 @@ export function ProductCard({ p }: { p: any }) {
   </Link>;
 }
 export function ProductSkeleton() {
-  return <div className="card overflow-hidden"><div className="skeleton aspect-square rounded-none" /><div className="p-4 space-y-2"><div className="skeleton h-4 w-3/4" /><div className="skeleton h-3 w-1/3" /></div></div>;
+  return <div className="card overflow-hidden"><div className="shimmer aspect-square rounded-none" /><div className="p-4 space-y-2"><div className="shimmer h-4 w-3/4" /><div className="shimmer h-3 w-1/3" /></div></div>;
 }

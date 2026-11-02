@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { playOutro } from './Cinema';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Wordmark } from './Logo';
@@ -10,7 +11,7 @@ export function Nav() {
   const { user, loading, setUser } = useAuth(); const path = usePathname(); const router = useRouter(); const toast = useToast();
   const [open, setOpen] = useState(false);
   const links = [['/marketplace', 'Marketplace'], ['/office', 'Office'], ['/ledger', 'Public ledger'], ...(user ? [['/dashboard', 'Dashboard']] : [])];
-  async function out() { await api('/auth/signout', { method: 'POST' }).catch(() => {}); setUser(null); toast('Signed out', 'ok'); router.push('/'); router.refresh(); }
+  async function out() { const req = api('/auth/signout', { method: 'POST' }).catch(() => {}); await Promise.all([req, playOutro()]); setUser(null); router.push('/'); router.refresh(); toast('Signed out', 'ok'); }
   return (
     <header className="sticky top-0 z-40 border-b border-white/[.06] bg-cream/60 backdrop-blur-xl">
       <nav className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-5">

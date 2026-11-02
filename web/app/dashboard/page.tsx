@@ -1,5 +1,7 @@
 'use client';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { CountUp, stagger, useRise } from '@/components/Cinema';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { Ring } from '@/components/Logo';
@@ -11,6 +13,7 @@ const ago = (s: string) => { const m = Math.round((Date.now() - new Date(s).getT
 const KIND: Record<string, string> = { shop_created: 'Opened shop', revenue: 'Sale', supplier_cost: 'Supplier order', payout: 'Agent payout', rejected: 'Guardrail blocked', capture_failed: 'Capture failed', payout_reversed: 'Payout reversed' };
 export default function Dashboard() {
   const [d, setD] = useState<any>(null); const [job, setJob] = useState<{ log: string[] } | null>(null);
+  const riseV = useRise();
   const toast = useToast(); const router = useRouter();
   const load = useCallback(() => api('/me/dashboard').then(setD).catch((e) => { if (e.status === 401) router.replace('/signin?next=/dashboard'); }), [router]);
   useEffect(() => { load(); const t = setInterval(load, 5000); return () => clearInterval(t); }, [load]);
@@ -37,14 +40,14 @@ export default function Dashboard() {
   async function simulate() { setSim(true); try { const o = await api('/simulate/order', { method: 'POST', body: '{}' }); toast(`Simulated customer bought “${o.items[0].name}” — watch the office`, 'ok'); await load(); } catch (e: any) { toast(e.message, 'err'); } finally { setSim(false); } }
   const t = d?.totals; const name = d?.user?.name;
   const status = job ? 'working' : 'idle';
-  return <div className="mx-auto max-w-7xl px-5 py-10 space-y-8">
-    <div className="flex flex-col md:flex-row md:items-end gap-2 justify-between">
+  return <motion.div className="mx-auto max-w-7xl px-5 py-10 space-y-8" variants={stagger(0.09, 0.1)} initial="hidden" animate="show" data-testid="dash">
+    <motion.div variants={riseV} className="flex flex-col md:flex-row md:items-end gap-2 justify-between">
       <div><p className="eyebrow">Dashboard</p><h1 className="font-display text-4xl md:text-5xl mt-1">{d ? <>Hi {name}, <span className="italic text-iris">let’s build.</span></> : <span className="skeleton inline-block h-8 w-48" />}</h1></div>
       <Link href="/marketplace" className="text-sm text-char/60 hover:text-char">See your products in the marketplace →</Link>
-    </div>
-    <HollowOffice events={officeEvents} shopId={d?.shops?.[0]?.id} totals={t} jobLog={job?.log} pending={sim} onSimulate={simulate} simBusy={sim} onJailbreak={jailbreak} title="The Hollow Office" scope="your HQ · live" />
-    <p className="text-xs text-char/45 -mt-5">Public view for sharing: <Link className="underline" href={d?.shops?.[0]?.id ? `/office/${d.shops[0].id}` : '/office'}>{d?.shops?.[0]?.id ? `/office/${d.shops[0].id}` : '/office'}</Link></p>
-    <section className="grid lg:grid-cols-[1fr_1.35fr] gap-5 items-stretch">
+    </motion.div>
+    <motion.div variants={riseV}><HollowOffice events={officeEvents} shopId={d?.shops?.[0]?.id} totals={t} jobLog={job?.log} pending={sim} onSimulate={simulate} simBusy={sim} onJailbreak={jailbreak} title="The Hollow Office" scope="your HQ · live" /></motion.div>
+    <motion.p variants={riseV} className="text-xs text-char/45 -mt-5">Public view for sharing: <Link className="underline" href={d?.shops?.[0]?.id ? `/office/${d.shops[0].id}` : '/office'}>{d?.shops?.[0]?.id ? `/office/${d.shops[0].id}` : '/office'}</Link></motion.p>
+    <motion.section variants={riseV} className="grid lg:grid-cols-[1fr_1.35fr] gap-5 items-stretch">
       <div className="glow-card p-6 flex flex-col gap-5" data-testid="founder">
         <div className="flex items-center gap-4"><Ring size={60} pulse /><div><p className="text-lg font-medium">Your AI founder</p>
           <p className="text-xs text-char/60 flex items-center gap-1.5 mt-0.5"><span className={`h-1.5 w-1.5 rounded-full ${status === 'working' ? 'bg-coral animate-pulse' : 'bg-emerald-400'}`} />{status === 'working' ? 'building a company…' : 'online · ready for instructions'}</p></div></div>
@@ -64,20 +67,20 @@ export default function Dashboard() {
         {!job && <div className="mt-4 flex flex-wrap gap-2">{['Sleep guides for new parents', 'Retro synthwave merch for coders', 'Plant care e-books for apartments'].map((s) => <button key={s} onClick={() => build(s)} className="chip">{s}</button>)}</div>}
         {!job && <div className="mt-auto pt-6 grid grid-cols-3 gap-3 text-xs text-char/50">{[['01', 'Brand + logo'], ['02', 'E-books & merch'], ['03', 'PayPal shop live']].map(([n, l]) => <div key={n} className="rounded-xl border border-white/[.06] px-3 py-2.5"><span className="font-mono text-coral-600">{n}</span><p className="mt-1 text-char/70">{l}</p></div>)}</div>}
       </div>
-    </section>
+    </motion.section>
     
-    <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      {[['Revenue', t?.revenue], ['Supplier cost', t?.supplierCost], ['Agent payouts', t?.payouts], ['Profit', t?.profit]].map(([k, v]) => <div key={k as string} className="card p-5"><p className="text-xs text-char/55">{k}</p>{d ? <p className={`text-2xl font-semibold tabular-nums mt-1 ${k === 'Profit' && (v as number) < 0 ? 'text-red-400' : ''}`}>{usd(v as number)}</p> : <div className="skeleton h-7 w-24 mt-2" />}</div>)}
-    </section>
-    <section>
+    <motion.section variants={riseV} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {[['Revenue', t?.revenue], ['Supplier cost', t?.supplierCost], ['Agent payouts', t?.payouts], ['Profit', t?.profit]].map(([k, v]) => <div key={k as string} className="card lift p-5" data-testid="stat"><p className="text-xs text-char/55">{k}</p>{d ? <p className={`text-2xl font-semibold mt-1 ${k === 'Profit' && (v as number) < 0 ? 'text-red-400' : ''}`}><CountUp value={(v as number) || 0} format={(n) => usd(n)} /></p> : <div className="skeleton h-7 w-24 mt-2" />}</div>)}
+    </motion.section>
+    <motion.section variants={riseV}>
       <h2 className="font-medium mb-3">Your companies</h2>
       {!d ? <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{[0, 1, 2].map((i) => <div key={i} className="skeleton h-28" />)}</div>
         : d.shops.length === 0 ? <div className="card p-10 text-center border-dashed"><Ring size={40} /><p className="mt-3 font-medium">No companies yet</p><p className="text-sm text-char/55">Give your founder an idea above to open your first shop.</p></div>
-        : <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="shops">{d.shops.map((s: any) => <Link key={s.id} href={`/shop/${s.id}`} className="card p-5 flex gap-4 items-center hover:shadow-lg transition">
+        : <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="shops">{d.shops.map((s: any) => <Link key={s.id} href={`/shop/${s.id}`} className="card lift p-5 flex gap-4 items-center">
           <img src={s.logo} alt="" className="h-14 w-14 rounded-xl object-cover bg-sand" style={{ outline: `3px solid ${s.colors?.[1]}33` }} />
           <div className="min-w-0"><p className="font-medium truncate">{s.name}</p><p className="text-xs text-char/55 truncate">{s.tagline}</p><p className="text-xs mt-1 text-char/45">{s.products} products · {usd(s.revenue)} sales</p></div></Link>)}</div>}
-    </section>
-    <section className="grid lg:grid-cols-2 gap-5">
+    </motion.section>
+    <motion.section variants={riseV} className="grid lg:grid-cols-2 gap-5">
       <div className="card p-5"><h2 className="font-medium mb-3">Sales</h2>
         {!d ? <div className="skeleton h-24" /> : d.orders.length === 0 ? <p className="text-sm text-char/50 py-6 text-center">No sales yet — share a product link from the marketplace.</p>
           : <table className="w-full text-sm"><thead><tr className="text-left text-xs text-char/45"><th className="pb-2 font-normal">Shop</th><th className="font-normal">When</th><th className="font-normal text-right">Revenue</th><th className="font-normal text-right">Profit</th></tr></thead>
@@ -88,12 +91,12 @@ export default function Dashboard() {
           : <ul className="space-y-2 text-sm">{d.payouts.slice(0, 8).map((p: any, i: number) => <li key={i} className="flex items-center gap-3 border-t border-line pt-2 first:border-0 first:pt-0">
             <span className={`h-2 w-2 rounded-full ${p.kind === 'payout' ? 'bg-emerald-500' : 'bg-red-500'}`} /><span className="flex-1">{p.kind === 'payout' ? `${p.agent} agent` : 'Blocked proposal'} <span className="text-char/45">· {p.shop}</span></span><span className="tabular-nums">{p.kind === 'payout' ? usd(p.amount) : '✋'}</span></li>)}</ul>}
       </div>
-    </section>
-    <section className="card p-5"><div className="flex items-center justify-between mb-3"><h2 className="font-semibold">Agent activity</h2><Link href="/ledger" className="text-xs text-char/55">Full public ledger →</Link></div>
+    </motion.section>
+    <motion.section variants={riseV} className="card p-5"><div className="flex items-center justify-between mb-3"><h2 className="font-semibold">Agent activity</h2><Link href="/ledger" className="text-xs text-char/55">Full public ledger →</Link></div>
       {!d ? <div className="skeleton h-32" /> : d.events.length === 0 ? <p className="text-sm text-char/50 py-6 text-center">Your agents haven’t done anything yet.</p>
         : <ul className="divide-y divide-line text-sm" data-testid="activity">{d.events.slice(0, 15).map((e: any, i: number) => <li key={i} className="py-2.5 flex gap-3 items-baseline">
           <span className={`text-[11px] font-medium rounded-full px-2 py-0.5 shrink-0 ${e.kind === 'rejected' ? 'bg-red-400/10 text-red-300' : e.kind === 'revenue' ? 'bg-emerald-400/10 text-emerald-300' : 'bg-white/[.06]'}`}>{KIND[e.kind] || e.kind}</span>
           <span className="flex-1 min-w-0 truncate text-char/70">{e.shop}{e.amount != null && ` · ${usd(e.amount)}`}{e.reasons ? ` — ${e.reasons.join('; ')}` : e.detail ? ` — ${e.detail}` : ''}</span><span className="text-xs text-char/40 shrink-0">{ago(e.at)}</span></li>)}</ul>}
-    </section>
-  </div>;
+    </motion.section>
+  </motion.div>;
 }
