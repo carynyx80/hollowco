@@ -19,11 +19,11 @@ export async function createShop(idea: string, log: (s: string) => void = () => 
   const shopId = id('shop');
   log('Founder agent: drafting brand');
   const b = await ai.founderBrand(idea);
+  log(`Founder agent: brand "${b.name}" ready, briefing team`);
   const colors = (b.colors || []).filter((c) => /^#[0-9a-f]{6}$/i.test(c)).slice(0, 3);
   while (colors.length < 3) colors.push(['#2B2B2B', '#FF8A70', '#FBF8F2'][colors.length]);
-  const logo = await saveAsset(await ai.image(`Minimal flat vector logo symbol for "${b.name}", ${b.tagline}. Colors ${colors.join(', ')}. No text.`, shopId + 'logo', colors));
-  const products: any[] = [];
-  for (const p of (b.products || []).slice(0, 6)) {
+  const logoP = ai.image(`Minimal flat vector logo symbol for "${b.name}", ${b.tagline}. Colors ${colors.join(', ')}. No text.`, shopId + 'logo', colors).then(saveAsset);
+  const products: any[] = await Promise.all((b.products || []).slice(0, 6).map(async (p: any) => {
     const kind = ['ebook', 'tshirt', 'mug'].includes(p.kind) ? p.kind : 'ebook';
     const verdict = checkPrice(p.price);
     let price = Number(p.price);
@@ -34,16 +34,20 @@ export async function createShop(idea: string, log: (s: string) => void = () => 
     const pid = id('p');
     const prod: any = { id: pid, title: String(p.title).slice(0, 80), kind, digital: kind === 'ebook', price: Math.round(price * 100) / 100, description: String(p.description || '').slice(0, 300) };
     if (kind === 'ebook') {
-      log(`Writer agent: writing "${prod.title}"`);
-      prod.content = await ai.writerBook(prod.title, p.topic || idea, b.name);
-      prod.image = await saveAsset(await ai.image(`Book cover for "${prod.title}"`, pid, colors));
+      log(`Writer agent: writing "${prod.title}" + designing cover`);
+      const [content, img] = await Promise.all([ai.writerBook(prod.title, p.topic || idea, b.name), ai.image(`Book cover for "${prod.title}"`, pid, colors)]);
+      prod.content = content; prod.image = await saveAsset(img);
+      log(`Writer agent: finished "${prod.title}"`);
     } else {
       log(`Designer agent: designing ${kind}`);
       prod.design = await saveAsset(await ai.image(`Print-ready ${kind} graphic for brand "${b.name}": ${b.tagline}. Transparent-friendly, bold, no small text.`, pid, colors));
       prod.image = prod.design;
+      log(`Designer agent: ${kind} done`);
     }
-    products.push(prod);
-  }
+    return prod;
+  }));
+  log('Designer agent: logo');
+  const logo = await logoP;
   products.push({ id: id('p'), title: `${b.name} Watch`, kind: 'watch', digital: false, price: 0, comingSoon: true, description: 'Coming soon.' });
   const shop = { id: shopId, idea, name: String(b.name).slice(0, 40), tagline: String(b.tagline).slice(0, 80), colors, logo, products, aiMode: ai.aiMode(), createdAt: new Date().toISOString() };
   await db.put('shops', shopId, shop);

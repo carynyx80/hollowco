@@ -25,16 +25,17 @@ async function chatText(system: string, user: string): Promise<string> {
   if (!r.ok) throw new Error('LLM error ' + r.status);
   return j.choices[0].message.content;
 }
+const deadImageModels = new Set<string>();
 export async function image(prompt: string, seed: string, palette: string[]): Promise<{ mime: string; data: Buffer; provider: string }> {
   const p = provider();
   if (p) {
-    const models = p.name === 'openai' ? [p.image, 'dall-e-3', 'gpt-image-1-mini'].filter((m, i, a) => a.indexOf(m) === i) : [p.image];
+    const models = p.name === 'openai' ? [p.image, 'dall-e-3', 'gpt-image-1-mini'].filter((m, i, a) => a.indexOf(m) === i && !deadImageModels.has(m)) : [p.image];
     for (const model of models) try {
       const body: any = { model, prompt, n: 1 };
       if (p.name === 'openai') { body.size = '1024x1024'; } else body.response_format = 'b64_json';
       const r = await fetch(p.base + '/images/generations', { method: 'POST', headers: { Authorization: `Bearer ${p.key}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const j: any = await r.json();
-      if (!r.ok) { console.warn('image model', model, 'failed', r.status, j?.error?.message); continue; }
+      if (!r.ok) { if (/does not exist|not have access|verified/i.test(j?.error?.message || '')) deadImageModels.add(model); console.warn('image model', model, 'failed', r.status, j?.error?.message); continue; }
       const d = j.data?.[0];
       if (d?.b64_json) return { mime: 'image/png', data: Buffer.from(d.b64_json, 'base64'), provider: p.name + ':' + model };
       if (d?.url) { const b = await fetch(d.url); return { mime: b.headers.get('content-type') || 'image/png', data: Buffer.from(await b.arrayBuffer()), provider: p.name + ':' + model }; }

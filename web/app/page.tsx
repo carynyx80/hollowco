@@ -24,10 +24,21 @@ export default function Home() {
     r.onend = () => setListening(false); r.onerror = () => setListening(false);
     rec.current = r; r.start(); setListening(true);
   }
+  const [log, setLog] = useState<string[]>([]);
   async function build() {
+    setLog([]);
     setBusy(true); setErr(''); setStep(0);
     const t = setInterval(() => setStep((s) => Math.min(s + 1, STEPS.length - 1)), 2500);
-    try { const s = await api('/shops', { method: 'POST', body: JSON.stringify({ idea }) }); router.push(`/shop/${s.id}`); }
+    try {
+      const { id } = await api('/shops/jobs', { method: 'POST', body: JSON.stringify({ idea }) });
+      for (;;) {
+        await new Promise((res) => setTimeout(res, 1500));
+        const j = await api(`/shops/jobs/${id}`);
+        setLog(j.log || []);
+        if (j.status === 'done') { router.push(`/shop/${j.shopId}`); return; }
+        if (j.status === 'error') throw new Error(j.error || 'Build failed');
+      }
+    }
     catch (e: any) { setErr(e.message); setBusy(false); } finally { clearInterval(t); }
   }
   return (
@@ -45,7 +56,7 @@ export default function Home() {
             <button onClick={talk} disabled={!SR || busy} title={SR ? '' : 'Voice not supported in this browser — type instead'} className={`rounded-full px-5 py-3 border border-char/20 ${listening ? 'bg-coral text-white' : ''} disabled:opacity-40`}>{listening ? '● Listening… tap to stop' : '🎙 Speak'}</button>
             <button onClick={build} disabled={busy || idea.trim().length < 3} className="flex-1 rounded-full px-5 py-3 bg-char text-cream font-medium disabled:opacity-40">{busy ? 'Building…' : 'Build my company'}</button>
           </div>
-          {busy && <p className="mt-4 text-sm text-char/70 animate-pulse">{STEPS[step]}</p>}
+          {busy && <div className="mt-4 text-sm text-char/70"><p className="animate-pulse">{log.length ? log[log.length - 1] : STEPS[step]}</p>{log.length > 1 && <ul className="mt-2 space-y-0.5 text-xs text-char/50">{log.slice(0, -1).map((l, i) => <li key={i}>✓ {l}</li>)}</ul>}</div>}
           {err && <p className="mt-4 text-sm text-red-600">{err}</p>}
           {health && <p className="mt-4 text-xs text-char/50">AI: {health.ai}{health.ai === 'mock' ? ' (deterministic demo mode)' : ''} · Supplier: {health.supplier} · PayPal: {health.paypalEnv}</p>}
         </div>

@@ -20,6 +20,13 @@ const pub = (s: any) => s && ({ ...s, products: s.products.map(({ content, ...p 
 app.get('/', (_q, r) => r.json({ name: 'HollowCo API', ok: true }));
 app.get('/health', (_q, r) => r.json({ ok: true, db: db.dbMode, ai: aiMode(), supplier: printfulMode(), paypalEnv: env('PAYPAL_ENV', 'sandbox'), paypalClientId: env('PAYPAL_CLIENT_ID'), limits: LIMITS }));
 app.get('/config', (_q, r) => r.json({ paypalClientId: env('PAYPAL_CLIENT_ID'), ai: aiMode(), supplier: printfulMode() }));
+const jobs = new Map<string, { status: string; log: string[]; shopId?: string; error?: string; started: number }>();
+app.post('/shops/jobs', wrap(async (q: any, r: any) => {
+  const jid = 'job_' + Math.random().toString(36).slice(2, 12); const j: any = { status: 'running', log: [], started: Date.now() }; jobs.set(jid, j);
+  createShop(q.body.idea, (s) => { j.log.push(s); console.log(s); }).then((s: any) => { j.status = 'done'; j.shopId = s.id; }).catch((e: any) => { j.status = 'error'; j.error = e.message; });
+  setTimeout(() => jobs.delete(jid), 3600_000); r.json({ id: jid });
+}));
+app.get('/shops/jobs/:id', (q: any, r: any) => { const j = jobs.get(q.params.id); j ? r.json({ ...j, elapsedMs: Date.now() - j.started }) : r.status(404).json({ error: 'not found' }); });
 app.post('/shops', wrap(async (q: any, r: any) => r.json(pub(await createShop(q.body.idea, (s) => console.log(s))))));
 app.get('/shops', wrap(async (_q: any, r: any) => r.json((await db.list('shops', 50)).map((x) => ({ id: x.id, name: x.data.name, tagline: x.data.tagline, logo: x.data.logo, colors: x.data.colors })))));
 app.get('/shops/:id', wrap(async (q: any, r: any) => { const s = await db.get('shops', q.params.id); s ? r.json(pub(s)) : r.status(404).json({ error: 'not found' }); }));
