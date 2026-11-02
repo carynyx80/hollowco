@@ -14,6 +14,7 @@ import { createShop, fulfil, id, jailbreak, ledger, ledgerView, refreshPayouts }
 import { LIMITS } from './guardrails.js';
 import { checkShopQuota, takeAction, isDemo, SHOP_LIMITS } from './limits.js';
 import { usageSnapshot } from './ai.js';
+import { assignPlot, releasePlot, backfillPlots, displayName, DISTRICTS } from './city.js';
 
 const app = express();
 const origins = env('CORS_ORIGINS', '*').split(',').map((s) => s.trim());
@@ -75,11 +76,13 @@ app.post('/shops/jobs', wrap(async (q: any, r: any) => {
   const owner = await need(q);
   await shopQuota(owner);
   const jid = 'job_' + Math.random().toString(36).slice(2, 12); const j: any = { status: 'running', log: [], started: Date.now(), ownerId: owner.id }; jobs.set(jid, j);
-  createShop(q.body.idea, (s) => { j.log.push(s); console.log(s); }, owner.id).then((s: any) => { j.status = 'done'; j.shopId = s.id; }).catch((e: any) => { j.status = 'error'; j.error = e.message; });
+  j.owner = displayName(owner);
+  createShop(q.body.idea, (s) => { j.log.push(s); console.log(s); }, owner.id, async (p) => { j.plan = { shopId: p.shopId, name: p.name, plot: await assignPlot(p.shopId, p.kinds, p.color) }; })
+    .then((s: any) => { j.status = 'done'; j.shopId = s.id; cityCache = null; }).catch((e: any) => { j.status = 'error'; j.error = e.message; if (j.plan) releasePlot(j.plan.shopId).catch(() => {}); });
   setTimeout(() => jobs.delete(jid), 3600_000); r.json({ id: jid });
 }));
 app.get('/shops/jobs/:id', (q: any, r: any) => { const j = jobs.get(q.params.id); j ? r.json({ ...j, elapsedMs: Date.now() - j.started }) : r.status(404).json({ error: 'not found' }); });
-app.post('/shops', wrap(async (q: any, r: any) => { const u = await need(q); await shopQuota(u); r.json(pub(await createShop(q.body.idea, (s) => console.log(s), u.id))); }));
+app.post('/shops', wrap(async (q: any, r: any) => { const u = await need(q); await shopQuota(u); r.json(pub(await createShop(q.body.idea, (s) => console.log(s), u.id, (p) => assignPlot(p.shopId, p.kinds, p.color)))); cityCache = null; }));
 app.get('/shops', wrap(async (_q: any, r: any) => r.json((await db.list('shops', 50)).map((x) => ({ id: x.id, name: x.data.name, tagline: x.data.tagline, logo: x.data.logo, colors: x.data.colors })))));
 app.get('/shops/:id', wrap(async (q: any, r: any) => { const s = await db.get('shops', q.params.id); s ? r.json(pub(s)) : r.status(404).json({ error: 'not found' }); }));
 app.get('/assets/:id', wrap(async (q: any, r: any) => {
@@ -181,6 +184,34 @@ app.get('/download/:orderId/:file', wrap(async (q: any, r: any) => {
   }
   doc.end();
 }));
+
+// ---- HollowCo City: the marketplace as a map ----
+let cityCache: { at: number; body: any } | null = null;
+async function cityView() {
+  if (cityCache && Date.now() - cityCache.at < 2500) return cityCache.body;
+  const [shops, plots, v] = await Promise.all([db.list('shops', 100000), db.list('plots', 100000), ledgerView()]);
+  const plotOf = new Map(plots.map((r) => [r.id, r.data]));
+  const names = new Map<string, string>();
+  for (const id of new Set(shops.map((r) => r.data.ownerId).filter(Boolean))) names.set(id, displayName(await db.get('users', id)));
+  const rev = new Map<string, { r: number; n: number }>();
+  for (const o of v.orders) { const k = o.shop; const x = rev.get(k) || { r: 0, n: 0 }; x.r += o.revenue; x.n++; rev.set(k, x); }
+  const out = shops.filter((r) => plotOf.has(r.id)).map(({ id, data: s }) => { const live = (s.products || []).filter((p: any) => !p.comingSoon);
+    return { id, name: s.name, tagline: s.tagline, logo: s.logo, colors: s.colors, owner: names.get(s.ownerId) || 'HollowCo', ownerId: s.ownerId, createdAt: s.createdAt, plot: plotOf.get(id), revenue: Math.round((rev.get(s.name)?.r || 0) * 100) / 100, orders: rev.get(s.name)?.n || 0,
+      kinds: [...new Set(live.map((p: any) => p.kind))], products: live.length, minPrice: live.length ? Math.min(...live.map((p: any) => p.price)) : 0 }; })
+    .sort((a, b) => a.plot.idx - b.plot.idx);
+  const body = { shops: out, districts: Object.entries(DISTRICTS).map(([id, d]) => ({ id, label: d.label, seed: d.seed })), totals: v.totals };
+  cityCache = { at: Date.now(), body }; return body;
+}
+app.get('/city', wrap(async (_q: any, r: any) => {
+  const body = await cityView();
+  const construction = [...jobs.values()].filter((j: any) => j.status === 'running' && j.plan).map((j: any) => ({ shopId: j.plan.shopId, name: j.plan.name, owner: j.owner, plot: j.plan.plot, log: j.log[j.log.length - 1] || '', started: j.started }));
+  r.setHeader('Cache-Control', 'no-store'); r.json({ ...body, construction, now: new Date().toISOString() });
+}));
+app.patch('/me/profile', wrap(async (q: any, r: any) => {
+  const u = await need(q); const n = String(q.body?.name || '').replace(/[<>]/g, '').trim().slice(0, 40);
+  if (n.length < 2) throw new Error('Display name must be at least 2 characters.'); if (n.includes('@')) throw new Error('Display name can’t be an email address.');
+  u.name = n; await db.put('users', u.id, u); cityCache = null; r.json({ user: auth.publicUser(u) });
+}));
 app.get('/activity', wrap(async (q: any, r: any) => r.json((await db.list('ledger', Math.min(100, Number(q.query.limit) || 40))).map((x) => x.data))));
 app.get('/ledger', wrap(async (_q: any, r: any) => r.json(await ledgerView())));
 app.post('/jailbreak', wrap(async (q: any, r: any) => { const u = await me(q); takeAction('jailbreak', u ? 'u:' + u.id : 'ip:' + q.ip, isDemo(u) ? 'demo' : u ? 'user' : 'anon'); r.json(await jailbreak(q.body.message)); }));
@@ -193,4 +224,4 @@ async function repriceShops() {
     if (changed) { await db.put('shops', sid, s); console.log('repriced', sid); }
   }
 }
-db.init().then(repriceShops).then(() => auth.ensureDemo().catch((e) => console.error('demo', e.message))).then(() => app.listen(port, () => console.log(`HollowCo API on :${port} db=${db.dbMode} ai=${aiMode()} supplier=${printfulMode()}`)));
+db.init().then(repriceShops).then(() => auth.ensureDemo().catch((e) => console.error('demo', e.message))).then(() => backfillPlots().catch((e) => console.error('plots', e.message))).then(() => app.listen(port, () => console.log(`HollowCo API on :${port} db=${db.dbMode} ai=${aiMode()} supplier=${printfulMode()}`)));

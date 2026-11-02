@@ -6,13 +6,13 @@ export const COOKIE = 'hc_session';
 const TTL = 30 * 24 * 3600_000;
 const hash = (t: string) => crypto.createHash('sha256').update(t).digest('hex');
 const norm = (e: any) => String(e || '').trim().toLowerCase();
-export const publicUser = (u: any) => u && ({ id: u.id, email: u.email, name: u.name, createdAt: u.createdAt });
+export const publicUser = (u: any) => u && ({ id: u.id, email: u.email, name: u.name, displayName: String(u.name && !String(u.name).includes('@') ? u.name : String(u.email).split('@')[0]).slice(0, 40), createdAt: u.createdAt });
 export async function signup(email: any, password: any, name?: any) {
   email = norm(email); password = String(password || '');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) throw new Error('Enter a valid email address.');
   if (password.length < 8 || password.length > 200) throw new Error('Password must be at least 8 characters.');
   if (await db.get('users', 'email:' + email)) throw new Error('An account with that email already exists.');
-  const u = { id: 'u_' + crypto.randomBytes(8).toString('hex'), email, name: String(name || email.split('@')[0]).slice(0, 60), pw: await bcrypt.hash(password, 12), createdAt: new Date().toISOString() };
+  const u = { id: 'u_' + crypto.randomBytes(8).toString('hex'), email, name: String(String(name || '').replace(/[<>@]/g, '').trim() || email.split('@')[0]).slice(0, 40), pw: await bcrypt.hash(password, 12), createdAt: new Date().toISOString() };
   await db.put('users', u.id, u); await db.put('users', 'email:' + email, { ref: u.id });
   return u;
 }

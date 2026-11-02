@@ -1,7 +1,7 @@
 import pg from 'pg';
 import { env } from './env.js';
 export type Row = { id: string; created: string; data: any };
-const TABLES = ['shops', 'orders', 'ledger', 'assets', 'users', 'sessions'] as const;
+const TABLES = ['shops', 'orders', 'ledger', 'assets', 'users', 'sessions', 'plots'] as const;
 type T = (typeof TABLES)[number];
 const url = env('DATABASE_URL');
 const pool = url ? new pg.Pool({ connectionString: url, ssl: url.includes('railway.internal') || url.includes('localhost') ? false : { rejectUnauthorized: false } }) : null;
