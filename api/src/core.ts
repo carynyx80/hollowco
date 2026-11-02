@@ -80,6 +80,7 @@ export async function fulfil(orderId: string) {
   const proposals = await ai.founderProposePayouts({ revenue: payBase, tasks: [...new Map(tasks.map((t) => [t.agent, t])).values()] });
   let paidOrder = 0; o.payouts = [];
   for (let pr of proposals) {
+    pr = { ...pr, amount: Math.round(Number(pr.amount) * 100) / 100 };
     let v = checkPayout(pr, payBase, sim ? 0 : await paidToday(), paidOrder);
     if (!v.ok) {
       await ledger('rejected', { orderId, shopId: o.shopId, shop: shop.name, agent: 'founder', proposal: pr, reasons: v.reasons, sim });
