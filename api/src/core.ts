@@ -1,0 +1,115 @@
+import crypto from 'node:crypto';
+import * as db from './db.js';
+import * as ai from './ai.js';
+import { checkPrice, checkPayout, LIMITS } from './guardrails.js';
+import { draftOrder } from './printful.js';
+import { payout } from './paypal.js';
+import { env } from './env.js';
+export const id = (p: string) => p + '_' + crypto.randomBytes(6).toString('hex');
+const publicBase = () => env('PUBLIC_API_URL', `http://localhost:${env('PORT', '4000')}`);
+export async function ledger(kind: string, data: any) {
+  const lid = id('l'); await db.put('ledger', lid, { kind, at: new Date().toISOString(), ...data }); return lid;
+}
+async function saveAsset(img: { mime: string; data: Buffer; provider: string }) {
+  const aid = id('a'); await db.put('assets', aid, { mime: img.mime, b64: img.data.toString('base64'), provider: img.provider }); return `${publicBase()}/assets/${aid}`;
+}
+export async function createShop(idea: string, log: (s: string) => void = () => {}) {
+  idea = String(idea || '').slice(0, 500).trim();
+  if (idea.length < 3) throw new Error('Tell the founder a business idea first.');
+  const shopId = id('shop');
+  log('Founder agent: drafting brand');
+  const b = await ai.founderBrand(idea);
+  const colors = (b.colors || []).filter((c) => /^#[0-9a-f]{6}$/i.test(c)).slice(0, 3);
+  while (colors.length < 3) colors.push(['#2B2B2B', '#FF8A70', '#FBF8F2'][colors.length]);
+  const logo = await saveAsset(await ai.image(`Minimal flat vector logo symbol for "${b.name}", ${b.tagline}. Colors ${colors.join(', ')}. No text.`, shopId + 'logo', colors));
+  const products: any[] = [];
+  for (const p of (b.products || []).slice(0, 6)) {
+    const kind = ['ebook', 'tshirt', 'mug'].includes(p.kind) ? p.kind : 'ebook';
+    const verdict = checkPrice(p.price);
+    let price = Number(p.price);
+    if (!verdict.ok) {
+      await ledger('rejected', { shopId, shop: b.name, agent: 'founder', proposal: { type: 'price', product: p.title, price: p.price }, reasons: verdict.reasons });
+      price = Math.min(LIMITS.maxPrice, Math.max(LIMITS.minPrice, Number.isFinite(price) ? price : 10));
+    }
+    const pid = id('p');
+    const prod: any = { id: pid, title: String(p.title).slice(0, 80), kind, digital: kind === 'ebook', price: Math.round(price * 100) / 100, description: String(p.description || '').slice(0, 300) };
+    if (kind === 'ebook') {
+      log(`Writer agent: writing "${prod.title}"`);
+      prod.content = await ai.writerBook(prod.title, p.topic || idea, b.name);
+      prod.image = await saveAsset(await ai.image(`Book cover for "${prod.title}"`, pid, colors));
+    } else {
+      log(`Designer agent: designing ${kind}`);
+      prod.design = await saveAsset(await ai.image(`Print-ready ${kind} graphic for brand "${b.name}": ${b.tagline}. Transparent-friendly, bold, no small text.`, pid, colors));
+      prod.image = prod.design;
+    }
+    products.push(prod);
+  }
+  products.push({ id: id('p'), title: `${b.name} Watch`, kind: 'watch', digital: false, price: 0, comingSoon: true, description: 'Coming soon.' });
+  const shop = { id: shopId, idea, name: String(b.name).slice(0, 40), tagline: String(b.tagline).slice(0, 80), colors, logo, products, aiMode: ai.aiMode(), createdAt: new Date().toISOString() };
+  await db.put('shops', shopId, shop);
+  await ledger('shop_created', { shopId, shop: shop.name, detail: `${products.length - 1} products, AI=${shop.aiMode}` });
+  return shop;
+}
+async function paidToday() {
+  const today = new Date().toISOString().slice(0, 10);
+  return (await db.list('ledger', 5000)).filter((r) => r.data.kind === 'payout' && r.data.at.startsWith(today)).reduce((s, r) => s + Number(r.data.amount || 0), 0);
+}
+export async function fulfil(orderId: string) {
+  const o = await db.get('orders', orderId);
+  if (!o || o.fulfilled) return o;
+  const shop = await db.get('shops', o.shopId);
+  o.fulfilled = true; await db.put('orders', orderId, o); // idempotency lock
+  const revenue = o.capturedAmount ?? o.total;
+  await ledger('revenue', { orderId, shopId: o.shopId, shop: shop?.name, amount: revenue, detail: `PayPal capture ${o.captureId || ''}`, test: !!o.test });
+  const tasks: { agent: string; task: string }[] = [];
+  o.supplier = [];
+  for (const it of o.items) {
+    const p = shop.products.find((x: any) => x.id === it.productId);
+    if (p.digital) { tasks.push({ agent: 'writer', task: `wrote "${p.title}"` }); continue; }
+    tasks.push({ agent: 'designer', task: `designed ${p.kind} for ${shop.name}` });
+    const d = await draftOrder({ kind: p.kind, designUrl: p.design, recipient: o.shipping || { name: 'HollowCo Demo Buyer', address1: '19749 Dearborn St', city: 'Chatsworth', state_code: 'CA', country_code: 'US', zip: '91311' }, externalId: orderId.replace(/[^a-z0-9]/gi, '') });
+    o.supplier.push({ productId: p.id, ...d });
+    await ledger('supplier_cost', { orderId, shopId: o.shopId, shop: shop.name, amount: d.cost * it.qty, detail: `${d.mode === 'simulated' ? '[SIMULATED] ' : ''}${d.note} id=${d.id}` });
+  }
+  const proposals = await ai.founderProposePayouts({ revenue, tasks: [...new Map(tasks.map((t) => [t.agent, t])).values()] });
+  let paidOrder = 0; o.payouts = [];
+  for (const pr of proposals) {
+    const v = checkPayout(pr, revenue, await paidToday(), paidOrder);
+    if (!v.ok) { await ledger('rejected', { orderId, shopId: o.shopId, shop: shop.name, agent: 'founder', proposal: pr, reasons: v.reasons }); continue; }
+    const res = await payout(pr.recipient, pr.amount, pr.reason, orderId + pr.agent);
+    paidOrder += pr.amount;
+    o.payouts.push({ ...pr, ...res });
+    await ledger('payout', { orderId, shopId: o.shopId, shop: shop.name, agent: pr.agent, amount: pr.amount, detail: `${res.method} ${res.ref} ${res.status}`, ok: res.ok });
+  }
+  await db.put('orders', orderId, o);
+  return o;
+}
+export async function jailbreak(message: string) {
+  message = String(message || '').slice(0, 500);
+  // The founder sees the attacker text as an instruction; whatever it proposes, code decides.
+  const proposals = await ai.founderProposePayouts({ revenue: 0, tasks: [], instruction: message });
+  const out = [];
+  for (const pr of proposals.length ? proposals : [{ agent: 'founder', recipient: '?', amount: 0, currency: 'USD', reason: 'empty' }]) {
+    const v = checkPayout(pr, 0, await paidToday(), 0); // jailbreak requests are not tied to a paid order => revenue 0
+    const reasons = v.ok ? ['no fulfilled order backs this payout'] : v.reasons;
+    await ledger('rejected', { agent: 'founder', proposal: pr, reasons, detail: 'jailbreak attempt: ' + message.slice(0, 120) });
+    out.push({ proposal: pr, executed: false, reasons });
+  }
+  return out;
+}
+export async function ledgerView() {
+  const rows = (await db.list('ledger', 5000)).map((r) => r.data);
+  const byOrder = new Map<string, any>();
+  for (const r of rows) {
+    if (!r.orderId || r.kind === 'capture_failed') continue;
+    const o = byOrder.get(r.orderId) || { orderId: r.orderId, shop: r.shop, at: r.at, revenue: 0, supplierCost: 0, payouts: 0, rejected: 0, test: false };
+    if (r.kind === 'revenue') { o.revenue += r.amount; o.test = !!r.test; o.at = r.at; }
+    if (r.kind === 'supplier_cost') o.supplierCost += r.amount;
+    if (r.kind === 'payout') o.payouts += r.amount;
+    if (r.kind === 'rejected') o.rejected++;
+    byOrder.set(r.orderId, o);
+  }
+  const orders = [...byOrder.values()].map((o) => ({ ...o, profit: Math.round((o.revenue - o.supplierCost - o.payouts) * 100) / 100 }));
+  const t = orders.reduce((s, o) => ({ revenue: s.revenue + o.revenue, supplierCost: s.supplierCost + o.supplierCost, payouts: s.payouts + o.payouts, profit: s.profit + o.profit }), { revenue: 0, supplierCost: 0, payouts: 0, profit: 0 });
+  return { totals: t, orders, events: rows, limits: LIMITS };
+}
