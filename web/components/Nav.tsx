@@ -9,7 +9,7 @@ import { api } from '@/lib/api';
 export function Nav() {
   const { user, loading, setUser } = useAuth(); const path = usePathname(); const router = useRouter(); const toast = useToast();
   const [open, setOpen] = useState(false);
-  const links = [['/marketplace', 'Marketplace'], ['/ledger', 'Public ledger'], ...(user ? [['/dashboard', 'Dashboard']] : [])];
+  const links = [['/marketplace', 'Marketplace'], ['/office', 'Office'], ['/ledger', 'Public ledger'], ...(user ? [['/dashboard', 'Dashboard']] : [])];
   async function out() { await api('/auth/signout', { method: 'POST' }).catch(() => {}); setUser(null); toast('Signed out', 'ok'); router.push('/'); router.refresh(); }
   return (
     <header className="sticky top-0 z-40 border-b border-white/[.06] bg-cream/60 backdrop-blur-xl">

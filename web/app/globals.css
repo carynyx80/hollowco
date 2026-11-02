@@ -42,3 +42,19 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 .toast-in { animation: toast-in .2s ease-out; }
 @keyframes dash { to { stroke-dashoffset: -24 } }
 .flow-line { stroke-dasharray: 3 9; animation: dash 1.4s linear infinite; }
+/* Hollow Office */
+@keyframes ho-bob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-2.5px) } }
+@keyframes ho-type { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-3px) } }
+@keyframes ho-steam { 0% { opacity: 0; transform: translateY(0) } 40% { opacity: .7 } 100% { opacity: 0; transform: translateY(-14px) } }
+@keyframes ho-blink { 0%,92%,100% { transform: scaleY(1) } 95% { transform: scaleY(.1) } }
+@keyframes ho-alarm { 0%,100% { opacity: 0 } 50% { opacity: .55 } }
+@keyframes ho-glow { 0%,100% { opacity: .5 } 50% { opacity: 1 } }
+@keyframes ho-scroll { from { transform: translateY(0) } to { transform: translateY(-50%) } }
+.ho-bob { animation: ho-bob 2.6s ease-in-out infinite; transform-box: fill-box; }
+.ho-type { animation: ho-type .28s ease-in-out infinite; transform-box: fill-box; }
+.ho-type2 { animation: ho-type .28s ease-in-out .14s infinite; transform-box: fill-box; }
+.ho-steam { animation: ho-steam 2.4s ease-out infinite; transform-box: fill-box; }
+.ho-blink { animation: ho-blink 4s infinite; transform-box: fill-box; transform-origin: center; }
+.ho-alarm { animation: ho-alarm .7s ease-in-out infinite; }
+.ho-glow { animation: ho-glow 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .ho-bob, .ho-type, .ho-type2, .ho-steam, .ho-blink, .ho-alarm, .ho-glow, .dot-ping, .flow-line { animation: none !important; } .ho-alarm { opacity: .35; } }

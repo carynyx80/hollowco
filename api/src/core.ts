@@ -95,7 +95,7 @@ export async function fulfil(orderId: string) {
     const res = sim ? { ok: true, method: 'simulated', ref: 'SIM-' + orderId.slice(2) + '-' + pr.agent, status: 'SIMULATED' } : await payout(pr.recipient, pr.amount, pr.reason, orderId + pr.agent);
     paidOrder += pr.amount;
     o.payouts.push({ ...pr, ...res });
-    await ledger('payout', { orderId, shopId: o.shopId, shop: shop.name, agent: pr.agent, amount: pr.amount, detail: `${sim ? '[SIMULATED] ' : ''}${res.method} ${res.ref} ${res.status}`, ok: res.ok, sim });
+    await ledger('payout', { orderId, shopId: o.shopId, shop: shop.name, agent: pr.agent, amount: pr.amount, reason: String(pr.reason || '').slice(0, 200), detail: `${sim ? '[SIMULATED] ' : ''}${res.method} ${res.ref} ${res.status}`, ok: res.ok, sim });
   }
   await db.put('orders', orderId, o);
   return o;

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { Ring } from '@/components/Logo';
 import { Composer } from '@/components/Composer';
-import { CompanyFloor } from '@/components/CompanyFloor';
+import { HollowOffice } from '@/components/HollowOffice';
 import { useToast } from '@/components/Toast';
 import { api, usd } from '@/lib/api';
 const ago = (s: string) => { const m = Math.round((Date.now() - new Date(s).getTime()) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`; };
@@ -29,14 +29,21 @@ export default function Dashboard() {
   const [sim, setSim] = useState(false);
   const [quota, setQuota] = useState<any>(null);
   useEffect(() => { api('/limits').then((l) => setQuota(l.mine)).catch(() => {}); }, [d]);
-  async function simulate() { setSim(true); try { const o = await api('/simulate/order', { method: 'POST', body: '{}' }); toast(`Simulated customer bought “${o.items[0].name}” — watch the floor`, 'ok'); await load(); } catch (e: any) { toast(e.message, 'err'); } finally { setSim(false); } }
+  const [jail, setJail] = useState<any[]>([]);
+  const loadJail = useCallback(() => api('/activity?limit=40').then((a: any[]) => setJail(a.filter((e) => e.kind === 'rejected' && !e.orderId))).catch(() => {}), []);
+  useEffect(() => { loadJail(); const t = setInterval(loadJail, 5000); return () => clearInterval(t); }, [loadJail]);
+  const officeEvents = d?.events ? [...d.events, ...jail] : undefined;
+  async function jailbreak(message: string) { try { await api('/jailbreak', { method: 'POST', body: JSON.stringify({ message }) }); await loadJail(); } catch (e: any) { toast(e.message, 'err'); } }
+  async function simulate() { setSim(true); try { const o = await api('/simulate/order', { method: 'POST', body: '{}' }); toast(`Simulated customer bought “${o.items[0].name}” — watch the office`, 'ok'); await load(); } catch (e: any) { toast(e.message, 'err'); } finally { setSim(false); } }
   const t = d?.totals; const name = d?.user?.name;
   const status = job ? 'working' : 'idle';
-  return <div className="mx-auto max-w-6xl px-5 py-10 space-y-8">
+  return <div className="mx-auto max-w-7xl px-5 py-10 space-y-8">
     <div className="flex flex-col md:flex-row md:items-end gap-2 justify-between">
       <div><p className="eyebrow">Dashboard</p><h1 className="font-display text-4xl md:text-5xl mt-1">{d ? <>Hi {name}, <span className="italic text-iris">let’s build.</span></> : <span className="skeleton inline-block h-8 w-48" />}</h1></div>
       <Link href="/marketplace" className="text-sm text-char/60 hover:text-char">See your products in the marketplace →</Link>
     </div>
+    <HollowOffice events={officeEvents} shopId={d?.shops?.[0]?.id} totals={t} jobLog={job?.log} pending={sim} onSimulate={simulate} simBusy={sim} onJailbreak={jailbreak} title="The Hollow Office" scope="your HQ · live" />
+    <p className="text-xs text-char/45 -mt-5">Public view for sharing: <Link className="underline" href={d?.shops?.[0]?.id ? `/office/${d.shops[0].id}` : '/office'}>{d?.shops?.[0]?.id ? `/office/${d.shops[0].id}` : '/office'}</Link></p>
     <section className="grid lg:grid-cols-[1fr_1.35fr] gap-5 items-stretch">
       <div className="glow-card p-6 flex flex-col gap-5" data-testid="founder">
         <div className="flex items-center gap-4"><Ring size={60} pulse /><div><p className="text-lg font-medium">Your AI founder</p>
@@ -58,7 +65,7 @@ export default function Dashboard() {
         {!job && <div className="mt-auto pt-6 grid grid-cols-3 gap-3 text-xs text-char/50">{[['01', 'Brand + logo'], ['02', 'E-books & merch'], ['03', 'PayPal shop live']].map(([n, l]) => <div key={n} className="rounded-xl border border-white/[.06] px-3 py-2.5"><span className="font-mono text-coral-600">{n}</span><p className="mt-1 text-char/70">{l}</p></div>)}</div>}
       </div>
     </section>
-    <CompanyFloor events={d?.events} jobLog={job?.log} onSimulate={simulate} simBusy={sim} title="Company floor · your agents" />
+    
     <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {[['Revenue', t?.revenue], ['Supplier cost', t?.supplierCost], ['Agent payouts', t?.payouts], ['Profit', t?.profit]].map(([k, v]) => <div key={k as string} className="card p-5"><p className="text-xs text-char/55">{k}</p>{d ? <p className={`text-2xl font-semibold tabular-nums mt-1 ${k === 'Profit' && (v as number) < 0 ? 'text-red-400' : ''}`}>{usd(v as number)}</p> : <div className="skeleton h-7 w-24 mt-2" />}</div>)}
     </section>
