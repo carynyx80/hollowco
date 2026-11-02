@@ -4,7 +4,7 @@ import { loadScript } from '@paypal/paypal-js';
 import { api, usd } from '@/lib/api';
 type St = { kind: 'idle' } | { kind: 'processing' } | { kind: 'cancelled' } | { kind: 'declined'; msg: string } | { kind: 'error'; msg: string };
 export function PayButton({ shopId, productId, onDone, onError }: { shopId: string; productId: string; onDone: (o: any, recover?: { orderId: string; ppId: string }) => void; onError?: (m: string) => void }) {
-  const ref = useRef<HTMLDivElement>(null); const ours = useRef<string>('');
+  const ref = useRef<HTMLDivElement>(null); const ours = useRef<string>(''); const cb = useRef({ onDone, onError }); cb.current = { onDone, onError };
   const [ready, setReady] = useState(false); const [st, setSt] = useState<St>({ kind: 'idle' }); const [nonce, setNonce] = useState(0);
   useEffect(() => {
     let cancelled = false;
@@ -18,20 +18,20 @@ export function PayButton({ shopId, productId, onDone, onError }: { shopId: stri
         createOrder: async () => { setSt({ kind: 'idle' }); const o = await api('/orders', { method: 'POST', body: JSON.stringify({ shopId, items: [{ productId, qty: 1 }] }) }); ours.current = o.orderId; return o.paypalOrderId; },
         onApprove: async (d: any, actions: any) => {
           setSt({ kind: 'processing' });
-          try { onDone(await api(`/orders/${d.orderID}/capture`, { method: 'POST' })); }
+          try { cb.current.onDone(await api(`/orders/${d.orderID}/capture`, { method: 'POST' })); }
           catch (e: any) {
             if (e.status === 422 && /DECLINED/.test(e.message + (e.issue || ''))) { setSt({ kind: 'declined', msg: e.message }); return actions.restart(); }
-            if (e.status === 422) { setSt({ kind: 'error', msg: e.message }); onError?.(e.message); return; }
-            onDone(null, { orderId: ours.current, ppId: d.orderID }); // network hiccup: let the receipt page recover from PayPal's state
+            if (e.status === 422) { setSt({ kind: 'error', msg: e.message }); cb.current.onError?.(e.message); return; }
+            cb.current.onDone(null, { orderId: ours.current, ppId: d.orderID }); // network hiccup: let the receipt page recover from PayPal's state
           }
         },
         onCancel: () => setSt({ kind: 'cancelled' }),
-        onError: (e: any) => { const m = String(e?.message || e); setSt({ kind: 'error', msg: m }); onError?.(m); },
+        onError: (e: any) => { const m = String(e?.message || e); if (cancelled) return; setSt({ kind: 'error', msg: m }); cb.current.onError?.(m); },
       }).render(ref.current);
       setReady(true);
-    })().catch((e) => setSt({ kind: 'error', msg: e.message }));
+    })().catch((e) => { if (!cancelled) setSt({ kind: 'error', msg: e.message }); });
     return () => { cancelled = true; };
-  }, [shopId, productId, onDone, onError, nonce]);
+  }, [shopId, productId, nonce]);
   return <div>
     {st.kind === 'processing' && <div className="mb-3 rounded-xl border border-coral/30 bg-coral/10 px-4 py-3 text-sm flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-full border-2 border-coral border-t-transparent ring-spin" />Capturing payment and briefing your agents…</div>}
     {st.kind === 'cancelled' && <div className="mb-3 rounded-xl border border-white/10 bg-white/[.04] px-4 py-3 text-sm text-char/70">Checkout cancelled — nothing was charged. You can try again below.</div>}
