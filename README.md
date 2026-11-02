@@ -41,12 +41,31 @@ cd ../web && npm i && NEXT_PUBLIC_API_URL=http://localhost:4000 npm run dev
 
 API env on Railway: `PAYPAL_*`, `DATABASE_URL`, `PUBLIC_API_URL`, `CORS_ORIGINS`, optional AI / Printful keys. Web env on Vercel: `NEXT_PUBLIC_API_URL`.
 
-## Sandbox test buyer
+## For judges
 
-- Email: `sb-vkeld53675758@personal.example.com`
-- Password: get it from the PayPal Developer Dashboard → Testing Tools → Sandbox Accounts (not published here).
+> **Sandbox / test money only.** Everything below uses the PayPal **sandbox**; no real money moves. These are throwaway, test-only credentials, published so judges can test the project.
 
-The same sandbox account receives the agent payouts.
+1. Open the hosted demo: **https://hollowco.vercel.app** (API health: https://api-production-692d8.up.railway.app/health)
+2. Optional, to create your own AI shop: sign in at https://hollowco.vercel.app/signin with the demo-only app account
+   - Email: `demo@hollowco.app`
+   - Password: `ItpZaPUr0ApxZDIc`
+3. Buy something from https://hollowco.vercel.app/marketplace and click **Pay with PayPal** (not the card button). Log in with the PayPal **sandbox** buyer:
+   - Email: `sb-vkeld53675758@personal.example.com`
+   - Password: `Hollowco2026`
+   - Or use your own PayPal sandbox *personal* account from developer.paypal.com.
+4. After capture you land on the receipt. E-books download as PDF. Shirts and mugs create a **Printful draft order** (never confirmed, nothing is printed or shipped). The AI accountant pays the staff agents via **PayPal Payouts**, checked by code guardrails. Everything shows on https://hollowco.vercel.app/ledger (AG Grid).
+
+Note: guest **card** checkout is unreliable in the PayPal sandbox (it often answers "We weren't able to add this card"), so please use **Pay with PayPal**.
+
+## Sandbox accounts
+
+- Buyer (customer): `sb-vkeld53675758@personal.example.com`. Buyer only, never a payee.
+- Staff payee (writer/designer agents receive Payouts here): `sb-7ygua53685681@personal.example.com`, the only allowlisted recipient in `api/src/guardrails.ts`.
+
+## Pricing and fulfilment
+
+- E-books $7.99 to $17; tees from **$29**, mugs from **$22**. Physical price floors are enforced in code so the margin after Printful cost (about $18.61 per tee) leaves room for payouts. Payouts are based on margin, capped at 30%, and rounded to cents.
+- Physical items create Printful **draft** orders only (`confirm=false`). They are never confirmed.
 
 ## Modes
 
