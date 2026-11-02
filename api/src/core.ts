@@ -77,9 +77,18 @@ export async function fulfil(orderId: string) {
   }
   const proposals = await ai.founderProposePayouts({ revenue, tasks: [...new Map(tasks.map((t) => [t.agent, t])).values()] });
   let paidOrder = 0; o.payouts = [];
-  for (const pr of proposals) {
-    const v = checkPayout(pr, revenue, sim ? 0 : await paidToday(), paidOrder);
-    if (!v.ok) { await ledger('rejected', { orderId, shopId: o.shopId, shop: shop.name, agent: 'founder', proposal: pr, reasons: v.reasons, sim }); continue; }
+  for (let pr of proposals) {
+    let v = checkPayout(pr, revenue, sim ? 0 : await paidToday(), paidOrder);
+    if (!v.ok) {
+      await ledger('rejected', { orderId, shopId: o.shopId, shop: shop.name, agent: 'founder', proposal: pr, reasons: v.reasons, sim });
+      // Accountant counter-offer: only when the sole problem is the size of the amount, clamp to the remaining headroom and re-check.
+      const sizeOnly = v.reasons.every((r: string) => /exceed|per task|max/i.test(r) && !/recipient|currenc|daily/i.test(r));
+      const room = Math.floor(Math.min(LIMITS.maxPayoutPerTask, revenue * LIMITS.maxPayoutPctOfRevenue - paidOrder) * 100) / 100;
+      if (!sizeOnly || room < 0.01) continue;
+      pr = { ...pr, amount: room, reason: `${pr.reason} (clamped by accountant to cap)` };
+      v = checkPayout(pr, revenue, sim ? 0 : await paidToday(), paidOrder);
+      if (!v.ok) continue;
+    }
     const res = sim ? { ok: true, method: 'simulated', ref: 'SIM-' + orderId.slice(2) + '-' + pr.agent, status: 'SIMULATED' } : await payout(pr.recipient, pr.amount, pr.reason, orderId + pr.agent);
     paidOrder += pr.amount;
     o.payouts.push({ ...pr, ...res });
