@@ -4,7 +4,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { AllCommunityModule, ModuleRegistry, themeQuartz } from 'ag-grid-community';
 import { api } from '@/lib/api';
 ModuleRegistry.registerModules([AllCommunityModule]);
-const theme = themeQuartz.withParams({ accentColor: '#FF8A70', foregroundColor: '#2B2B2B', backgroundColor: '#FFFFFF', headerBackgroundColor: '#FBF8F2' });
+const theme = themeQuartz.withParams({ accentColor: '#FF8A70', foregroundColor: '#2B2B2B', backgroundColor: '#FFFFFF', headerBackgroundColor: '#F2EDE3', headerTextColor: '#2B2B2B', borderColor: '#E7E1D6', rowHoverColor: '#FF8A7014', oddRowBackgroundColor: '#FDFBF7', fontFamily: 'var(--font-geist), sans-serif', headerFontWeight: 600, fontSize: 13, wrapperBorderRadius: 16, borderRadius: 8, spacing: 7, selectedRowBackgroundColor: '#FF8A7022' });
 const usd = (p: any) => (p.value == null ? '' : `$${Number(p.value).toFixed(2)}`);
 export default function Ledger() {
   const [d, setD] = useState<any>(null);
@@ -15,11 +15,11 @@ export default function Ledger() {
   async function attack() { setJb(await api('/jailbreak', { method: 'POST', body: JSON.stringify({ message: msg }) })); load(); }
   const t = d?.totals;
   return (
-    <div className="space-y-8">
-      <div><h1 className="text-3xl font-bold">Live public P&amp;L</h1><p className="text-char/60">Every cent in and out of every HollowCo company. Refreshes every 5s.</p></div>
+    <div className="mx-auto max-w-6xl px-5 py-10 space-y-8">
+      <div><p className="eyebrow">Transparency</p><h1 className="text-4xl font-semibold tracking-tight mt-1">Live public P&amp;L</h1><p className="text-char/55 mt-2">Every cent in and out of every HollowCo company. Refreshes every 5s.</p></div>
       {t && <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[['Revenue', t.revenue], ['Supplier cost', t.supplierCost], ['Agent payouts', t.payouts], ['Profit', t.profit]].map(([k, v]) =>
-          <div key={k as string} className="bg-white rounded-xl p-4 border border-char/10"><div className="text-xs text-char/60">{k}</div><div className="text-2xl font-bold">${Number(v).toFixed(2)}</div></div>)}
+          <div key={k as string} className="card p-5"><div className="text-xs text-char/55">{k}</div><div className="text-2xl font-semibold tabular-nums mt-1">${Number(v).toFixed(2)}</div></div>)}
       </div>}
       <section><h2 className="font-semibold mb-2">Profit per order</h2>
         <div style={{ height: 320 }}><AgGridReact theme={theme} rowData={d?.orders || []} columnDefs={[
@@ -27,12 +27,12 @@ export default function Ledger() {
           { field: 'revenue', valueFormatter: usd, width: 120 }, { field: 'supplierCost', valueFormatter: usd, width: 130 }, { field: 'payouts', headerName: 'Agent payouts', valueFormatter: usd, width: 140 },
           { field: 'profit', valueFormatter: usd, width: 120, cellStyle: (p: any) => ({ fontWeight: 700, color: p.value >= 0 ? '#0F7B3F' : '#C0392B' }) },
           { field: 'rejected', headerName: 'Rejected', width: 110 }, { field: 'test', headerName: 'Test', width: 90 }]} /></div></section>
-      <section className="bg-white rounded-2xl border-2 border-coral p-5">
-        <h2 className="font-semibold">Try to jailbreak the founder 🔓</h2>
-        <p className="text-sm text-char/60">The AI may propose anything. Code enforces: max ${d?.limits?.maxPayoutPerTask}/task, ≤{(d?.limits?.maxPayoutPctOfRevenue ?? 0) * 100}% of order revenue, ${d?.limits?.dailyPayoutCap}/day cap, allowlisted recipients only, prices ${d?.limits?.minPrice}–${d?.limits?.maxPrice}.</p>
-        <div className="flex gap-3 mt-3"><input value={msg} onChange={(e) => setMsg(e.target.value)} className="flex-1 rounded-xl border border-char/20 p-3" />
-          <button onClick={attack} className="rounded-full px-5 bg-char text-cream">Send to founder</button></div>
-        {jb?.map((r: any, i: number) => <div key={i} className="mt-3 text-sm rounded-xl bg-red-50 p-3"><b>REJECTED ✋</b> Founder proposed ${r.proposal.amount} → {r.proposal.recipient}. Blocked by code: {r.reasons.join('; ')}.</div>)}
+      <section className="card p-6 bg-char text-cream border-char">
+        <h2 className="font-semibold text-lg">Try to jailbreak the founder 🔓</h2>
+        <p className="text-sm text-cream/60 mt-1">The AI may propose anything. Code enforces: max ${d?.limits?.maxPayoutPerTask}/task, ≤{(d?.limits?.maxPayoutPctOfRevenue ?? 0) * 100}% of order revenue, ${d?.limits?.dailyPayoutCap}/day cap, allowlisted recipients only, prices ${d?.limits?.minPrice}–${d?.limits?.maxPrice}.</p>
+        <div className="flex flex-col sm:flex-row gap-3 mt-4"><input value={msg} onChange={(e) => setMsg(e.target.value)} className="input flex-1 !bg-white/5 !border-white/15 text-cream" />
+          <button onClick={attack} className="btn-coral shrink-0">Send to founder</button></div>
+        {jb?.map((r: any, i: number) => <div key={i} className="mt-3 text-sm rounded-xl bg-red-500/15 text-red-200 p-3"><b>REJECTED ✋</b> Founder proposed ${r.proposal.amount} → {r.proposal.recipient}. Blocked by code: {r.reasons.join('; ')}.</div>)}
       </section>
       <section><h2 className="font-semibold mb-2">Event log (incl. rejected proposals)</h2>
         <div style={{ height: 420 }}><AgGridReact theme={theme} rowData={d?.events || []} columnDefs={[

@@ -1,7 +1,7 @@
 import pg from 'pg';
 import { env } from './env.js';
 export type Row = { id: string; created: string; data: any };
-const TABLES = ['shops', 'orders', 'ledger', 'assets'] as const;
+const TABLES = ['shops', 'orders', 'ledger', 'assets', 'users', 'sessions'] as const;
 type T = (typeof TABLES)[number];
 const url = env('DATABASE_URL');
 const pool = url ? new pg.Pool({ connectionString: url, ssl: url.includes('railway.internal') || url.includes('localhost') ? false : { rejectUnauthorized: false } }) : null;
@@ -24,4 +24,8 @@ export async function list(t: T, limit = 500): Promise<Row[]> {
   if (!pool) return [...mem[t].values()].sort((a, b) => b.created.localeCompare(a.created)).slice(0, limit);
   const r = await pool.query(`select id, created, data from ${t} order by created desc limit $1`, [limit]);
   return r.rows.map((x) => ({ ...x, created: new Date(x.created).toISOString() }));
+}
+export async function del(t: T, id: string) {
+  if (!pool) { mem[t].delete(id); return; }
+  await pool.query(`delete from ${t} where id=$1`, [id]);
 }

@@ -1,6 +1,8 @@
 import './env.js';
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import * as auth from './auth.js';
 import PDFDocument from 'pdfkit';
 import * as db from './db.js';
 import { env } from './env.js';
@@ -12,22 +14,62 @@ import { LIMITS } from './guardrails.js';
 
 const app = express();
 const origins = env('CORS_ORIGINS', '*').split(',').map((s) => s.trim());
-app.use(cors({ origin: origins.includes('*') ? true : origins }));
+app.set('trust proxy', 1);
+app.use(cors({ origin: origins.includes('*') ? true : origins, credentials: true }));
+app.use(cookieParser());
 app.use(express.json({ limit: '200kb' }));
-const wrap = (f: any) => (req: any, res: any) => Promise.resolve(f(req, res)).catch((e: any) => { console.error(e?.message); res.status(400).json({ error: e?.message || 'error' }); });
+const wrap = (f: any) => (req: any, res: any) => Promise.resolve(f(req, res)).catch((e: any) => { console.error(e?.message); res.status(e?.status || 400).json({ error: e?.message || 'error' }); });
+const me = async (q: any) => auth.userFromToken(q.cookies?.[auth.COOKIE]);
+const need = async (q: any) => { const u = await me(q); if (!u) { const e: any = new Error('Sign in required'); e.status = 401; throw e; } return u; };
 const pub = (s: any) => s && ({ ...s, products: s.products.map(({ content, ...p }: any) => ({ ...p, preview: content ? content.slice(0, 400) : undefined })) });
 
 app.get('/', (_q, r) => r.json({ name: 'HollowCo API', ok: true }));
 app.get('/health', (_q, r) => r.json({ ok: true, db: db.dbMode, ai: aiMode(), supplier: printfulMode(), paypalEnv: env('PAYPAL_ENV', 'sandbox'), paypalClientId: env('PAYPAL_CLIENT_ID'), limits: LIMITS }));
 app.get('/config', (_q, r) => r.json({ paypalClientId: env('PAYPAL_CLIENT_ID'), ai: aiMode(), supplier: printfulMode() }));
-const jobs = new Map<string, { status: string; log: string[]; shopId?: string; error?: string; started: number }>();
+const jobs = new Map<string, { status: string; log: string[]; shopId?: string; error?: string; started: number; ownerId?: string }>();
+app.post('/auth/signup', wrap(async (q: any, r: any) => { const u = await auth.signup(q.body.email, q.body.password, q.body.name); r.cookie(auth.COOKIE, await auth.newSession(u.id), auth.cookieOpts()); r.json({ user: auth.publicUser(u) }); }));
+app.post('/auth/signin', wrap(async (q: any, r: any) => { const u = await auth.signin(q.body.email, q.body.password); r.cookie(auth.COOKIE, await auth.newSession(u.id), auth.cookieOpts()); r.json({ user: auth.publicUser(u) }); }));
+app.post('/auth/signout', wrap(async (q: any, r: any) => { await auth.endSession(q.cookies?.[auth.COOKIE]); r.clearCookie(auth.COOKIE, { ...auth.cookieOpts(), maxAge: undefined }); r.json({ ok: true }); }));
+app.get('/auth/me', wrap(async (q: any, r: any) => { const u = await me(q); u ? r.json({ user: auth.publicUser(u) }) : r.status(401).json({ error: 'not signed in' }); }));
+app.get('/me/dashboard', wrap(async (q: any, r: any) => {
+  const u = await need(q);
+  const shops = (await db.list('shops', 5000)).map((x) => x.data).filter((s) => s.ownerId === u.id);
+  const ids = new Set(shops.map((s) => s.id));
+  const v = await ledgerView();
+  const events = v.events.filter((e: any) => e.shopId && ids.has(e.shopId)).slice(0, 100);
+  const mine = new Set(v.events.filter((e: any) => e.orderId && ids.has(e.shopId)).map((e: any) => e.orderId));
+  const orders = v.orders.filter((o: any) => mine.has(o.orderId));
+  const totals = orders.reduce((t: any, o: any) => ({ revenue: t.revenue + o.revenue, supplierCost: t.supplierCost + o.supplierCost, payouts: t.payouts + o.payouts, profit: t.profit + o.profit, orders: t.orders + 1 }), { revenue: 0, supplierCost: 0, payouts: 0, profit: 0, orders: 0 });
+  const payouts = events.filter((e: any) => e.kind === 'payout' || (e.kind === 'rejected' && e.orderId));
+  r.json({ user: auth.publicUser(u), shops: shops.map((s) => ({ id: s.id, name: s.name, tagline: s.tagline, logo: s.logo, colors: s.colors, createdAt: s.createdAt, products: s.products.filter((p: any) => !p.comingSoon).length,
+    revenue: orders.filter((o: any) => o.shop === s.name).reduce((a: number, o: any) => a + o.revenue, 0) })), totals, orders, payouts, events, jobs: [...jobs.entries()].filter(([, j]: any) => j.ownerId === u.id && j.status === 'running').map(([id, j]: any) => ({ id, log: j.log })) });
+}));
+const CATS: Record<string, string> = { ebook: 'E-books', tshirt: 'T-shirts', mug: 'Mugs' };
+app.get('/marketplace', wrap(async (q: any, r: any) => {
+  const term = String(q.query.q || '').toLowerCase().slice(0, 100), cat = String(q.query.category || '');
+  const off = Math.max(0, Number(q.query.offset) || 0), lim = Math.min(48, Math.max(1, Number(q.query.limit) || 24));
+  const all: any[] = [];
+  for (const { data: s } of await db.list('shops', 5000)) for (const p of s.products) {
+    if (p.comingSoon || !p.image) continue;
+    if (cat && p.kind !== cat) continue;
+    if (term && !`${p.title} ${p.description} ${s.name}`.toLowerCase().includes(term)) continue;
+    all.push({ id: p.id, shopId: s.id, shopName: s.name, shopLogo: s.logo, accent: s.colors?.[1], title: p.title, price: p.price, kind: p.kind, category: CATS[p.kind] || p.kind, digital: p.digital, image: p.image, description: p.description });
+  }
+  r.json({ items: all.slice(off, off + lim), total: all.length, nextOffset: off + lim < all.length ? off + lim : null, categories: Object.entries(CATS).map(([id, label]) => ({ id, label })) });
+}));
+app.get('/products/:shopId/:pid', wrap(async (q: any, r: any) => {
+  const s = pub(await db.get('shops', q.params.shopId)); const p = s?.products.find((x: any) => x.id === q.params.pid);
+  if (!p) return r.status(404).json({ error: 'not found' });
+  r.json({ product: { ...p, category: CATS[p.kind] || p.kind }, shop: { id: s.id, name: s.name, tagline: s.tagline, logo: s.logo, colors: s.colors, idea: s.idea }, more: s.products.filter((x: any) => x.id !== p.id && !x.comingSoon).slice(0, 4) });
+}));
 app.post('/shops/jobs', wrap(async (q: any, r: any) => {
-  const jid = 'job_' + Math.random().toString(36).slice(2, 12); const j: any = { status: 'running', log: [], started: Date.now() }; jobs.set(jid, j);
-  createShop(q.body.idea, (s) => { j.log.push(s); console.log(s); }).then((s: any) => { j.status = 'done'; j.shopId = s.id; }).catch((e: any) => { j.status = 'error'; j.error = e.message; });
+  const owner = await need(q);
+  const jid = 'job_' + Math.random().toString(36).slice(2, 12); const j: any = { status: 'running', log: [], started: Date.now(), ownerId: owner.id }; jobs.set(jid, j);
+  createShop(q.body.idea, (s) => { j.log.push(s); console.log(s); }, owner.id).then((s: any) => { j.status = 'done'; j.shopId = s.id; }).catch((e: any) => { j.status = 'error'; j.error = e.message; });
   setTimeout(() => jobs.delete(jid), 3600_000); r.json({ id: jid });
 }));
 app.get('/shops/jobs/:id', (q: any, r: any) => { const j = jobs.get(q.params.id); j ? r.json({ ...j, elapsedMs: Date.now() - j.started }) : r.status(404).json({ error: 'not found' }); });
-app.post('/shops', wrap(async (q: any, r: any) => r.json(pub(await createShop(q.body.idea, (s) => console.log(s))))));
+app.post('/shops', wrap(async (q: any, r: any) => { const u = await need(q); r.json(pub(await createShop(q.body.idea, (s) => console.log(s), u.id))); }));
 app.get('/shops', wrap(async (_q: any, r: any) => r.json((await db.list('shops', 50)).map((x) => ({ id: x.id, name: x.data.name, tagline: x.data.tagline, logo: x.data.logo, colors: x.data.colors })))));
 app.get('/shops/:id', wrap(async (q: any, r: any) => { const s = await db.get('shops', q.params.id); s ? r.json(pub(s)) : r.status(404).json({ error: 'not found' }); }));
 app.get('/assets/:id', wrap(async (q: any, r: any) => {
@@ -86,4 +128,4 @@ app.get('/ledger', wrap(async (_q: any, r: any) => r.json(await ledgerView())));
 app.post('/jailbreak', wrap(async (q: any, r: any) => r.json(await jailbreak(q.body.message))));
 
 const port = Number(env('PORT', '4000'));
-db.init().then(() => app.listen(port, () => console.log(`HollowCo API on :${port} db=${db.dbMode} ai=${aiMode()} supplier=${printfulMode()}`)));
+db.init().then(() => auth.ensureDemo().catch((e) => console.error('demo', e.message))).then(() => app.listen(port, () => console.log(`HollowCo API on :${port} db=${db.dbMode} ai=${aiMode()} supplier=${printfulMode()}`)));

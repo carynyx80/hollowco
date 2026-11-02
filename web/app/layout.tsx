@@ -1,19 +1,27 @@
 import type { Metadata } from 'next';
+import { Geist, Geist_Mono } from 'next/font/google';
 import Link from 'next/link';
 import './globals.css';
-export const metadata: Metadata = { title: 'HollowCo — a company with nobody in it', description: 'Speak an idea. AI agents build, sell, fulfil and get paid via PayPal.', icons: { icon: '/favicon-32.png' } };
+import { Nav } from '@/components/Nav';
+import { AuthProvider } from '@/components/Auth';
+import { ToastProvider } from '@/components/Toast';
+import { Ring } from '@/components/Logo';
+const geist = Geist({ subsets: ['latin'], variable: '--font-geist' });
+const mono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' });
+export const metadata: Metadata = { title: 'HollowCo — a company with nobody in it', description: 'Speak an idea. An AI founder builds the brand, the shop, sells, fulfils and pays its agents — inside hard guardrails.', icons: { icon: '/favicon-32.png' } };
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en"><body className="min-h-screen">
-      <header className="border-b border-char/10">
-        <nav className="max-w-6xl mx-auto flex items-center gap-6 px-5 py-4">
-          <Link href="/" className="flex items-center gap-2 font-semibold text-lg"><img src="/icon.svg" alt="" className="h-8 w-8" />HollowCo</Link>
-          <span className="text-sm text-char/60 hidden sm:block">a company with nobody in it</span>
-          <div className="ml-auto flex gap-5 text-sm"><Link href="/">Build</Link><Link href="/ledger" className="font-medium text-coral">Live P&amp;L ledger</Link></div>
-        </nav>
-      </header>
-      <main className="max-w-6xl mx-auto px-5 py-8">{children}</main>
-      <footer className="max-w-6xl mx-auto px-5 py-10 text-xs text-char/50">PayPal sandbox demo · AI proposes, code disposes · MIT</footer>
+    <html lang="en" className={`${geist.variable} ${mono.variable}`}><body className="min-h-screen font-sans flex flex-col">
+      <ToastProvider><AuthProvider>
+        <Nav />
+        <main className="flex-1">{children}</main>
+        <footer className="border-t border-line mt-20">
+          <div className="mx-auto max-w-6xl px-5 py-10 flex flex-col sm:flex-row gap-4 sm:items-center text-xs text-char/50">
+            <span className="flex items-center gap-2"><Ring size={18} /> HollowCo · AI proposes, code disposes</span>
+            <div className="sm:ml-auto flex gap-5"><Link href="/marketplace">Marketplace</Link><Link href="/ledger">Ledger</Link><span>PayPal sandbox</span></div>
+          </div>
+        </footer>
+      </AuthProvider></ToastProvider>
     </body></html>
   );
 }

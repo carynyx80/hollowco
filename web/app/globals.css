@@ -1,3 +1,22 @@
 @import "tailwindcss";
-@theme { --color-char: #2B2B2B; --color-coral: #FF8A70; --color-cream: #FBF8F2; }
-body { background: #FBF8F2; color: #2B2B2B; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+@theme {
+  --color-char: #2B2B2B; --color-ink: #1C1C1C; --color-coral: #FF8A70; --color-coral-600: #F26B4F; --color-cream: #FBF8F2; --color-sand: #F2EDE3; --color-line: #E7E1D6;
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif; --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+html { -webkit-font-smoothing: antialiased; }
+body { background: var(--color-cream); color: var(--color-char); }
+::selection { background: #FF8A7055; }
+@utility card { @apply bg-white rounded-2xl border border-line shadow-[0_1px_2px_rgba(43,43,43,.04),0_8px_24px_-12px_rgba(43,43,43,.08)]; }
+@utility btn { @apply inline-flex items-center justify-center gap-2 rounded-full px-5 h-11 text-sm font-medium transition active:scale-[.98] disabled:opacity-40 disabled:pointer-events-none; }
+@utility btn-primary { @apply btn bg-char text-cream hover:bg-ink; }
+@utility btn-coral { @apply btn bg-coral text-ink hover:bg-coral-600; }
+@utility btn-ghost { @apply btn border border-line bg-white hover:bg-sand; }
+@utility input { @apply w-full rounded-xl border border-line bg-white px-4 h-11 text-sm outline-none transition focus:border-coral focus:ring-4 focus:ring-coral/15; }
+@utility label { @apply text-xs font-medium text-char/70 mb-1.5 block; }
+@utility eyebrow { @apply text-[11px] font-semibold uppercase tracking-[.14em] text-coral-600; }
+@utility skeleton { @apply animate-pulse rounded-xl bg-sand; }
+@utility chip { @apply inline-flex items-center rounded-full border border-line bg-white px-3 h-8 text-xs font-medium transition hover:border-char/30; }
+@keyframes ping-soft { 0% { transform: scale(1); opacity: .7 } 80%,100% { transform: scale(2.6); opacity: 0 } }
+.dot-ping { animation: ping-soft 1.8s cubic-bezier(0,0,.2,1) infinite; transform-origin: center; transform-box: fill-box; }
+@keyframes toast-in { from { transform: translateY(8px); opacity: 0 } to { transform: none; opacity: 1 } }
+.toast-in { animation: toast-in .2s ease-out; }

@@ -13,7 +13,7 @@ export async function ledger(kind: string, data: any) {
 async function saveAsset(img: { mime: string; data: Buffer; provider: string }) {
   const aid = id('a'); await db.put('assets', aid, { mime: img.mime, b64: img.data.toString('base64'), provider: img.provider }); return `${publicBase()}/assets/${aid}`;
 }
-export async function createShop(idea: string, log: (s: string) => void = () => {}) {
+export async function createShop(idea: string, log: (s: string) => void = () => {}, ownerId?: string) {
   idea = String(idea || '').slice(0, 500).trim();
   if (idea.length < 3) throw new Error('Tell the founder a business idea first.');
   const shopId = id('shop');
@@ -49,9 +49,9 @@ export async function createShop(idea: string, log: (s: string) => void = () => 
   log('Designer agent: logo');
   const logo = await logoP;
   products.push({ id: id('p'), title: `${b.name} Watch`, kind: 'watch', digital: false, price: 0, comingSoon: true, description: 'Coming soon.' });
-  const shop = { id: shopId, idea, name: String(b.name).slice(0, 40), tagline: String(b.tagline).slice(0, 80), colors, logo, products, aiMode: ai.aiMode(), createdAt: new Date().toISOString() };
+  const shop = { id: shopId, idea, name: String(b.name).slice(0, 40), tagline: String(b.tagline).slice(0, 80), colors, logo, products, ownerId, aiMode: ai.aiMode(), createdAt: new Date().toISOString() };
   await db.put('shops', shopId, shop);
-  await ledger('shop_created', { shopId, shop: shop.name, detail: `${products.length - 1} products, AI=${shop.aiMode}` });
+  await ledger('shop_created', { shopId, shop: shop.name, agent: 'founder', detail: `${products.length - 1} products, AI=${shop.aiMode}` });
   return shop;
 }
 async function paidToday() {
