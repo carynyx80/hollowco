@@ -1,6 +1,5 @@
 'use client';
 import Link from 'next/link';
-import { playOutro } from './Cinema';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Wordmark } from './Logo';
@@ -10,8 +9,8 @@ import { api } from '@/lib/api';
 export function Nav() {
   const { user, loading, setUser } = useAuth(); const path = usePathname(); const router = useRouter(); const toast = useToast();
   const [open, setOpen] = useState(false);
-  const links = [['/marketplace', 'Marketplace'], ['/office', 'Office'], ['/ledger', 'Public ledger'], ...(user ? [['/dashboard', 'Dashboard']] : [])];
-  async function out() { const req = api('/auth/signout', { method: 'POST' }).catch(() => {}); await Promise.all([req, playOutro()]); setUser(null); router.push('/'); router.refresh(); toast('Signed out', 'ok'); }
+  const links = [['/classic', 'List view'], ['/marketplace', 'Marketplace'], ['/office', 'Office'], ['/ledger', 'Public ledger'], ...(user ? [['/dashboard', 'Dashboard']] : [])];
+  async function out() { const req = api('/auth/signout', { method: 'POST' }).catch(() => {}); await req; setUser(null); router.push('/'); router.refresh(); toast('Signed out', 'ok'); }
   return (
     <header className="sticky top-0 z-40 border-b border-white/[.06] bg-cream/60 backdrop-blur-xl">
       <nav className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-5">
@@ -24,8 +23,8 @@ export function Nav() {
             <span className="text-xs text-char/50 mr-2">{user.email}</span>
             <button onClick={out} className="btn-ghost h-9">Sign out</button>
           </> : <>
-            <Link href="/signin" className="btn h-9 hover:bg-white/[.06]">Sign in</Link>
-            <Link href="/signup" className="btn-primary h-9">Get started</Link>
+            <Link href={path === '/' ? '/?panel=signin' : '/signin'} className="btn h-9 hover:bg-white/[.06]">Sign in</Link>
+            <Link href={path === '/' ? '/?panel=signup' : '/signup'} className="btn-primary h-9">Get started</Link>
           </>}
         </div>
         <button className="ml-auto md:hidden btn-ghost h-9 px-3" onClick={() => setOpen(!open)} aria-label="Menu">☰</button>
