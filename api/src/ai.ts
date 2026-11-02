@@ -9,6 +9,11 @@ function provider(): Prov | null {
   if (env('XAI_API_KEY')) return { name: 'xai', base: 'https://api.x.ai/v1', key: env('XAI_API_KEY'), chat: env('XAI_MODEL', 'grok-3-mini'), image: env('XAI_IMAGE_MODEL', 'grok-2-image') };
   return null;
 }
+// Token/image metering so we can price a shop from real runs.
+const usage = { chatCalls: 0, inTok: 0, outTok: 0, imageCalls: 0, imgInTok: 0, imgOutTok: 0, byModel: {} as Record<string, number> };
+export const usageSnapshot = () => JSON.parse(JSON.stringify(usage));
+function meterChat(model: string, j: any) { usage.chatCalls++; usage.inTok += j?.usage?.prompt_tokens || 0; usage.outTok += j?.usage?.completion_tokens || 0; usage.byModel[model] = (usage.byModel[model] || 0) + 1; }
+function meterImage(model: string, j: any) { usage.imageCalls++; usage.imgInTok += j?.usage?.input_tokens || 0; usage.imgOutTok += j?.usage?.output_tokens || 0; usage.byModel[model] = (usage.byModel[model] || 0) + 1; }
 export const aiMode = () => provider()?.name ?? 'mock';
 async function chatJSON(system: string, user: string): Promise<any> {
   const p = provider()!;
@@ -16,6 +21,7 @@ async function chatJSON(system: string, user: string): Promise<any> {
     body: JSON.stringify({ model: p.chat, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: system + '\nReply with JSON only.' }, { role: 'user', content: user }] }) });
   const j: any = await r.json();
   if (!r.ok) throw new Error('LLM error ' + r.status);
+  meterChat(p.chat, j);
   return JSON.parse(j.choices[0].message.content.replace(/^```json|```$/g, ''));
 }
 async function chatText(system: string, user: string): Promise<string> {
@@ -24,6 +30,7 @@ async function chatText(system: string, user: string): Promise<string> {
     body: JSON.stringify({ model: p.chat, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }) });
   const j: any = await r.json();
   if (!r.ok) throw new Error('LLM error ' + r.status);
+  meterChat(p.chat, j);
   return j.choices[0].message.content;
 }
 const deadImageModels = new Set<string>();
@@ -37,6 +44,7 @@ export async function image(prompt: string, seed: string, palette: string[]): Pr
       const r = await fetch(p.base + '/images/generations', { method: 'POST', headers: { Authorization: `Bearer ${p.key}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const j: any = await r.json();
       if (!r.ok) { if (/does not exist|not have access|verified/i.test(j?.error?.message || '')) deadImageModels.add(model); console.warn('image model', model, 'failed', r.status, j?.error?.message); continue; }
+      meterImage(model, j);
       const d = j.data?.[0];
       if (d?.b64_json) return { mime: 'image/png', data: Buffer.from(d.b64_json, 'base64'), provider: p.name + ':' + model };
       if (d?.url) { const b = await fetch(d.url); return { mime: b.headers.get('content-type') || 'image/png', data: Buffer.from(await b.arrayBuffer()), provider: p.name + ':' + model }; }

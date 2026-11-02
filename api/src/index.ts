@@ -12,6 +12,8 @@ import { printfulMode } from './printful.js';
 import { createOrder, captureOrder, getOrder } from './paypal.js';
 import { createShop, fulfil, id, jailbreak, ledger, ledgerView, refreshPayouts } from './core.js';
 import { LIMITS } from './guardrails.js';
+import { checkShopQuota, takeAction, isDemo, SHOP_LIMITS } from './limits.js';
+import { usageSnapshot } from './ai.js';
 
 const app = express();
 const origins = env('CORS_ORIGINS', '*').split(',').map((s) => s.trim());
@@ -22,10 +24,16 @@ app.use(express.json({ limit: '200kb' }));
 const wrap = (f: any) => (req: any, res: any) => Promise.resolve(f(req, res)).catch((e: any) => { console.error(e?.message); res.status(e?.status || 400).json({ error: e?.message || 'error' }); });
 const me = async (q: any) => auth.userFromToken(q.cookies?.[auth.COOKIE]);
 const need = async (q: any) => { const u = await me(q); if (!u) { const e: any = new Error('Sign in required'); e.status = 401; throw e; } return u; };
+async function shopQuota(u: any) {
+  const all = (await db.list('shops', 5000)).map((x) => x.data);
+  const t = (s: any) => Date.parse(s.createdAt) || 0;
+  return checkShopQuota(all.filter((s) => s.ownerId === u.id).map(t), all.map(t), isDemo(u));
+}
 const pub = (s: any) => s && ({ ...s, products: s.products.map(({ content, ...p }: any) => ({ ...p, preview: content ? content.slice(0, 400) : undefined })) });
 
 app.get('/', (_q, r) => r.json({ name: 'HollowCo API', ok: true }));
 app.get('/health', (_q, r) => r.json({ ok: true, db: db.dbMode, ai: aiMode(), supplier: printfulMode(), paypalEnv: env('PAYPAL_ENV', 'sandbox'), paypalClientId: env('PAYPAL_CLIENT_ID'), limits: LIMITS }));
+app.get('/limits', wrap(async (q: any, r: any) => { const u = await me(q); let mine: any = null; if (u) { try { mine = await shopQuota(u); } catch (e: any) { mine = { blocked: e.message }; } } r.json({ shops: SHOP_LIMITS(), mine, usage: usageSnapshot() }); }));
 app.get('/config', (_q, r) => r.json({ paypalClientId: env('PAYPAL_CLIENT_ID'), ai: aiMode(), supplier: printfulMode() }));
 const jobs = new Map<string, { status: string; log: string[]; shopId?: string; error?: string; started: number; ownerId?: string }>();
 app.post('/auth/signup', wrap(async (q: any, r: any) => { const u = await auth.signup(q.body.email, q.body.password, q.body.name); r.cookie(auth.COOKIE, await auth.newSession(u.id), auth.cookieOpts()); r.json({ user: auth.publicUser(u) }); }));
@@ -65,12 +73,13 @@ app.get('/products/:shopId/:pid', wrap(async (q: any, r: any) => {
 }));
 app.post('/shops/jobs', wrap(async (q: any, r: any) => {
   const owner = await need(q);
+  await shopQuota(owner);
   const jid = 'job_' + Math.random().toString(36).slice(2, 12); const j: any = { status: 'running', log: [], started: Date.now(), ownerId: owner.id }; jobs.set(jid, j);
   createShop(q.body.idea, (s) => { j.log.push(s); console.log(s); }, owner.id).then((s: any) => { j.status = 'done'; j.shopId = s.id; }).catch((e: any) => { j.status = 'error'; j.error = e.message; });
   setTimeout(() => jobs.delete(jid), 3600_000); r.json({ id: jid });
 }));
 app.get('/shops/jobs/:id', (q: any, r: any) => { const j = jobs.get(q.params.id); j ? r.json({ ...j, elapsedMs: Date.now() - j.started }) : r.status(404).json({ error: 'not found' }); });
-app.post('/shops', wrap(async (q: any, r: any) => { const u = await need(q); r.json(pub(await createShop(q.body.idea, (s) => console.log(s), u.id))); }));
+app.post('/shops', wrap(async (q: any, r: any) => { const u = await need(q); await shopQuota(u); r.json(pub(await createShop(q.body.idea, (s) => console.log(s), u.id))); }));
 app.get('/shops', wrap(async (_q: any, r: any) => r.json((await db.list('shops', 50)).map((x) => ({ id: x.id, name: x.data.name, tagline: x.data.tagline, logo: x.data.logo, colors: x.data.colors })))));
 app.get('/shops/:id', wrap(async (q: any, r: any) => { const s = await db.get('shops', q.params.id); s ? r.json(pub(s)) : r.status(404).json({ error: 'not found' }); }));
 app.get('/assets/:id', wrap(async (q: any, r: any) => {
@@ -140,8 +149,9 @@ app.post('/paypal/webhook', async (q: any, r: any) => {
 let lastSim = 0;
 app.post('/simulate/order', wrap(async (q: any, r: any) => {
   if (Date.now() - lastSim < 4000) { const e: any = new Error('The simulated customer is still shopping — try again in a few seconds.'); e.status = 429; throw e; }
-  lastSim = Date.now();
   const u = await me(q);
+  takeAction('simulate', u ? 'u:' + u.id : 'ip:' + q.ip, isDemo(u) ? 'demo' : u ? 'user' : 'anon');
+  lastSim = Date.now();
   let shops = (await db.list('shops', 5000)).map((x) => x.data).filter((s) => s.products?.some((p: any) => !p.comingSoon));
   if (q.body?.shopId) shops = shops.filter((s) => s.id === q.body.shopId);
   else if (u && shops.some((s) => s.ownerId === u.id)) shops = shops.filter((s) => s.ownerId === u.id);
@@ -173,7 +183,7 @@ app.get('/download/:orderId/:file', wrap(async (q: any, r: any) => {
 }));
 app.get('/activity', wrap(async (q: any, r: any) => r.json((await db.list('ledger', Math.min(100, Number(q.query.limit) || 40))).map((x) => x.data))));
 app.get('/ledger', wrap(async (_q: any, r: any) => r.json(await ledgerView())));
-app.post('/jailbreak', wrap(async (q: any, r: any) => r.json(await jailbreak(q.body.message))));
+app.post('/jailbreak', wrap(async (q: any, r: any) => { const u = await me(q); takeAction('jailbreak', u ? 'u:' + u.id : 'ip:' + q.ip, isDemo(u) ? 'demo' : u ? 'user' : 'anon'); r.json(await jailbreak(q.body.message)); }));
 
 const port = Number(env('PORT', '4000'));
 async function repriceShops() {

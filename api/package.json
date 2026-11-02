@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
-    "test": "tsx src/e2e.ts"
+    "test": "tsx src/limits.test.ts && tsx src/e2e.ts", "test:unit": "tsx src/limits.test.ts"
   },
   "engines": {
     "node": ">=20"

@@ -27,6 +27,8 @@ export default function Dashboard() {
     } catch (e: any) { toast(e.message, 'err'); setJob(null); }
   }
   const [sim, setSim] = useState(false);
+  const [quota, setQuota] = useState<any>(null);
+  useEffect(() => { api('/limits').then((l) => setQuota(l.mine)).catch(() => {}); }, [d]);
   async function simulate() { setSim(true); try { const o = await api('/simulate/order', { method: 'POST', body: '{}' }); toast(`Simulated customer bought “${o.items[0].name}” — watch the floor`, 'ok'); await load(); } catch (e: any) { toast(e.message, 'err'); } finally { setSim(false); } }
   const t = d?.totals; const name = d?.user?.name;
   const status = job ? 'working' : 'idle';
@@ -51,6 +53,7 @@ export default function Dashboard() {
         <p className="font-medium">Instruct your founder</p><p className="text-sm text-char/55 mb-4">Describe a business — by voice or text. It’ll be live in about a minute.</p>
         <Composer onSubmit={build} busy={!!job} />
         {job && <ol className="mt-4 space-y-1.5 text-sm" data-testid="job-log">{job.log.map((l, i) => <li key={i} className={`flex gap-2 ${i === job.log.length - 1 ? 'text-char font-medium' : 'text-char/50'}`}><span>{i === job.log.length - 1 ? <span className="inline-block h-2 w-2 rounded-full bg-coral animate-pulse" /> : '✓'}</span>{l}</li>)}</ol>}
+        {quota && <p data-testid="shop-quota" className="mt-3 text-xs opacity-70">{quota.blocked ? quota.blocked : `${quota.used} of ${quota.limit} shops built in the last 24 hours`}</p>}
         {!job && <div className="mt-4 flex flex-wrap gap-2">{['Sleep guides for new parents', 'Retro synthwave merch for coders', 'Plant care e-books for apartments'].map((s) => <button key={s} onClick={() => build(s)} className="chip">{s}</button>)}</div>}
         {!job && <div className="mt-auto pt-6 grid grid-cols-3 gap-3 text-xs text-char/50">{[['01', 'Brand + logo'], ['02', 'E-books & merch'], ['03', 'PayPal shop live']].map(([n, l]) => <div key={n} className="rounded-xl border border-white/[.06] px-3 py-2.5"><span className="font-mono text-coral-600">{n}</span><p className="mt-1 text-char/70">{l}</p></div>)}</div>}
       </div>
