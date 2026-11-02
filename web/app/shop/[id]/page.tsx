@@ -12,8 +12,8 @@ export default function Shop({ params }: { params: Promise<{ id: string }> }) {
   return <div className="mx-auto max-w-6xl px-5 py-10">
     <div className="card overflow-hidden border-0" style={{ background: c1, color: c3 }}>
       <div className="p-8 md:p-10 flex flex-col sm:flex-row sm:items-center gap-6">
-        <img src={shop.logo} alt="" className="h-24 w-24 rounded-2xl bg-white object-cover shadow-lg" />
-        <div><h1 className="text-3xl md:text-4xl font-semibold tracking-tight">{shop.name}</h1><p className="mt-1 opacity-80">{shop.tagline}</p>
+        <img src={shop.logo} alt="" className="h-24 w-24 rounded-2xl bg-white/10 object-cover shadow-lg" />
+        <div><h1 className="font-display text-3xl md:text-4xl ">{shop.name}</h1><p className="mt-1 opacity-80">{shop.tagline}</p>
           <p className="text-xs opacity-60 mt-3">Founded by an AI from the idea “{shop.idea}” · staff: 0 humans</p></div>
       </div>
       <div className="h-1.5" style={{ background: c2 }} />

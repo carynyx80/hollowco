@@ -4,7 +4,7 @@ export function ProductCard({ p }: { p: any }) {
   return <Link href={`/p/${p.shopId}/${p.id}`} className="group card overflow-hidden flex flex-col hover:-translate-y-0.5 hover:shadow-lg transition" data-testid="product-card">
     <div className="relative aspect-square bg-sand overflow-hidden">
       <img src={p.image} alt={p.title} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]" />
-      <span className="absolute left-3 top-3 rounded-full bg-white/90 backdrop-blur px-2.5 py-1 text-[11px] font-medium">{p.category}</span>
+      <span className="absolute left-3 top-3 rounded-full bg-black/50 backdrop-blur border border-white/10 px-2.5 py-1 text-[11px] font-medium">{p.category}</span>
     </div>
     <div className="p-4 flex flex-col gap-1 flex-1">
       <div className="flex items-start justify-between gap-3"><h3 className="font-medium leading-snug line-clamp-2">{p.title}</h3><span className="font-semibold tabular-nums">{usd(p.price)}</span></div>

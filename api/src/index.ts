@@ -8,7 +8,7 @@ import * as db from './db.js';
 import { env } from './env.js';
 import { aiMode } from './ai.js';
 import { printfulMode } from './printful.js';
-import { createOrder, captureOrder } from './paypal.js';
+import { createOrder, captureOrder, getOrder } from './paypal.js';
 import { createShop, fulfil, id, jailbreak, ledger, ledgerView } from './core.js';
 import { LIMITS } from './guardrails.js';
 
@@ -92,21 +92,67 @@ app.post('/orders', wrap(async (q: any, r: any) => {
   await db.put('orders', 'pp_' + pp.j.id, { ref: orderId });
   r.json({ orderId, paypalOrderId: pp.j.id, approve: pp.j.links?.find((l: any) => l.rel === 'approve' || l.rel === 'payer-action')?.href });
 }));
-app.post('/orders/:ppId/capture', wrap(async (q: any, r: any) => {
-  const ref = await db.get('orders', 'pp_' + q.params.ppId); if (!ref) throw new Error('order not found');
+const orderView = async (o: any) => ({ shop: await db.get('shops', o.shopId).then((s: any) => s && { id: s.id, name: s.name, logo: s.logo }).catch(() => null), paypalOrderId: o.paypalOrderId, captureId: o.captureId, captureStatus: o.captureStatus, payer: o.payer, paymentSource: o.paymentSource, simulated: !!o.simulated, failure: o.failure, createdAt: o.createdAt, id: o.id, status: o.status, total: o.total, items: o.items, supplier: o.supplier, payouts: o.payouts, downloads: o.status === 'COMPLETED' ? o.items.filter((i: any) => i.digital).map((i: any) => ({ title: i.name, pdf: `/download/${o.id}/${i.productId}.pdf`, md: `/download/${o.id}/${i.productId}.md` })) : [] });
+// Pull the authoritative state from PayPal and apply it. Used by capture, return-handling and webhooks (idempotent).
+async function syncOrder(ppId: string, tryCapture: boolean) {
+  const ref = await db.get('orders', 'pp_' + ppId); if (!ref) { const e: any = new Error('order not found'); e.status = 404; throw e; }
   const o = await db.get('orders', ref.ref);
   if (o.status !== 'COMPLETED') {
-    const c = await captureOrder(q.params.ppId);
-    if (!c.ok) { await ledger('capture_failed', { orderId: o.id, detail: c.j.details?.[0]?.issue || c.j.name }); throw new Error('Capture failed: ' + (c.j.details?.[0]?.issue || c.j.name)); }
-    const cap = c.j.purchase_units?.[0]?.payments?.captures?.[0];
-    o.status = c.j.status; o.captureId = cap?.id; o.capturedAmount = Number(cap?.amount?.value ?? o.total);
+    let j: any = null;
+    if (tryCapture) {
+      const c = await captureOrder(ppId);
+      const issue = c.j.details?.[0]?.issue || c.j.name;
+      if (c.ok) j = c.j;
+      else if (issue === 'ORDER_ALREADY_CAPTURED') j = (await getOrder(ppId)).j;
+      else {
+        await ledger('capture_failed', { orderId: o.id, shopId: o.shopId, detail: issue });
+        o.failure = issue; await db.put('orders', o.id, o);
+        const e: any = new Error(issue === 'INSTRUMENT_DECLINED' ? 'Your card or PayPal funding source was declined. Please try another.' : 'Payment could not be captured: ' + issue);
+        e.status = 422; e.issue = issue; throw e;
+      }
+    } else j = (await getOrder(ppId)).j;
+    const cap = j?.purchase_units?.[0]?.payments?.captures?.[0];
+    if (j?.status) o.status = j.status === 'COMPLETED' && cap?.status !== 'COMPLETED' && cap?.status !== 'PENDING' ? 'FAILED' : j.status;
+    if (cap) { o.captureId = cap.id; o.captureStatus = cap.status; o.capturedAmount = Number(cap.amount?.value ?? o.total); }
+    if (j?.payer) o.payer = { email: j.payer.email_address, name: [j.payer.name?.given_name, j.payer.name?.surname].filter(Boolean).join(' ') };
+    if (j?.payment_source) o.paymentSource = Object.keys(j.payment_source)[0];
     await db.put('orders', o.id, o);
   }
-  const done = o.status === 'COMPLETED' ? await fulfil(o.id) : o;
-  r.json(orderView(done));
+  return o.status === 'COMPLETED' ? await fulfil(o.id) : o;
+}
+app.post('/orders/:ppId/capture', async (q: any, r: any) => {
+  try { r.json(await orderView(await syncOrder(q.params.ppId, true))); }
+  catch (e: any) { r.status(e.status || 400).json({ error: e.message, issue: e.issue }); }
+});
+// Return-handling: the receipt page calls this to recover an order whose popup closed before capture finished.
+app.get('/orders/pp/:ppId', wrap(async (q: any, r: any) => r.json(await orderView(await syncOrder(q.params.ppId, q.query.capture === '1')))));
+// PayPal webhook. We never trust the payload: we only take the order id from it and re-read the order from PayPal's API.
+app.post('/paypal/webhook', async (q: any, r: any) => {
+  const ev = q.body || {}; const res = ev.resource || {};
+  const ppId = ev.event_type?.startsWith('CHECKOUT.ORDER') ? res.id : res.supplementary_data?.related_ids?.order_id;
+  try {
+    if (ppId && (await db.get('orders', 'pp_' + ppId))) { await syncOrder(ppId, ev.event_type === 'CHECKOUT.ORDER.APPROVED'); await ledger('webhook', { detail: `${ev.event_type} ${ppId}` }); }
+  } catch (e: any) { console.error('webhook', e.message); }
+  r.json({ ok: true });
+});
+// Demo: a clearly-labelled SIMULATED customer buys one product. No PayPal call, no money moves, payouts are simulated too.
+let lastSim = 0;
+app.post('/simulate/order', wrap(async (q: any, r: any) => {
+  if (Date.now() - lastSim < 4000) { const e: any = new Error('The simulated customer is still shopping — try again in a few seconds.'); e.status = 429; throw e; }
+  lastSim = Date.now();
+  const u = await me(q);
+  let shops = (await db.list('shops', 5000)).map((x) => x.data).filter((s) => s.products?.some((p: any) => !p.comingSoon));
+  if (q.body?.shopId) shops = shops.filter((s) => s.id === q.body.shopId);
+  else if (u && shops.some((s) => s.ownerId === u.id)) shops = shops.filter((s) => s.ownerId === u.id);
+  if (!shops.length) throw new Error('No shop to buy from yet — build one first.');
+  const shop = shops[Math.floor(Math.random() * Math.min(shops.length, 8))];
+  const prods = shop.products.filter((p: any) => !p.comingSoon); const p = prods[Math.floor(Math.random() * prods.length)];
+  const orderId = id('o');
+  const items = [{ productId: p.id, name: p.title, price: p.price, qty: 1, digital: p.digital, sku: p.id }];
+  await db.put('orders', orderId, { id: orderId, shopId: shop.id, items, total: p.price, status: 'COMPLETED', simulated: true, test: true, payer: { name: 'Simulated Customer', email: 'simulated@hollowco.app' }, paymentSource: 'simulated', createdAt: new Date().toISOString() });
+  r.json(await orderView(await fulfil(orderId)));
 }));
-const orderView = (o: any) => ({ id: o.id, status: o.status, total: o.total, items: o.items, supplier: o.supplier, payouts: o.payouts, downloads: o.status === 'COMPLETED' ? o.items.filter((i: any) => i.digital).map((i: any) => ({ title: i.name, pdf: `/download/${o.id}/${i.productId}.pdf`, md: `/download/${o.id}/${i.productId}.md` })) : [] });
-app.get('/orders/:id', wrap(async (q: any, r: any) => { const o = await db.get('orders', q.params.id); o?.items ? r.json(orderView(o)) : r.status(404).json({ error: 'not found' }); }));
+app.get('/orders/:id', wrap(async (q: any, r: any) => { const o = await db.get('orders', q.params.id); o?.items ? r.json(await orderView(o)) : r.status(404).json({ error: 'not found' }); }));
 app.get('/download/:orderId/:file', wrap(async (q: any, r: any) => {
   const o = await db.get('orders', q.params.orderId);
   const [pid, ext] = q.params.file.split('.');
@@ -124,6 +170,7 @@ app.get('/download/:orderId/:file', wrap(async (q: any, r: any) => {
   }
   doc.end();
 }));
+app.get('/activity', wrap(async (q: any, r: any) => r.json((await db.list('ledger', Math.min(100, Number(q.query.limit) || 40))).map((x) => x.data))));
 app.get('/ledger', wrap(async (_q: any, r: any) => r.json(await ledgerView())));
 app.post('/jailbreak', wrap(async (q: any, r: any) => r.json(await jailbreak(q.body.message))));
 

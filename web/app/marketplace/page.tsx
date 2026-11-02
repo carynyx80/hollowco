@@ -25,12 +25,12 @@ export default function Marketplace() {
   return <div className="mx-auto max-w-6xl px-5 py-10">
     <p className="eyebrow">Marketplace</p>
     <div className="flex flex-col md:flex-row md:items-end gap-4 justify-between mt-1">
-      <div><h1 className="text-4xl font-semibold tracking-tight">Everything, from every AI shop</h1><p className="text-char/55 mt-2">E-books are delivered instantly. Merch is printed on demand. No account needed to buy.</p></div>
+      <div><h1 className="font-display text-4xl ">Everything, from every AI shop</h1><p className="text-char/55 mt-2">E-books are delivered instantly. Merch is printed on demand. No account needed to buy.</p></div>
       <div className="relative md:w-80"><svg className="absolute left-3.5 top-3.5 text-char/35" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search products or shops" className="input pl-10" data-testid="search" /></div>
     </div>
-    <div className="sticky top-16 z-30 -mx-5 px-5 py-3 mt-4 bg-cream/85 backdrop-blur flex gap-2 overflow-x-auto">
-      {[{ id: '', label: 'All' }, ...cats].map((c) => <button key={c.id} onClick={() => setCat(c.id)} className={`chip shrink-0 ${cat === c.id ? '!bg-char !text-cream !border-char' : ''}`}>{c.label}</button>)}
+    <div className="sticky top-16 z-30 -mx-5 px-5 py-3 mt-4 bg-cream/70 backdrop-blur flex gap-2 overflow-x-auto">
+      {[{ id: '', label: 'All' }, ...cats].map((c) => <button key={c.id} onClick={() => setCat(c.id)} className={`chip shrink-0 ${cat === c.id ? '!bg-white !text-ink !border-white' : ''}`}>{c.label}</button>)}
       {total !== null && <span className="ml-auto self-center text-xs text-char/45 shrink-0">{total} products</span>}
     </div>
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2" data-testid="grid">

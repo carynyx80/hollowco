@@ -56,15 +56,15 @@ export async function createShop(idea: string, log: (s: string) => void = () => 
 }
 async function paidToday() {
   const today = new Date().toISOString().slice(0, 10);
-  return (await db.list('ledger', 5000)).filter((r) => r.data.kind === 'payout' && r.data.at.startsWith(today)).reduce((s, r) => s + Number(r.data.amount || 0), 0);
+  return (await db.list('ledger', 5000)).filter((r) => r.data.kind === 'payout' && !r.data.sim && r.data.at.startsWith(today)).reduce((s, r) => s + Number(r.data.amount || 0), 0);
 }
 export async function fulfil(orderId: string) {
   const o = await db.get('orders', orderId);
   if (!o || o.fulfilled) return o;
   const shop = await db.get('shops', o.shopId);
   o.fulfilled = true; await db.put('orders', orderId, o); // idempotency lock
-  const revenue = o.capturedAmount ?? o.total;
-  await ledger('revenue', { orderId, shopId: o.shopId, shop: shop?.name, amount: revenue, detail: `PayPal capture ${o.captureId || ''}`, test: !!o.test });
+  const revenue = o.capturedAmount ?? o.total; const sim = !!o.simulated;
+  await ledger('revenue', { orderId, shopId: o.shopId, shop: shop?.name, agent: 'accountant', amount: revenue, detail: sim ? '[SIMULATED] simulated customer — no money moved' : `PayPal capture ${o.captureId || ''}`, test: !!o.test, sim });
   const tasks: { agent: string; task: string }[] = [];
   o.supplier = [];
   for (const it of o.items) {
@@ -73,17 +73,17 @@ export async function fulfil(orderId: string) {
     tasks.push({ agent: 'designer', task: `designed ${p.kind} for ${shop.name}` });
     const d = await draftOrder({ kind: p.kind, designUrl: p.design, recipient: o.shipping || { name: 'HollowCo Demo Buyer', address1: '19749 Dearborn St', city: 'Chatsworth', state_code: 'CA', country_code: 'US', zip: '91311' }, externalId: orderId.replace(/[^a-z0-9]/gi, '') });
     o.supplier.push({ productId: p.id, ...d });
-    await ledger('supplier_cost', { orderId, shopId: o.shopId, shop: shop.name, amount: d.cost * it.qty, detail: `${d.mode === 'simulated' ? '[SIMULATED] ' : ''}${d.note} id=${d.id}` });
+    await ledger('supplier_cost', { orderId, shopId: o.shopId, shop: shop.name, agent: 'supplier', sim, amount: d.cost * it.qty, detail: `${d.mode === 'simulated' ? '[SIMULATED] ' : ''}${d.note} id=${d.id}` });
   }
   const proposals = await ai.founderProposePayouts({ revenue, tasks: [...new Map(tasks.map((t) => [t.agent, t])).values()] });
   let paidOrder = 0; o.payouts = [];
   for (const pr of proposals) {
-    const v = checkPayout(pr, revenue, await paidToday(), paidOrder);
-    if (!v.ok) { await ledger('rejected', { orderId, shopId: o.shopId, shop: shop.name, agent: 'founder', proposal: pr, reasons: v.reasons }); continue; }
-    const res = await payout(pr.recipient, pr.amount, pr.reason, orderId + pr.agent);
+    const v = checkPayout(pr, revenue, sim ? 0 : await paidToday(), paidOrder);
+    if (!v.ok) { await ledger('rejected', { orderId, shopId: o.shopId, shop: shop.name, agent: 'founder', proposal: pr, reasons: v.reasons, sim }); continue; }
+    const res = sim ? { ok: true, method: 'simulated', ref: 'SIM-' + orderId.slice(2) + '-' + pr.agent, status: 'SIMULATED' } : await payout(pr.recipient, pr.amount, pr.reason, orderId + pr.agent);
     paidOrder += pr.amount;
     o.payouts.push({ ...pr, ...res });
-    await ledger('payout', { orderId, shopId: o.shopId, shop: shop.name, agent: pr.agent, amount: pr.amount, detail: `${res.method} ${res.ref} ${res.status}`, ok: res.ok });
+    await ledger('payout', { orderId, shopId: o.shopId, shop: shop.name, agent: pr.agent, amount: pr.amount, detail: `${sim ? '[SIMULATED] ' : ''}${res.method} ${res.ref} ${res.status}`, ok: res.ok, sim });
   }
   await db.put('orders', orderId, o);
   return o;
@@ -106,8 +106,8 @@ export async function ledgerView() {
   const byOrder = new Map<string, any>();
   for (const r of rows) {
     if (!r.orderId || r.kind === 'capture_failed') continue;
-    const o = byOrder.get(r.orderId) || { orderId: r.orderId, shop: r.shop, at: r.at, revenue: 0, supplierCost: 0, payouts: 0, rejected: 0, test: false };
-    if (r.kind === 'revenue') { o.revenue += r.amount; o.test = !!r.test; o.at = r.at; }
+    const o = byOrder.get(r.orderId) || { orderId: r.orderId, shop: r.shop, at: r.at, revenue: 0, supplierCost: 0, payouts: 0, rejected: 0, test: false, sim: false };
+    if (r.kind === 'revenue') { o.revenue += r.amount; o.test = !!r.test; o.sim = !!r.sim; o.at = r.at; }
     if (r.kind === 'supplier_cost') o.supplierCost += r.amount;
     if (r.kind === 'payout') o.payouts += r.amount;
     if (r.kind === 'rejected') o.rejected++;

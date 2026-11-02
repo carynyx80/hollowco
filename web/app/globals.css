@@ -1,22 +1,44 @@
 @import "tailwindcss";
+/* HollowCo v2 — "Ink & Iris": near-black ink, electric iris accent, cyan glow. */
 @theme {
-  --color-char: #2B2B2B; --color-ink: #1C1C1C; --color-coral: #FF8A70; --color-coral-600: #F26B4F; --color-cream: #FBF8F2; --color-sand: #F2EDE3; --color-line: #E7E1D6;
-  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif; --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --color-cream: #07070C;      /* page background (ink) */
+  --color-char: #ECECF4;       /* foreground */
+  --color-ink: #07070C;
+  --color-coral: #8B7BFF;      /* iris accent */
+  --color-coral-600: #A99DFF;  /* accent text on dark */
+  --color-cyan: #5CE1FF;
+  --color-lime: #C8FF5C;
+  --color-sand: #12121C;       /* raised surface */
+  --color-line: #1F1F2E;       /* hairline */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-serif), ui-serif, Georgia, serif;
+  --font-mono: var(--font-mono), ui-monospace, monospace;
 }
-html { -webkit-font-smoothing: antialiased; }
-body { background: var(--color-cream); color: var(--color-char); }
-::selection { background: #FF8A7055; }
-@utility card { @apply bg-white rounded-2xl border border-line shadow-[0_1px_2px_rgba(43,43,43,.04),0_8px_24px_-12px_rgba(43,43,43,.08)]; }
-@utility btn { @apply inline-flex items-center justify-center gap-2 rounded-full px-5 h-11 text-sm font-medium transition active:scale-[.98] disabled:opacity-40 disabled:pointer-events-none; }
-@utility btn-primary { @apply btn bg-char text-cream hover:bg-ink; }
-@utility btn-coral { @apply btn bg-coral text-ink hover:bg-coral-600; }
-@utility btn-ghost { @apply btn border border-line bg-white hover:bg-sand; }
-@utility input { @apply w-full rounded-xl border border-line bg-white px-4 h-11 text-sm outline-none transition focus:border-coral focus:ring-4 focus:ring-coral/15; }
-@utility label { @apply text-xs font-medium text-char/70 mb-1.5 block; }
-@utility eyebrow { @apply text-[11px] font-semibold uppercase tracking-[.14em] text-coral-600; }
-@utility skeleton { @apply animate-pulse rounded-xl bg-sand; }
-@utility chip { @apply inline-flex items-center rounded-full border border-line bg-white px-3 h-8 text-xs font-medium transition hover:border-char/30; }
+html { -webkit-font-smoothing: antialiased; color-scheme: dark; }
+body { background: var(--color-cream); color: var(--color-char); font-feature-settings: "cv11", "ss01"; }
+body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(900px 500px at 15% -10%, #8B7BFF26, transparent 60%), radial-gradient(700px 420px at 95% 5%, #5CE1FF1a, transparent 60%), radial-gradient(800px 600px at 50% 120%, #8B7BFF14, transparent 60%); }
+body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .35;
+  background-image: linear-gradient(#ffffff08 1px, transparent 1px), linear-gradient(90deg, #ffffff08 1px, transparent 1px); background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse at 50% 0%, black 20%, transparent 70%); }
+::selection { background: #8B7BFF66; color: white; }
+.font-display { font-family: var(--font-display); font-weight: 400; letter-spacing: -0.02em; }
+.text-gradient { background: linear-gradient(100deg, #fff 10%, #C9C1FF 45%, #5CE1FF 90%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.text-iris { background: linear-gradient(100deg, #A99DFF, #5CE1FF); -webkit-background-clip: text; background-clip: text; color: transparent; }
+@utility card { @apply rounded-2xl border border-white/[.08] bg-white/[.03] backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,.06),0_20px_60px_-30px_rgba(0,0,0,.8)]; }
+@utility glow-card { @apply rounded-2xl border border-coral/25 bg-gradient-to-b from-coral/[.12] to-white/[.02] backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,.08),0_30px_80px_-30px_rgba(139,123,255,.45)]; }
+@utility btn { @apply inline-flex items-center justify-center gap-2 rounded-full px-5 h-11 text-sm font-medium transition duration-200 active:scale-[.97] disabled:opacity-40 disabled:pointer-events-none; }
+@utility btn-primary { @apply btn bg-white text-ink hover:bg-white/90 shadow-[0_0_0_1px_rgba(255,255,255,.2),0_8px_30px_-8px_rgba(255,255,255,.35)]; }
+@utility btn-coral { @apply btn text-white bg-gradient-to-r from-[#7B68FF] to-[#4FB8FF] hover:brightness-110 shadow-[0_0_0_1px_rgba(255,255,255,.15)_inset,0_10px_30px_-10px_rgba(123,104,255,.8)]; }
+@utility btn-ghost { @apply btn border border-white/10 bg-white/[.04] hover:bg-white/[.08] hover:border-white/20; }
+@utility input { @apply w-full rounded-xl border border-white/10 bg-white/[.04] px-4 h-11 text-sm outline-none transition placeholder:text-char/30 focus:border-coral/70 focus:ring-4 focus:ring-coral/15; }
+@utility label { @apply text-xs font-medium text-char/60 mb-1.5 block; }
+@utility eyebrow { @apply text-[11px] font-semibold uppercase tracking-[.18em] text-coral-600; }
+@utility skeleton { @apply animate-pulse rounded-xl bg-white/[.05]; }
+@utility chip { @apply inline-flex items-center rounded-full border border-white/10 bg-white/[.04] px-3 h-8 text-xs font-medium transition hover:border-coral/50 hover:bg-coral/10; }
 @keyframes ping-soft { 0% { transform: scale(1); opacity: .7 } 80%,100% { transform: scale(2.6); opacity: 0 } }
 .dot-ping { animation: ping-soft 1.8s cubic-bezier(0,0,.2,1) infinite; transform-origin: center; transform-box: fill-box; }
 @keyframes toast-in { from { transform: translateY(8px); opacity: 0 } to { transform: none; opacity: 1 } }
 .toast-in { animation: toast-in .2s ease-out; }
+@keyframes dash { to { stroke-dashoffset: -24 } }
+.flow-line { stroke-dasharray: 3 9; animation: dash 1.4s linear infinite; }

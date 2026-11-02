@@ -11,12 +11,12 @@ export function Composer({ onSubmit, busy, placeholder }: { onSubmit: (t: string
     rec.current = r; r.start(); setListening(true);
   }
   const go = () => { if (text.trim().length >= 3 && !busy) { onSubmit(text.trim()); } };
-  return <div className="rounded-2xl border border-line bg-white focus-within:border-coral focus-within:ring-4 focus-within:ring-coral/15 transition">
+  return <div className="rounded-2xl border border-white/10 bg-black/30 focus-within:border-coral/70 focus-within:ring-4 focus-within:ring-coral/15 transition">
     <textarea value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) go(); }} rows={3} disabled={busy}
       placeholder={placeholder || 'Describe a business… e.g. “Calm productivity guides for night-shift nurses”'} className="w-full resize-none bg-transparent p-4 text-[15px] outline-none placeholder:text-char/35" data-testid="composer" />
     <div className="flex items-center gap-2 px-3 pb-3">
       <button type="button" onClick={talk} disabled={!SR || busy} title={SR ? 'Speak your idea' : 'Voice input is not supported in this browser'}
-        className={`btn h-9 px-3 border ${listening ? 'bg-coral border-coral text-ink' : 'border-line hover:bg-sand'}`}>
+        className={`btn h-9 px-3 border ${listening ? 'bg-coral border-coral text-white' : 'border-white/10 hover:bg-white/[.06]'}`}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v4" /></svg>
         {listening ? 'Listening… tap to stop' : 'Speak'}</button>
       <span className="text-[11px] text-char/35 hidden sm:block">⌘/Ctrl + Enter</span>

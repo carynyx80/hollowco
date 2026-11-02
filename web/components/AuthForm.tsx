@@ -28,7 +28,7 @@ export function AuthForm({ mode }: { mode: 'signin' | 'signup' }) {
         {up && <div><label className="label" htmlFor="name">Name</label><input id="name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ada" autoComplete="name" /></div>}
         <div><label className="label" htmlFor="email">Email</label><input id="email" type="email" required className="input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" /></div>
         <div><label className="label" htmlFor="password">Password</label><input id="password" type="password" required minLength={up ? 8 : 1} className="input" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={up ? 'At least 8 characters' : '••••••••'} autoComplete={up ? 'new-password' : 'current-password'} /></div>
-        {err && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2" role="alert">{err}</p>}
+        {err && <p className="text-sm text-red-400 bg-red-500/10 rounded-xl px-3 py-2" role="alert">{err}</p>}
         <button disabled={busy} className="btn-primary w-full">{busy ? 'One moment…' : up ? 'Create account' : 'Sign in'}</button>
       </form>
       <p className="mt-6 text-sm text-char/55 text-center">{up ? <>Already have an account? <Link href="/signin" className="text-char font-medium underline underline-offset-4">Sign in</Link></> : <>New here? <Link href="/signup" className="text-char font-medium underline underline-offset-4">Create an account</Link></>}</p>
