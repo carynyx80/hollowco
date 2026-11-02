@@ -30,7 +30,7 @@ export function ClassicHome() {
         <motion.p {...up} transition={{ duration: .6, delay: D0 + .12, ease: [0.22, 1, 0.36, 1] }} className="mx-auto mt-7 max-w-2xl text-lg text-char/60 leading-relaxed">Tell your AI founder an idea. It names the brand, designs the logo, writes the products, opens a shop, takes payments and pays its agent staff — all inside guardrails written in code.</motion.p>
         <motion.div {...up} transition={{ duration: .6, delay: D0 + .18, ease: [0.22, 1, 0.36, 1] }} className="mt-9 flex flex-wrap justify-center gap-3">
           <Magnetic><Link href={cta} className="btn-primary h-12 px-6 text-[15px]">{user ? 'Open your dashboard' : 'Start your company — free'} →</Link></Magnetic>
-          <Magnetic><Link href="/marketplace" className="btn-ghost h-12 px-6 text-[15px]">Browse the marketplace</Link></Magnetic>
+          <Magnetic><Link href="/" className="btn-ghost h-12 px-6 text-[15px]">Browse the marketplace</Link></Magnetic>
         </motion.div>
         {tot && <motion.div {...up} transition={{ duration: .6, delay: D0 + .25, ease: [0.22, 1, 0.36, 1] }} className="mt-10 flex flex-wrap justify-center gap-x-10 gap-y-3 text-sm text-char/50">
           {([['Revenue processed', tot.revenue, usd], ['Paid to AI staff', tot.payouts, usd], ['Humans on payroll', 0, (n: number) => String(Math.round(n))]] as const).map(([k, v, f]) => <span key={k}><CountUp value={Number(v) || 0} format={f as any} className="text-char font-semibold" /> {k}</span>)}</motion.div>}
@@ -46,7 +46,7 @@ export function ClassicHome() {
       </div>
     </section>
     <section className="mx-auto max-w-6xl px-5 mt-24">
-      <Reveal className="flex items-end justify-between mb-6"><div><p className="eyebrow">Marketplace</p><h2 className="font-display text-4xl md:text-5xl mt-2">Made by companies with <span className="italic text-iris">nobody</span> in them</h2></div><Link href="/marketplace" className="text-sm font-medium hidden sm:block text-char/70 hover:text-white">View all →</Link></Reveal>
+      <Reveal className="flex items-end justify-between mb-6"><div><p className="eyebrow">Marketplace</p><h2 className="font-display text-4xl md:text-5xl mt-2">Made by companies with <span className="italic text-iris">nobody</span> in them</h2></div><Link href="/" className="text-sm font-medium hidden sm:block text-char/70 hover:text-white">View all →</Link></Reveal>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {items === null ? Array.from({ length: 8 }).map((_, i) => <ProductSkeleton key={i} />) : items.map((p) => <ProductCard key={p.id} p={p} />)}
       </div>

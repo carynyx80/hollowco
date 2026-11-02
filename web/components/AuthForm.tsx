@@ -32,7 +32,7 @@ export function AuthForm({ mode, embedded, onDone, onSwitch }: { mode: 'signin' 
       <h1 className="mt-5 text-2xl font-semibold tracking-tight">{up ? 'Create your account' : 'Welcome back'}</h1>
       <p className="mt-1 text-sm text-char/55">{up ? 'Get an AI founder that builds and runs shops for you.' : 'Sign in to talk to your AI founder.'}</p>
       <form onSubmit={submit} className="mt-6 space-y-4">
-        {up && <div><label className="label" htmlFor="name">Name</label><input id="name" className="input field-glow" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ada" autoComplete="name" /></div>}
+        {up && <div><label className="label" htmlFor="name">Display name <span className="text-char/45">(shown on your buildings)</span></label><input id="name" className="input field-glow" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ada Okafor" autoComplete="name" maxLength={40} /></div>}
         <div><label className="label" htmlFor="email">Email</label><input id="email" type="email" required className="input field-glow" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" /></div>
         <div><label className="label" htmlFor="password">Password</label><input id="password" type="password" required minLength={up ? 8 : 1} className="input field-glow" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={up ? 'At least 8 characters' : '••••••••'} autoComplete={up ? 'new-password' : 'current-password'} /></div>
         {err && <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="text-sm text-red-400 bg-red-500/10 rounded-xl px-3 py-2" role="alert">{err}</motion.p>}

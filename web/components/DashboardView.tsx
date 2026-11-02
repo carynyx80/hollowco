@@ -9,6 +9,7 @@ import { Composer } from '@/components/Composer';
 import { HollowOffice } from '@/components/HollowOffice';
 import { useToast } from '@/components/Toast';
 import { api, usd } from '@/lib/api';
+import { useAuth } from '@/components/Auth';
 const ago = (s: string) => { const m = Math.round((Date.now() - new Date(s).getTime()) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`; };
 const KIND: Record<string, string> = { shop_created: 'Opened shop', revenue: 'Sale', supplier_cost: 'Supplier order', payout: 'Agent payout', rejected: 'Guardrail blocked', capture_failed: 'Capture failed', payout_reversed: 'Payout reversed' };
 const cityEmit = (type: string, detail: any) => { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(type, { detail })); };
@@ -43,8 +44,8 @@ export function DashboardView({ embedded = false }: { embedded?: boolean }) {
   const status = job ? 'working' : 'idle';
   return <motion.div className={embedded ? 'px-5 py-6 space-y-6' : 'mx-auto max-w-7xl px-5 py-10 space-y-8'} variants={stagger(0.09, 0.1)} initial="hidden" animate="show" data-testid="dash">
     <motion.div variants={riseV} className="flex flex-col md:flex-row md:items-end gap-2 justify-between">
-      <div><p className="eyebrow">Dashboard</p><h1 className="font-display text-4xl md:text-5xl mt-1">{d ? <>Hi {name}, <span className="italic text-iris">let’s build.</span></> : <span className="skeleton inline-block h-8 w-48" />}</h1></div>
-      <Link href="/marketplace" className="text-sm text-char/60 hover:text-char">See your products in the marketplace →</Link>
+      <div><p className="eyebrow">Dashboard</p><h1 className="font-display text-4xl md:text-5xl mt-1">{d ? <>Hi {name}, <span className="italic text-iris">let’s build.</span></> : <span className="skeleton inline-block h-8 w-48" />}</h1>{d && <ProfileName initial={name || ''} />}</div>
+      <Link href="/" className="text-sm text-char/60 hover:text-char">See your products in the marketplace →</Link>
     </motion.div>
     <motion.div variants={riseV}><HollowOffice events={officeEvents} shopId={d?.shops?.[0]?.id} totals={t} jobLog={job?.log} pending={sim} onSimulate={simulate} simBusy={sim} onJailbreak={jailbreak} title="The Hollow Office" scope="your HQ · live" /></motion.div>
     <motion.p variants={riseV} className="text-xs text-char/45 -mt-5">Public view for sharing: <Link className="underline" href={d?.shops?.[0]?.id ? `/office/${d.shops[0].id}` : '/office'}>{d?.shops?.[0]?.id ? `/office/${d.shops[0].id}` : '/office'}</Link></motion.p>
@@ -100,4 +101,13 @@ export function DashboardView({ embedded = false }: { embedded?: boolean }) {
           <span className="flex-1 min-w-0 truncate text-char/70">{e.shop}{e.amount != null && ` · ${usd(e.amount)}`}{e.reasons ? ` — ${e.reasons.join('; ')}` : e.detail ? ` — ${e.detail}` : ''}</span><span className="text-xs text-char/40 shrink-0">{ago(e.at)}</span></li>)}</ul>}
     </motion.section>
   </motion.div>;
+}
+
+function ProfileName({ initial }: { initial: string }) {
+  const { setUser } = useAuth(); const [v, setV] = useState(initial); const [msg, setMsg] = useState(''); const [busy, setBusy] = useState(false);
+  const save = async () => { setBusy(true); setMsg(''); try { const r = await api('/me/profile', { method: 'PATCH', body: JSON.stringify({ name: v }) }); setUser(r.user); setMsg('Saved — your buildings now read “by ' + r.user.name + '”.'); } catch (e: any) { setMsg(e.message); } finally { setBusy(false); } };
+  return <form onSubmit={(e) => { e.preventDefault(); save(); }} className="mt-3 flex flex-wrap items-center gap-2 text-sm" data-testid="profile-name">
+    <label htmlFor="dn" className="text-char/60">Display name on your buildings</label>
+    <input id="dn" className="input h-9 w-56" value={v} maxLength={40} onChange={(e) => setV(e.target.value)} />
+    <button className="btn-ghost h-9" disabled={busy || v.trim() === initial}>{busy ? 'Saving…' : 'Save'}</button>{msg && <span className="text-char/60">{msg}</span>}</form>;
 }

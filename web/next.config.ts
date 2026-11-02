@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const API_ORIGIN = (process.env.API_ORIGIN || process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/$/, "");
 const nextConfig: NextConfig = {
   images: { unoptimized: true },
+  async redirects() { return [{ source: "/marketplace", destination: "/", permanent: false }]; },
   async rewrites() { return [{ source: "/api/:path*", destination: `${API_ORIGIN}/:path*` }]; },
 };
 export default nextConfig;

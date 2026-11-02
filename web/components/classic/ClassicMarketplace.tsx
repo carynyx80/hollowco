@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ProductCard, ProductSkeleton } from '@/components/ProductCard';
 import { api } from '@/lib/api';
-export default function Marketplace() {
+export function ClassicMarketplace() {
   const [q, setQ] = useState(''); const [term, setTerm] = useState(''); const [cat, setCat] = useState('');
   const [items, setItems] = useState<any[]>([]); const [next, setNext] = useState<number | null>(0); const [total, setTotal] = useState<number | null>(null);
   const [cats, setCats] = useState<any[]>([]); const [loading, setLoading] = useState(false);

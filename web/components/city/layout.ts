@@ -1,23 +1,27 @@
-// City geometry helpers shared by the 3D scene and the HUD.
-export const LOT = 6; export const SPAN = 4; // lots at -24..24
-export const STREETS = [-27, -21, -15, -9, -3, 3, 9, 15, 21, 27];
-export const BANK: [number, number] = [-12, 0];
-export const DOCK: [number, number] = [0, 33];
-export const GUARDS: [number, number][] = [[-31, -31], [31, -31], [-31, 27], [31, 27]];
-const RESERVED = new Set(['0,0', '-12,0', '-6,0', '6,0', '0,-6', '0,6']);
-export const LOTS: [number, number][] = (() => {
-  const l: [number, number][] = [];
-  for (let i = -SPAN; i <= SPAN; i++) for (let j = -SPAN; j <= SPAN; j++) { const k = `${i * LOT},${j * LOT}`; if (!RESERVED.has(k)) l.push([i * LOT, j * LOT]); }
-  return l.sort((a, b) => Math.hypot(...a) - Math.hypot(...b) || a[0] - b[0] || a[1] - b[1]);
-})();
-const near = (v: number) => STREETS.reduce((b, s) => (Math.abs(s - v) < Math.abs(b - v) ? s : b), STREETS[0]);
+// HollowCo City geometry, shared by the 3D scene and the HUD. Mirrors api/src/city.ts.
+// Lots are 7 units, two per block; 5-unit streets every 19 units; z > ~36 is the harbour.
+export const PITCH = 19, ROAD = 5, LOTW = 7;
+export const lotC = (g: number) => Math.floor(g / 2) * PITCH + (((g % 2) + 2) % 2 ? 13 : 6);
+export const plotXZ = (gx: number, gz: number): [number, number] => [lotC(gx), lotC(gz)];
+/** Front of the building faces the street on its z side. +1 = faces +z. */
+export const faceOf = (gz: number) => (((gz % 2) + 2) % 2 ? 1 : -1);
+export const BANK: [number, number] = [-9.5, -9.5];
+export const SHORE = 40.5; // quay edge (promenade street at z=38)
+export const DOCK: [number, number] = [0, 48];
+export const PARKS: [number, number][] = [[9.5, -9.5], [-9.5, 9.5], [9.5, 9.5]];
+export const DISTRICT_INFO: Record<string, { label: string; color: string; icon: string }> = {
+  books: { label: 'Books Quarter', color: '#E8A87C', icon: '📚' },
+  fashion: { label: 'Fashion Avenue', color: '#FF7AD9', icon: '👕' },
+  goods: { label: 'Goods Market', color: '#FFB86B', icon: '☕' },
+  maker: { label: 'Maker Row', color: '#5CE1FF', icon: '✦' },
+};
 export type P = [number, number, number];
-/** Route along the street grid from a to b (manhattan), lifted slightly above the asphalt. */
-export function streetPath(a: [number, number], b: [number, number], y = 0.45): P[] {
-  const sxA = near(a[0] + 0.01), szB = near(b[1] + 0.01);
-  return [[a[0], y, a[1]], [sxA, y, a[1]], [sxA, y, szB], [b[0], y, szB], [b[0], y, b[1]]];
+const nearS = (v: number) => Math.round(v / PITCH) * PITCH;
+/** Manhattan route along street centre-lines (lane offset `lane`), from a to b. */
+export function streetPath(a: [number, number], b: [number, number], y = 0.5, lane = 0): P[] {
+  const sx = nearS(a[0]) + lane, sz = nearS(b[1]) + lane;
+  return [[a[0], y, a[1]], [a[0], y, nearS(a[1]) + lane], [sx, y, nearS(a[1]) + lane], [sx, y, sz], [b[0], y, sz], [b[0], y, b[1]]];
 }
-/** Parabolic arc (for payouts / rooftop hops). */
 export function arcPath(a: P, b: P, h = 4, n = 14): P[] {
   return Array.from({ length: n + 1 }, (_, i) => { const t = i / n; return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t + Math.sin(Math.PI * t) * h, a[2] + (b[2] - a[2]) * t] as P; });
 }
@@ -27,9 +31,39 @@ export function samplePath(p: P[], t: number, out: P = [0, 0, 0]): P {
   for (let i = 1; i < p.length; i++) { const seg = Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1], p[i][2] - p[i - 1][2]); if (d <= seg || i === p.length - 1) { const u = seg ? Math.min(1, d / seg) : 1; out[0] = p[i - 1][0] + (p[i][0] - p[i - 1][0]) * u; out[1] = p[i - 1][1] + (p[i][1] - p[i - 1][1]) * u; out[2] = p[i - 1][2] + (p[i][2] - p[i - 1][2]) * u; return out; } d -= seg; }
   return out;
 }
-export const buildingHeight = (rev: number) => 3 + Math.min(14, Math.sqrt(Math.max(0, rev)) * 2.2);
-export type CityShop = { id: string; name: string; tagline?: string; logo?: string; colors?: string[]; revenue: number; orders: number; mine?: boolean; lot: [number, number]; fresh?: boolean };
+export type Style = 'glass' | 'brick' | 'boutique' | 'warehouse';
+export type Plot = { gx: number; gz: number; district: string; style: Style; tier: number; color: string; idx: number };
+/** Height in world units: style + tier set at creation, revenue adds floors. */
+export function heightOf(style: Style, tier: number, rev: number) {
+  const r = Math.min(10, Math.sqrt(Math.max(0, rev)) * 1.1);
+  return style === 'glass' ? 11 + tier * 5 + r * 1.4 : style === 'brick' ? 5.5 + tier * 2.2 + r * 0.6 : style === 'boutique' ? 3.6 + tier * 0.9 + r * 0.25 : 4.2 + tier * 0.7 + r * 0.2;
+}
+export type CityShop = { id: string; name: string; tagline?: string; logo?: string; colors?: string[]; owner: string; revenue: number; orders: number; products: number; kinds: string[]; minPrice: number;
+  plot: Plot; x: number; z: number; face: number; h: number; mine?: boolean; fresh?: boolean };
+export type Site = { shopId: string; name: string; owner: string; log: string; x: number; z: number; face: number };
 export type Packet = { kind: 'paypal' | 'payout' | 'supplier' | 'alarm'; path: P[]; color: string; t0: number; dur: number; replay?: boolean };
-/** Tiny pub/sub between the DOM HUD and the WebGL scene. */
 export const bus = typeof window !== 'undefined' ? ((window as any).__cityBus ||= new EventTarget()) as EventTarget : new EventTarget();
 export const emit = (t: string, d?: any) => bus.dispatchEvent(new CustomEvent(t, { detail: d }));
+export const assetUrl = (u?: string) => u ? u.replace(/^https?:\/\/[^/]+\/assets\//, '/api/assets/') : '';
+/** City extents (in blocks) covering every plot, the plaza and the waterfront. */
+export function bounds(shops: { plot: Plot }[]) {
+  let a = -1, b = 0, c = -1, d = 1; // kx min/max, kz min/max (blocks)
+  for (const s of shops) { const kx = Math.floor(s.plot.gx / 2), kz = Math.floor(s.plot.gz / 2); a = Math.min(a, kx); b = Math.max(b, kx); c = Math.min(c, kz); d = Math.max(d, kz); }
+  return { kx0: a - 1, kx1: b + 1, kz0: c - 1, kz1: 1 };
+}
+/** Live lighting state shared by every component (updated each frame by the sky). 0 = noon, 1 = midnight. */
+export const ENV = { night: 1 };
+export type Bounds = ReturnType<typeof bounds>;
+export type Quality = 'low' | 'med' | 'high';
+export const QUALITY = {
+  low: { dpr: 1, shadows: 0, cars: 24, peds: 70, detail: 24, bloom: false, env: false, trees: 0.5, ms: 0 },
+  med: { dpr: 1.25, shadows: 1024, cars: 54, peds: 150, detail: 60, bloom: true, env: true, trees: 0.8, ms: 0 },
+  high: { dpr: 1.75, shadows: 2048, cars: 100, peds: 260, detail: 120, bloom: true, env: true, trees: 1, ms: 4 },
+} as const;
+export function detectQuality(): Quality {
+  if (typeof window === 'undefined') return 'med';
+  const q = new URLSearchParams(location.search).get('q'); if (q === 'low' || q === 'med' || q === 'high') return q;
+  const saved = localStorage.getItem('city-quality'); if (saved === 'low' || saved === 'med' || saved === 'high') return saved;
+  const cores = navigator.hardwareConcurrency || 4; const mem = (navigator as any).deviceMemory || 4; const small = Math.min(screen.width, screen.height) < 700;
+  if (small || cores <= 4 || mem <= 2) return 'low'; if (cores >= 8 && mem >= 8) return 'high'; return 'med';
+}

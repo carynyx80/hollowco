@@ -97,3 +97,11 @@ html.city-mode footer { display: none; }
 @keyframes alarm-pulse { to { box-shadow: 0 0 60px rgba(255,77,109,.8); } }
 .city-loader { display: flex; align-items: center; gap: 12px; font-size: 13px; color: rgba(236,236,244,.6); }
 .city-loader span { width: 22px; height: 22px; border-radius: 50%; border: 3px solid #C9C1FF; border-top-color: transparent; animation: ring-spin .9s linear infinite; }
+.city-announce{position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:14px;padding:10px 12px 10px 16px;border-radius:16px;background:rgba(14,16,24,.72);backdrop-filter:blur(14px);border:1px solid rgba(255,214,120,.35);box-shadow:0 10px 40px rgba(0,0,0,.4),0 0 30px rgba(255,190,90,.15);font-size:14px}
+.city-announce small{display:block;font-size:10px;letter-spacing:.14em;color:#FFD27A}.city-announce b{margin-right:4px}
+.city-announce-dot{width:10px;height:10px;border-radius:9px;background:#FFD27A;box-shadow:0 0 12px #FFD27A;animation:pulse 1.2s infinite}
+.city-chip{height:30px;padding:0 12px;border-radius:999px;font-size:12px;background:rgba(14,16,24,.55);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.78)}
+.city-chip:hover{background:rgba(255,255,255,.1)}.city-chip-on{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.5);color:#fff}
+.city-seg{display:flex;align-items:center;gap:2px;padding:3px;border-radius:10px;background:rgba(14,16,24,.55);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.1);font-size:11px;text-transform:capitalize}
+.city-seg button{padding:3px 8px;border-radius:7px;color:rgba(255,255,255,.65)}.city-seg button.on{background:rgba(255,255,255,.16);color:#fff}
+.city-district{pointer-events:auto;padding:6px 14px;border-radius:999px;background:rgba(10,12,20,.6);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);color:#fff;font-weight:600;font-size:14px;white-space:nowrap}

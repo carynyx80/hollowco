@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-type U = { id: string; email: string; name: string } | null;
+type U = { id: string; email: string; name: string; displayName?: string } | null;
 const Ctx = createContext<{ user: U; loading: boolean; refresh: () => Promise<void>; setUser: (u: U) => void }>({ user: null, loading: true, refresh: async () => {}, setUser: () => {} });
 export const useAuth = () => useContext(Ctx);
 export function AuthProvider({ children }: { children: React.ReactNode }) {

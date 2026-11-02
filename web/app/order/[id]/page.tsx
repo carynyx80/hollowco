@@ -27,6 +27,6 @@ function OrderInner({ params }: { params: Promise<{ id: string }> }) {
     <p className="eyebrow">Receipt</p><h1 className="font-display text-5xl mt-2 mb-8">Thank you<span className="italic text-iris">.</span></h1>
     {err ? <div className="card p-8 text-center"><p className="font-medium">We couldn’t find that order</p><p className="text-sm text-char/50 mt-1">{err}</p></div> : !o ? <div className="skeleton h-80" /> : <Receipt order={o} />}
     {o?.failure && o.status !== 'COMPLETED' && <p className="mt-4 text-sm text-red-300">{o.failure}</p>}
-    <div className="mt-8 flex flex-wrap gap-3"><Link href="/marketplace" className="btn-ghost">Keep shopping</Link><Link href="/ledger" className="btn-ghost">See it on the public ledger →</Link>{o?.shop && <Link href={`/shop/${o.shop.id}`} className="btn-ghost">Visit {o.shop.name}</Link>}</div>
+    <div className="mt-8 flex flex-wrap gap-3"><Link href="/" className="btn-ghost">Keep shopping</Link><Link href="/ledger" className="btn-ghost">See it on the public ledger →</Link>{o?.shop && <Link href={`/shop/${o.shop.id}`} className="btn-ghost">Visit {o.shop.name}</Link>}</div>
   </div>;
 }
