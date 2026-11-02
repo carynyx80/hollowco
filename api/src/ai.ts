@@ -28,15 +28,17 @@ async function chatText(system: string, user: string): Promise<string> {
 export async function image(prompt: string, seed: string, palette: string[]): Promise<{ mime: string; data: Buffer; provider: string }> {
   const p = provider();
   if (p) {
-    try {
-      const body: any = { model: p.image, prompt, n: 1 };
-      if (p.name === 'openai') body.size = '1024x1024'; else body.response_format = 'b64_json';
+    const models = p.name === 'openai' ? [p.image, 'dall-e-3'].filter((m, i, a) => a.indexOf(m) === i) : [p.image];
+    for (const model of models) try {
+      const body: any = { model, prompt, n: 1 };
+      if (p.name === 'openai') { body.size = '1024x1024'; if (model.startsWith('dall-e')) body.response_format = 'b64_json'; } else body.response_format = 'b64_json';
       const r = await fetch(p.base + '/images/generations', { method: 'POST', headers: { Authorization: `Bearer ${p.key}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const j: any = await r.json();
+      if (!r.ok) { console.warn('image model', model, 'failed', r.status, j?.error?.message); continue; }
       const d = j.data?.[0];
-      if (d?.b64_json) return { mime: 'image/png', data: Buffer.from(d.b64_json, 'base64'), provider: p.name };
-      if (d?.url) { const b = await fetch(d.url); return { mime: b.headers.get('content-type') || 'image/png', data: Buffer.from(await b.arrayBuffer()), provider: p.name }; }
-    } catch { /* fall through to mock */ }
+      if (d?.b64_json) return { mime: 'image/png', data: Buffer.from(d.b64_json, 'base64'), provider: p.name + ':' + model };
+      if (d?.url) { const b = await fetch(d.url); return { mime: b.headers.get('content-type') || 'image/png', data: Buffer.from(await b.arrayBuffer()), provider: p.name + ':' + model }; }
+    } catch (e) { console.warn('image error', model, (e as Error).message); }
   }
   // PNG so print suppliers (Printful) accept the file
   return { mime: 'image/png', data: await sharp(Buffer.from(mockSvg(seed, palette, prompt))).resize(1024, 1024).png().toBuffer(), provider: 'mock' };
