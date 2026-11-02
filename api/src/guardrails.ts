@@ -1,10 +1,15 @@
 // The AI only PROPOSES. This module decides. Hard limits live in code, not in prompts.
+// Staff agents (writer/designer) are paid to this US sandbox personal account. sb-vkeld (NG) is buyer only.
+export const STAFF_PAYEE = 'sb-7ygua53685681@personal.example.com';
+// Physical items must leave margin over Printful cost for payouts.
+export const MIN_PRICE: Record<string, number> = { tshirt: 29, mug: 22 };
+export const floorPrice = (kind: string, p: number) => Math.max(MIN_PRICE[kind] || 0, p);
 export const LIMITS = {
   minPrice: 1, maxPrice: 60,
   maxPayoutPerTask: 5,
   maxPayoutPctOfRevenue: 0.3,
   dailyPayoutCap: 50,
-  allowedRecipients: ['sb-vkeld53675758@personal.example.com'],
+  allowedRecipients: [STAFF_PAYEE],
   allowedCurrencies: ['USD'],
 };
 export type Verdict = { ok: true } | { ok: false; reasons: string[] };

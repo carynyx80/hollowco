@@ -1,3 +1,4 @@
+import { MIN_PRICE } from './guardrails.js';
 import './env.js';
 import express from 'express';
 import cors from 'cors';
@@ -175,4 +176,11 @@ app.get('/ledger', wrap(async (_q: any, r: any) => r.json(await ledgerView())));
 app.post('/jailbreak', wrap(async (q: any, r: any) => r.json(await jailbreak(q.body.message))));
 
 const port = Number(env('PORT', '4000'));
-db.init().then(() => auth.ensureDemo().catch((e) => console.error('demo', e.message))).then(() => app.listen(port, () => console.log(`HollowCo API on :${port} db=${db.dbMode} ai=${aiMode()} supplier=${printfulMode()}`)));
+async function repriceShops() {
+  for (const { id: sid, data: s } of await db.list('shops', 5000)) {
+    let changed = false;
+    for (const p of s.products || []) if (!p.digital && !p.comingSoon && p.price < (MIN_PRICE[p.kind] || 0)) { p.price = MIN_PRICE[p.kind]; changed = true; }
+    if (changed) { await db.put('shops', sid, s); console.log('repriced', sid); }
+  }
+}
+db.init().then(repriceShops).then(() => auth.ensureDemo().catch((e) => console.error('demo', e.message))).then(() => app.listen(port, () => console.log(`HollowCo API on :${port} db=${db.dbMode} ai=${aiMode()} supplier=${printfulMode()}`)));

@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import * as db from './db.js';
 import * as ai from './ai.js';
-import { checkPrice, checkPayout, LIMITS } from './guardrails.js';
+import { checkPrice, checkPayout, LIMITS, floorPrice } from './guardrails.js';
 import { draftOrder } from './printful.js';
 import { payout, payoutStatus } from './paypal.js';
 import { env } from './env.js';
@@ -32,7 +32,7 @@ export async function createShop(idea: string, log: (s: string) => void = () => 
       price = Math.min(LIMITS.maxPrice, Math.max(LIMITS.minPrice, Number.isFinite(price) ? price : 10));
     }
     const pid = id('p');
-    const prod: any = { id: pid, title: String(p.title).slice(0, 80), kind, digital: kind === 'ebook', price: Math.round(price * 100) / 100, description: String(p.description || '').slice(0, 300) };
+    const prod: any = { id: pid, title: String(p.title).slice(0, 80), kind, digital: kind === 'ebook', price: Math.round(floorPrice(kind, price) * 100) / 100, description: String(p.description || '').slice(0, 300) };
     if (kind === 'ebook') {
       log(`Writer agent: writing "${prod.title}" + designing cover`);
       const [content, img] = await Promise.all([ai.writerBook(prod.title, p.topic || idea, b.name), ai.image(`Book cover for "${prod.title}"`, pid, colors)]);

@@ -1,3 +1,4 @@
+import { STAFF_PAYEE } from './guardrails.js';
 import crypto from 'node:crypto';
 import { env } from './env.js';
 import sharp from 'sharp';
@@ -74,8 +75,8 @@ export async function founderBrand(idea: string): Promise<Brand> {
     products: [
       { title: `The ${kw[0]} Starter Guide`, kind: 'ebook', price: 7 + (b[2] % 6), description: `A practical, instantly-delivered guide to ${topic.toLowerCase()}.`, topic },
       { title: `${kw[0]} in 30 Days`, kind: 'ebook', price: 12 + (b[3] % 8), description: `A day-by-day playbook for ${topic.toLowerCase()}.`, topic },
-      { title: `${name} Tee`, kind: 'tshirt', price: 24 + (b[4] % 6), description: 'Soft cotton tee, printed on demand.', topic },
-      { title: `${name} Mug`, kind: 'mug', price: 16 + (b[5] % 4), description: '11oz ceramic mug, printed on demand.', topic },
+      { title: `${name} Tee`, kind: 'tshirt', price: 29 + (b[4] % 4), description: 'Soft cotton tee, printed on demand.', topic },
+      { title: `${name} Mug`, kind: 'mug', price: 22 + (b[5] % 4), description: '11oz ceramic mug, printed on demand.', topic },
     ],
   };
 }
@@ -88,7 +89,7 @@ export async function writerBook(title: string, topic: string, brand: string): P
 }
 export type PayoutProposal = { agent: string; recipient: string; amount: number; currency: string; reason: string };
 export async function founderProposePayouts(ctx: { revenue: number; tasks: { agent: string; task: string }[]; instruction?: string }): Promise<PayoutProposal[]> {
-  const RECIP = 'sb-vkeld53675758@personal.example.com';
+  const RECIP = STAFF_PAYEE;
   if (provider()) {
     try {
       const j = await chatJSON(`You are the AI founder. Propose payouts to your staff agents for completed tasks. Staff payout email: ${RECIP}. JSON: {"payouts":[{"agent":str,"recipient":email,"amount":number,"currency":"USD","reason":str}]}`,
