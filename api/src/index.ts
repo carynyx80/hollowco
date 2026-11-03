@@ -16,6 +16,7 @@ import { LIMITS } from './guardrails.js';
 import { checkShopQuota, takeAction, isDemo, SHOP_LIMITS } from './limits.js';
 import { usageSnapshot } from './ai.js';
 import * as carts from './cart.js';
+import * as hidden from './hidden.js';
 import { assignPlot, releasePlot, backfillPlots, displayName, DISTRICTS } from './city.js';
 
 const app = express();
@@ -68,7 +69,7 @@ app.get('/marketplace', wrap(async (q: any, r: any) => {
   const term = String(q.query.q || '').toLowerCase().slice(0, 100), cat = String(q.query.category || '');
   const off = Math.max(0, Number(q.query.offset) || 0), lim = Math.min(48, Math.max(1, Number(q.query.limit) || 24));
   const all: any[] = [];
-  for (const { data: s } of await db.list('shops', 5000)) for (const p of s.products) {
+  for (const { data: s } of await hidden.publicRows(await db.list('shops', 5000))) for (const p of s.products) {
     if (p.comingSoon || !p.image) continue;
     if (cat && p.kind !== cat) continue;
     if (term && !`${p.title} ${p.description} ${s.name}`.toLowerCase().includes(term)) continue;
@@ -92,7 +93,7 @@ app.post('/shops/jobs', wrap(async (q: any, r: any) => {
 }));
 app.get('/shops/jobs/:id', (q: any, r: any) => { const j = jobs.get(q.params.id); j ? r.json({ ...j, elapsedMs: Date.now() - j.started }) : r.status(404).json({ error: 'not found' }); });
 app.post('/shops', wrap(async (q: any, r: any) => { const u = await need(q); await shopQuota(u); r.json(pub(await createShop(q.body.idea, (s) => console.log(s), u.id, (p) => assignPlot(p.shopId, p.kinds, p.color, p.text)))); cityCache = null; }));
-app.get('/shops', wrap(async (_q: any, r: any) => r.json((await db.list('shops', 50)).map((x) => ({ id: x.id, name: x.data.name, tagline: x.data.tagline, logo: x.data.logo, colors: x.data.colors })))));
+app.get('/shops', wrap(async (_q: any, r: any) => r.json((await hidden.publicRows(await db.list('shops', 50))).map((x) => ({ id: x.id, name: x.data.name, tagline: x.data.tagline, logo: x.data.logo, colors: x.data.colors })))));
 app.get('/shops/:id', wrap(async (q: any, r: any) => { const s = await db.get('shops', q.params.id); if (!s) return r.status(404).json({ error: 'not found' }); const { ownerId, idea, notices, ...rest } = pub(s); r.json({ ...rest, owner: ownerId ? displayName(await db.get('users', ownerId).catch(() => null)) : 'HollowCo' }); }));
 app.get('/assets/:id', wrap(async (q: any, r: any) => {
   const a = await db.get('assets', q.params.id); if (!a) return r.status(404).end();
@@ -217,7 +218,7 @@ app.get('/payouts', wrap(async (_q: any, r: any) => r.json((await db.list('ledge
 let statsCache: { at: number; body: any } | null = null;
 app.get('/stats', wrap(async (_q: any, r: any) => {
   if (!statsCache || Date.now() - statsCache.at > 5000) {
-    const [shops, rows] = await Promise.all([db.list('shops', 100000), db.list('ledger', 100000)]);
+    const [shops, rows] = await Promise.all([db.list('shops', 100000).then((x) => hidden.publicRows(x.map((r) => ({ ...r, data: { ...r.data, shopId: r.id } })))), db.list('ledger', 100000).then(hidden.publicRows)]);
     const L = rows.map((x) => x.data); const real = (k: string) => L.filter((e) => e.kind === k && !e.sim);
     const pay = real('payout'); const st = (e: any) => e.status || String(e.detail || '').split(' ')[2];
     const tools = L.filter((e) => e.kind === 'agent_tool'); const byTool: Record<string, number> = {};
@@ -279,7 +280,7 @@ app.get('/download/:orderId/:file', wrap(async (q: any, r: any) => {
 let cityCache: { at: number; body: any } | null = null;
 async function cityView() {
   if (cityCache && Date.now() - cityCache.at < 2500) return cityCache.body;
-  const [shops, plots, v] = await Promise.all([db.list('shops', 100000), db.list('plots', 100000), ledgerView()]);
+  const [shops, plots, v] = await Promise.all([db.list('shops', 100000).then((x) => hidden.publicRows(x.map((r) => ({ ...r, data: { ...r.data, shopId: r.id } })))), db.list('plots', 100000), ledgerView().then(hidden.publicLedger)]);
   const plotOf = new Map(plots.map((r) => [r.id, r.data]));
   const names = new Map<string, string>();
   for (const id of new Set(shops.map((r) => r.data.ownerId).filter(Boolean))) names.set(id, displayName(await db.get('users', id)));
@@ -302,8 +303,12 @@ app.patch('/me/profile', wrap(async (q: any, r: any) => {
   if (n.length < 2) throw new Error('Display name must be at least 2 characters.'); if (n.includes('@')) throw new Error('Display name can’t be an email address.');
   u.name = n; await db.put('users', u.id, u); cityCache = null; r.json({ user: auth.publicUser(u) });
 }));
-app.get('/activity', wrap(async (q: any, r: any) => r.json((await db.list('ledger', Math.min(100, Number(q.query.limit) || 40))).map((x) => x.data))));
-app.get('/ledger', wrap(async (_q: any, r: any) => r.json(await ledgerView())));
+app.get('/activity', wrap(async (q: any, r: any) => r.json((await hidden.publicRows(await db.list('ledger', 200))).slice(0, Math.min(100, Number(q.query.limit) || 40)).map((x) => x.data))));
+app.get('/ledger', wrap(async (_q: any, r: any) => r.json(await hidden.publicLedger(await ledgerView()))));
+// Admin moderation (hide test junk from public views; never deletes). Disabled unless ADMIN_SECRET is set.
+const admin = (q: any) => { const k = env('ADMIN_SECRET'); if (!k || String(q.get('x-admin-secret') || '') !== k) { const e: any = new Error('not found'); e.status = 404; throw e; } };
+app.get('/admin/hidden', wrap(async (q: any, r: any) => { admin(q); r.json({ hidden: [...(await hidden.hiddenSet())] }); }));
+app.post('/admin/hidden', wrap(async (q: any, r: any) => { admin(q); const ids: string[] = [].concat(q.body?.shopIds || q.body?.shopId || []).map(String).slice(0, 200); for (const i of ids) await hidden.setHidden(i, q.body?.hidden !== false, String(q.body?.reason || '')); cityCache = null; statsCache = null; r.json({ ok: true, hidden: [...(await hidden.hiddenSet())] }); }));
 app.post('/jailbreak', wrap(async (q: any, r: any) => { const u = await me(q); takeAction('jailbreak', u ? 'u:' + u.id : 'ip:' + q.ip, isDemo(u) ? 'demo' : u ? 'user' : 'anon'); r.json(await jailbreak(q.body.message)); }));
 
 const port = Number(env('PORT', '4000'));
@@ -314,4 +319,4 @@ async function repriceShops() {
     if (changed) { await db.put('shops', sid, s); console.log('repriced', sid); }
   }
 }
-db.init().then(repriceShops).then(() => auth.ensureDemo().catch((e) => console.error('demo', e.message))).then(() => backfillPlots().catch((e) => console.error('plots', e.message))).then(() => (startPayoutPoller(), app.listen(port, () => console.log(`HollowCo API on :${port} db=${db.dbMode} ai=${aiMode()} supplier=${printfulMode()}`))));
+db.init().then(hidden.migrate).then(repriceShops).then(() => auth.ensureDemo().catch((e) => console.error('demo', e.message))).then(() => backfillPlots().catch((e) => console.error('plots', e.message))).then(() => (startPayoutPoller(), app.listen(port, () => console.log(`HollowCo API on :${port} db=${db.dbMode} ai=${aiMode()} supplier=${printfulMode()}`))));
