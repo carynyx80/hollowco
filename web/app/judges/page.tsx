@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { REPLAY_SHOP } from '@/components/Hero';
+import { REPLAY_SHOP } from '@/lib/replay';
 export const metadata = { title: 'For judges · HollowCo' };
 const Step = ({ n, t, children }: { n: number; t: string; children: React.ReactNode }) => <li className="grid grid-cols-[2.5rem_1fr] gap-3 py-4 border-b border-black/[.08]"><span className="font-mono text-sm text-brass pt-1">0{n}</span><div><p className="font-display text-2xl text-char">{t}</p><div className="text-sm text-char/70 mt-1 leading-relaxed">{children}</div></div></li>;
 const Code = ({ children }: { children: React.ReactNode }) => <code className="font-mono text-[13px] bg-beige rounded px-1.5 py-0.5 select-all">{children}</code>;

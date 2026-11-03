@@ -2,7 +2,8 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 /** First-visit pitch over the city. Server-free and dependency-free so it paints before the 3D bundle arrives. */
-export const REPLAY_SHOP = 'shop_3211ffb30858';
+import { REPLAY_SHOP } from '@/lib/replay';
+export { REPLAY_SHOP };
 const KEY = 'hollowco-hero-v1';
 export function Hero() {
   const [show, setShow] = useState<boolean | null>(null);
