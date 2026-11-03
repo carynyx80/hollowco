@@ -4,7 +4,7 @@ for (const k of ['DATABASE_URL', 'OPENAI_API_KEY', 'XAI_API_KEY', 'PAYPAL_CLIENT
 const { checkPayout, checkPrice, LIMITS, STAFF_PAYEE } = await import('./guardrails.js');
 const { applyUnit } = await import('./orderState.js');
 const db = await import('./db.js');
-const { fulfil, ledgerView, splitTotals } = await import('./core.js');
+const { fulfil, ledgerView, splitTotals, storeEconomics } = await import('./core.js');
 let n = 0; const t = async (name: string, f: () => any) => { await f(); n++; console.log('  ✓ ' + name); };
 
 console.log('order capture');
@@ -53,5 +53,15 @@ await t('headline totals exclude test/simulated orders', async () => {
   const s = splitTotals([{ revenue: 10, supplierCost: 1, payouts: 2, profit: 7 }, { revenue: 5, supplierCost: 0, payouts: 0, profit: 5, sim: true }]);
   assert.equal(s.totals.revenue, 10); assert.equal(s.totals.orders, 1); assert.equal(s.simulatedTotals.orders, 1);
 });
+console.log('unit economics');
+await t('fulfilment writes a founder decision memo with the margin arithmetic', async () => {
+  const d = (await db.list('ledger', 1000)).map((r) => r.data).filter((r) => r.orderId === 'o_t' && r.kind === 'decision');
+  assert.equal(d.length, 1); assert.match(d[0].detail, /margin \$/); assert.ok(d[0].memo.paid <= d[0].memo.cap + 1e-9);
+});
+await t('per-store P&L subtracts PayPal fees, supplier cost and payouts; excludes simulated', () => {
+  const e = storeEconomics([{ shopId: 'a', shop: 'A', revenue: 30, fees: 1.37, supplierCost: 12, payouts: 3, profit: 13.63 }, { shopId: 'a', shop: 'A', revenue: 9, fees: 0, supplierCost: 0, payouts: 1, profit: 8, sim: true }]);
+  assert.equal(e.length, 1); assert.equal(e[0].orders, 1); assert.equal(e[0].fees, 1.37); assert.equal(e[0].margin, 45.4);
+});
+await t('splitTotals carries fees', () => assert.equal(splitTotals([{ revenue: 10, fees: 0.79, supplierCost: 0, payouts: 0, profit: 9.21 }]).totals.fees, 0.79));
 console.log(`api tests: ${n} passed`);
 process.exit(0);

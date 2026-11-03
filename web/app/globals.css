@@ -274,3 +274,5 @@ h1.font-display, .font-display.text-4xl, .font-display.text-5xl { font-weight: 5
 .city-poster { background: #ECEAE3 url('/city-poster.svg') center bottom / cover no-repeat; }
 
 html.hero-open .city-glass,html.hero-open [data-testid=city-dock],html.hero-open [data-testid=world-settings]{visibility:hidden}
+
+:where(a,button,input,select,textarea,[tabindex]):focus-visible{outline:2px solid #B8975A;outline-offset:2px;border-radius:4px}

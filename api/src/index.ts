@@ -9,8 +9,8 @@ import * as db from './db.js';
 import { env } from './env.js';
 import { aiMode } from './ai.js';
 import { printfulMode } from './printful.js';
-import { createOrder, createMultiOrder, captureOrder, getOrder } from './paypal.js';
-import { founderOp, createShop, fulfil, id, jailbreak, ledger, ledgerView, splitTotals, refreshPayouts, syncPayouts, startPayoutPoller } from './core.js';
+import { createOrder, createMultiOrder, captureOrder, getOrder, pp } from './paypal.js';
+import { founderOp, createShop, fulfil, id, jailbreak, ledger, ledgerView, splitTotals, refreshPayouts, syncPayouts, startPayoutPoller, storeEconomics, backfillFees } from './core.js';
 import { toolkitToolNames, TOOLKIT_ACTIONS } from './agent.js';
 import { LIMITS } from './guardrails.js';
 import { checkShopQuota, takeAction, isDemo, SHOP_LIMITS, ACTION_LIMITS } from './limits.js';
@@ -41,7 +41,7 @@ const legacyWatch = (p: any) => p.comingSoon && p.kind === 'watch' && !p.image;
 const pub = (s: any) => s && ({ ...s, products: s.products.filter((p: any) => !legacyWatch(p)).map(({ content, ...p }: any) => ({ ...p, preview: content ? content.slice(0, 400) : undefined })) });
 
 app.get('/', (_q, r) => r.json({ name: 'HollowCo API', ok: true }));
-app.get('/health', (_q, r) => r.json({ ok: true, db: db.dbMode, ai: aiMode(), supplier: printfulMode(), paypalEnv: env('PAYPAL_ENV', 'sandbox'), paypalClientId: env('PAYPAL_CLIENT_ID'), limits: LIMITS }));
+app.get('/health', (_q, r) => r.json({ ok: true, db: db.dbMode, ai: aiMode(), supplier: printfulMode(), paypalEnv: env('PAYPAL_ENV', 'sandbox'), paypalClientId: env('PAYPAL_CLIENT_ID'), limits: { ...LIMITS, allowedRecipients: undefined, allowlistedRecipients: LIMITS.allowedRecipients.length }, webhookVerification: !!env('PAYPAL_WEBHOOK_ID') }));
 app.get('/limits', wrap(async (q: any, r: any) => { const u = await me(q); let mine: any = null; if (u) { try { mine = await shopQuota(u); } catch (e: any) { mine = { blocked: e.message }; } } r.json({ shops: SHOP_LIMITS(), builds: ACTION_LIMITS.build, mine, usage: usageSnapshot(), budget: aiBudget() }); }));
 app.get('/config', (_q, r) => r.json({ paypalClientId: env('PAYPAL_CLIENT_ID'), paypalEnv: env('PAYPAL_ENV', 'sandbox'), ai: aiMode(), supplier: printfulMode() }));
 const jobs = new Map<string, { status: string; log: string[]; shopId?: string; error?: string; started: number; ownerId?: string }>();
@@ -60,7 +60,8 @@ app.get('/me/dashboard', wrap(async (q: any, r: any) => {
   const { totals, simulatedTotals } = splitTotals(orders);
   const payouts = events.filter((e: any) => e.kind === 'payout' || (e.kind === 'rejected' && e.orderId));
   r.json({ user: auth.publicUser(u), shops: shops.map((s) => ({ id: s.id, name: s.name, tagline: s.tagline, logo: s.logo, colors: s.colors, createdAt: s.createdAt, products: s.products.filter((p: any) => !p.comingSoon).length,
-    revenue: orders.filter((o: any) => o.shop === s.name && !o.test && !o.sim).reduce((a: number, o: any) => a + o.revenue, 0) })), totals, simulatedTotals, orders, payouts, events, jobs: [...jobs.entries()].filter(([, j]: any) => j.ownerId === u.id && j.status === 'running').map(([id, j]: any) => ({ id, log: j.log })) });
+    revenue: orders.filter((o: any) => o.shop === s.name && !o.test && !o.sim).reduce((a: number, o: any) => a + o.revenue, 0),
+    pnl: storeEconomics(orders.filter((o: any) => o.shopId === s.id || o.shop === s.name))[0] || null })), totals, simulatedTotals, orders, payouts, events, jobs: [...jobs.entries()].filter(([, j]: any) => j.ownerId === u.id && j.status === 'running').map(([id, j]: any) => ({ id, log: j.log })) });
 }));
 // Per-account cart: auth required, keyed only by the session's user id.
 const noStore = (r: any) => r.set('Cache-Control', 'private, no-store');
@@ -192,6 +193,14 @@ app.get('/orders/pp/:ppId', wrap(async (q: any, r: any) => r.json(await orderVie
 // PayPal webhook. We never trust the payload: we only take the order id from it and re-read the order from PayPal's API.
 app.post('/paypal/webhook', async (q: any, r: any) => {
   const ev = q.body || {}; const res = ev.resource || {};
+  // Signature verification (POST /v1/notifications/verify-webhook-signature) when PAYPAL_WEBHOOK_ID is configured.
+  // Even unverified events are only used as a hint: state is always re-read from PayPal's API below.
+  const wid = env('PAYPAL_WEBHOOK_ID');
+  if (wid) {
+    const h = (k: string) => String(q.get(k) || '');
+    const v = await pp('POST', '/v1/notifications/verify-webhook-signature', { auth_algo: h('paypal-auth-algo'), cert_url: h('paypal-cert-url'), transmission_id: h('paypal-transmission-id'), transmission_sig: h('paypal-transmission-sig'), transmission_time: h('paypal-transmission-time'), webhook_id: wid, webhook_event: ev }).catch(() => null);
+    if (v?.j?.verification_status !== 'SUCCESS') { await ledger('webhook_rejected', { detail: `signature ${v?.j?.verification_status || 'check failed'} for ${String(ev.event_type || '?').slice(0, 60)}` }).catch(() => {}); return r.status(400).json({ error: 'signature verification failed' }); }
+  }
   if (String(ev.event_type || '').startsWith('PAYMENT.PAYOUTS')) { // re-read from PayPal; never trust the payload
     try { await syncPayouts(true); await ledger('webhook', { detail: `${ev.event_type} ${res.payout_batch_id || ''}` }); } catch (e: any) { console.error('webhook', e.message); }
     return r.json({ ok: true });
@@ -297,6 +306,17 @@ app.patch('/me/profile', wrap(async (q: any, r: any) => {
   u.name = n; await db.put('users', u.id, u); cityCache = null; r.json({ user: auth.publicUser(u) });
 }));
 app.get('/activity', wrap(async (q: any, r: any) => r.json((await hidden.publicRows(await db.list('ledger', 200))).slice(0, Math.min(100, Number(q.query.limit) || 40)).map((x) => x.data))));
+let econCache: { at: number; body: any } | null = null; let feesBackfilled = false;
+app.get('/economics', wrap(async (_q: any, r: any) => {
+  if (!feesBackfilled) { feesBackfilled = true; await backfillFees().catch((e) => console.error('fees', e.message)); }
+  if (!econCache || Date.now() - econCache.at > 10000) {
+    const v = await hidden.publicLedger(await ledgerView());
+    const stores = storeEconomics(v.orders); const t = v.totals;
+    econCache = { at: Date.now(), body: { source: 'ledger (real PayPal sandbox captures only; simulated and test orders excluded)', totals: { ...t, margin: t.revenue ? Math.round((t.profit / t.revenue) * 1000) / 10 : 0, aov: t.orders ? Math.round((t.revenue / t.orders) * 100) / 100 : 0 }, stores: stores.slice(0, 20),
+      decisions: v.events.filter((e: any) => e.kind === 'decision' && !e.sim).slice(0, 8).map((e: any) => ({ at: e.at, shop: e.shop, detail: e.detail })) } };
+  }
+  r.setHeader('Cache-Control', 'no-store'); r.json(econCache.body);
+}));
 app.get('/ledger', wrap(async (_q: any, r: any) => r.json(await hidden.publicLedger(await ledgerView()))));
 // Admin moderation (hide test junk from public views; never deletes). Disabled unless ADMIN_SECRET is set.
 const admin = (q: any) => { const k = env('ADMIN_SECRET'); if (!k || String(q.get('x-admin-secret') || '') !== k) { const e: any = new Error('not found'); e.status = 404; throw e; } };
@@ -305,7 +325,7 @@ app.post('/admin/hidden', wrap(async (q: any, r: any) => { admin(q); const ids: 
 // Founder back-office through the PayPal Agent Toolkit: reconcile (list_transactions), B2B invoice (create_invoice), checkout order (create_order).
 app.post('/agent/ops/:kind', wrap(async (q: any, r: any) => { const k = q.params.kind; if (!['reconcile', 'invoice', 'order'].includes(k)) return r.status(404).json({ error: 'unknown op' });
   const u = await me(q); takeAction('founderop', u ? 'u:' + u.id : 'ip:' + q.ip, isDemo(u) ? 'demo' : u ? 'user' : 'anon'); aiBudgetCheck();
-  const x: any = await founderOp(k, { shopId: q.body?.shopId }); r.json({ kind: x.kind, ok: x.ok, summary: x.summary, result: typeof x.result === 'string' ? x.result.slice(0, 600) : x.result, calls: (x.calls || []).map((c: any) => ({ tool: c.tool, decision: c.decision, reasons: c.reasons, via: c.via })) }); }));
+  const x: any = await founderOp(k, { shopId: q.body?.shopId }); r.json({ kind: x.kind, ok: x.ok, needsInvoicing: !!x.needsInvoicing, summary: x.summary, result: typeof x.result === 'string' ? x.result.slice(0, 600) : x.result, calls: (x.calls || []).map((c: any) => ({ tool: c.tool, decision: c.decision, reasons: c.reasons, via: c.via })) }); }));
 app.post('/jailbreak', wrap(async (q: any, r: any) => { const u = await me(q); takeAction('jailbreak', u ? 'u:' + u.id : 'ip:' + q.ip, isDemo(u) ? 'demo' : u ? 'user' : 'anon'); r.json(await jailbreak(q.body.message)); }));
 
 const port = Number(env('PORT', '4000'));

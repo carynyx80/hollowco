@@ -23,9 +23,9 @@ export function Hero() {
       <div className="hero-ctas">
         <Link href={`/office/${REPLAY_SHOP}?replay=1`} className="hero-btn hero-btn-primary" onClick={close} data-testid="hero-watch">Watch an AI build a store</Link>
         <button className="hero-btn" onClick={close} data-testid="hero-enter">Enter the city</button>
-        <Link href="/?panel=signup" className="hero-btn hero-btn-ghost" onClick={close}>Build your own</Link>
+        <Link href="/impact" className="hero-btn hero-btn-ghost" onClick={close}>Who it’s for</Link>
       </div>
-      <p className="hero-foot">Runs on the PayPal <b>sandbox</b> — no real money moves. <Link href="/judges" onClick={close}>For judges →</Link> demo login &amp; test card.</p>
+      <p className="hero-foot">For solo sellers who can’t afford staff. Runs on the PayPal <b>sandbox</b> — no real money moves. <Link href="/judges" onClick={close}>For judges →</Link> demo login &amp; test card.</p>
     </div>
   </div>;
 }

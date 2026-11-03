@@ -16,14 +16,14 @@ function useMobile() { const [m, setM] = useState(false); useEffect(() => { cons
 const Skel = ({ h }: { h: number }) => <div className="rounded-md border border-black/[.08] bg-white p-3 space-y-2" style={{ height: h }} data-testid="ledger-skeleton">{Array.from({ length: Math.max(3, Math.floor(h / 44)) }).map((_, i) => <div key={i} className="h-7 rounded bg-beige animate-pulse" />)}</div>;
 const orderCols: any[] = [
   { field: 'at', headerName: 'Time', sort: 'desc', width: 150, valueFormatter: time }, { field: 'shop', headerName: 'Shop', flex: 1, minWidth: 220, tooltipField: 'shop' },
-  { field: 'revenue', valueFormatter: usd, width: 110 }, { field: 'supplierCost', headerName: 'Supplier', valueFormatter: usd, width: 110 }, { field: 'payouts', headerName: 'Agent payouts', valueFormatter: usd, width: 130 },
+  { field: 'revenue', valueFormatter: usd, width: 110 }, { field: 'fees', headerName: 'PayPal fee', valueFormatter: usd, width: 110 }, { field: 'supplierCost', headerName: 'Supplier', valueFormatter: usd, width: 110 }, { field: 'payouts', headerName: 'Agent payouts', valueFormatter: usd, width: 130 },
   { field: 'profit', valueFormatter: usd, width: 110, cellStyle: (p: any) => ({ fontWeight: 700, color: p.value >= 0 ? '#4F7A47' : '#A6452F' }) },
   { field: 'rejected', headerName: 'Blocked', width: 95 }, { field: 'orderId', headerName: 'Order', width: 170 }];
 function OrderCards({ rows, empty }: { rows: any[]; empty: string }) {
   if (!rows.length) return <p className="text-sm text-char/55 py-4">{empty}</p>;
   return <ul className="space-y-2">{[...rows].sort((a, b) => String(b.at).localeCompare(String(a.at))).map((o) => <li key={o.orderId} className="rounded-md border border-black/[.08] bg-white p-3 text-sm">
     <div className="flex justify-between gap-3"><span className="font-medium">{o.shop}{tag(o) && <span className="ml-1.5 font-mono text-[10px] uppercase text-char/55">{tag(o)}</span>}</span><span className="tabular-nums font-semibold">{money(o.revenue)}</span></div>
-    <div className="mt-1 flex justify-between text-xs text-char/55"><span>{when(o.at)}</span><span>supplier {money(o.supplierCost)} · staff {money(o.payouts)} · <b className={o.profit >= 0 ? 'text-[#4F7A47]' : 'text-[#A6452F]'}>profit {money(o.profit)}</b></span></div></li>)}</ul>;
+    <div className="mt-1 flex justify-between text-xs text-char/55"><span>{when(o.at)}</span><span>fee {money(o.fees)} · supplier {money(o.supplierCost)} · staff {money(o.payouts)} · <b className={o.profit >= 0 ? 'text-[#4F7A47]' : 'text-[#A6452F]'}>profit {money(o.profit)}</b></span></div></li>)}</ul>;
 }
 export default function Ledger() {
   const [d, setD] = useState<any>(null); const mobile = useMobile(); const [showSim, setShowSim] = useState(false);
@@ -36,8 +36,8 @@ export default function Ledger() {
   return (
     <div className="mx-auto max-w-6xl px-5 py-10 space-y-8">
       <div><p className="eyebrow">Transparency</p><h1 className="font-display text-4xl  mt-1">Live public P&amp;L</h1><p className="text-char/55 mt-2">Every cent in and out of every HollowCo company, from real PayPal sandbox orders. Refreshes every 5s.</p></div>
-      {t ? <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[['Revenue', t.revenue], ['Supplier cost', t.supplierCost], ['Agent payouts', t.payouts], ['Profit', t.profit]].map(([k, v]) =>
+      {t ? <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {[['Revenue', t.revenue], ['PayPal fees', t.fees], ['Supplier cost', t.supplierCost], ['Agent payouts', t.payouts], ['Profit', t.profit]].map(([k, v]) =>
           <div key={k as string} className="card p-5"><div className="text-xs text-char/55">{k}</div><div className="text-2xl font-semibold tabular-nums mt-1">{money(v)}</div></div>)}
       </div> : <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[0, 1, 2, 3].map((i) => <div key={i} className="card p-5 h-[84px] animate-pulse" />)}</div>}
       {st && <p className="text-xs text-char/55 -mt-4" data-testid="sim-note">Totals count {t.orders} real sandbox order{t.orders === 1 ? '' : 's'} only. {st.orders} test/simulated order{st.orders === 1 ? '' : 's'} ({money(st.revenue)}, no money moved) are excluded and listed separately below.</p>}

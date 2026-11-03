@@ -10,7 +10,7 @@ import { CartButton } from './cart/GlobalCart';
 export function Nav() {
   const { user, loading, setUser } = useAuth(); const path = usePathname(); const router = useRouter(); const toast = useToast();
   const [open, setOpen] = useState(false);
-  const links = [['/', 'City'], ['/ledger', 'Ledger'], ['/judges', 'For judges'], ...(user ? [['/dashboard', 'Dashboard']] : [])];
+  const links = [['/', 'City'], ['/impact', 'Why it matters'], ['/ledger', 'Ledger'], ['/judges', 'For judges'], ...(user ? [['/dashboard', 'Dashboard']] : [])];
   async function out() { const req = api('/auth/signout', { method: 'POST' }).catch(() => {}); await req; setUser(null); router.push('/'); router.refresh(); toast('Signed out', 'ok'); }
   return (
     <header className="sticky top-0 z-40 border-b border-black/[.08] bg-cream/60 backdrop-blur-xl">
@@ -29,7 +29,7 @@ export function Nav() {
             <Link href={path === '/' ? '/?panel=signup' : '/signup'} className="btn-primary h-9">Get started</Link>
           </>}
         </div>
-        <button className="md:hidden btn-ghost h-9 px-3" onClick={() => setOpen(!open)} aria-label="Menu">☰</button>
+        <button className="md:hidden btn-ghost h-9 px-3" onClick={() => setOpen(!open)} aria-label="Menu" aria-expanded={open}>☰</button>
       </nav>
       {open && <div className="md:hidden border-t border-line px-5 py-3 flex flex-col gap-1 text-sm bg-cream" onClick={() => setOpen(false)}>
         {links.map(([h, l]) => <Link key={h} href={h} className="py-2">{l}</Link>)}

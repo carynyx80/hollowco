@@ -3,7 +3,7 @@ import * as db from './db.js';
 import * as ai from './ai.js';
 import { checkPrice, checkPayout, LIMITS, floorPrice, STAFF_PAYEE, SANDBOX_BUYER } from './guardrails.js';
 import { draftOrder } from './printful.js';
-import { payout, payoutStatus } from './paypal.js';
+import { payout, payoutStatus, pp } from './paypal.js';
 import { env } from './env.js';
 import { runAgent, payoutTool } from './agent.js';
 export const id = (p: string) => p + '_' + crypto.randomBytes(6).toString('hex');
@@ -90,6 +90,8 @@ export async function fulfil(orderId: string) {
   o.fulfilled = true; await db.put('orders', orderId, o); // idempotency lock
   const revenue = o.capturedAmount ?? o.total; const sim = !!o.simulated;
   await ledger('revenue', { orderId, shopId: o.shopId, shop: shop?.name, agent: 'accountant', amount: revenue, detail: sim ? '[SIMULATED] simulated customer — no money moved' : `PayPal capture ${o.captureId || ''}`, test: !!o.test, sim });
+  let fee = 0;
+  if (!sim && o.captureId) { fee = await captureFee(o.captureId).catch(() => 0); if (fee > 0) await ledger('paypal_fee', { orderId, shopId: o.shopId, shop: shop?.name, agent: 'accountant', amount: fee, detail: `PayPal fee on capture ${o.captureId} (seller_receivable_breakdown)`, test: !!o.test }); }
   const tasks: { agent: string; task: string }[] = [];
   o.supplier = []; let supplierCost = 0;
   for (const [ix, it] of o.items.entries()) {
@@ -101,7 +103,7 @@ export async function fulfil(orderId: string) {
     await ledger('supplier_cost', { orderId, shopId: o.shopId, shop: shop.name, agent: 'supplier', sim, amount: Number(d.cost || 0) * (d.perUnit ? it.qty : 1), detail: `${d.mode === 'simulated' ? '[SIMULATED] ' : ''}${d.note} id=${d.id}` });
   }
   // Staff are paid from gross margin (revenue minus supplier cost), so the company can never pay out more than it keeps.
-  const payBase = Math.max(0, Math.round((revenue - supplierCost) * 100) / 100);
+  const payBase = Math.max(0, Math.round((revenue - fee - supplierCost) * 100) / 100);
   let paidOrder = 0; o.payouts = [];
   const ptoday = async () => sim ? 0 : await paidToday();
   // Code-approved payout execution (shared by the tool-calling agent and the JSON fallback).
@@ -138,6 +140,12 @@ export async function fulfil(orderId: string) {
     } catch (e) { console.warn('payout agent failed, falling back', (e as Error).message); }
   }
   if (!agentRan) for (const pr of await ai.founderProposePayouts({ revenue: payBase, tasks: staff })) await tryPayout(pr);
+  // Founder decision memo: the arithmetic behind this order's staff payouts, written from real ledger numbers.
+  const cap = Math.round(Math.min(payBase * LIMITS.maxPayoutPctOfRevenue, LIMITS.maxPayoutPerTask * staff.length) * 100) / 100;
+  const r2 = (n: number) => (Math.round(n * 100) / 100).toFixed(2);
+  await ledger('decision', { orderId, shopId: o.shopId, shop: shop.name, agent: 'founder', sim, amount: Math.round(paidOrder * 100) / 100,
+    detail: `Revenue $${r2(revenue)} − PayPal fee $${r2(fee)} − supplier $${r2(supplierCost)} = margin $${r2(payBase)}. Staff budget capped at ${LIMITS.maxPayoutPctOfRevenue * 100}% of margin ($${r2(cap)}). Paid ${o.payouts.length} staff $${r2(paidOrder)}; company keeps $${r2(payBase - paidOrder)} (${revenue > 0 ? Math.round(((payBase - paidOrder) / revenue) * 100) : 0}% net margin).`,
+    memo: { revenue, fee, supplierCost, margin: payBase, cap, paid: paidOrder, staff: staff.map((t) => t.agent) } });
   await db.put('orders', orderId, o);
   return o;
 }
@@ -203,7 +211,11 @@ export async function founderOp(kind: 'reconcile' | 'invoice' | 'order', opts: {
       user: JSON.stringify({ customer: SANDBOX_BUYER, item: { name: prod.title, quantity: String(qty), unit_amount: { currency_code: 'USD', value: wholesale.toFixed(2) } } }),
       guard: (_n, a) => { const items = a?.items || []; const amt = items.reduce((s: number, i: any) => s + Number(i?.unit_amount?.value || 0) * Number(i?.quantity || 1), 0);
         return items.length === 1 && Math.abs(amt - qty * wholesale) < 0.01 && JSON.stringify(a.primary_recipients || '').toLowerCase().includes(SANDBOX_BUYER) ? { ok: true } : { ok: false, reasons: [`invoice must be exactly ${qty} × $${wholesale} to ${SANDBOX_BUYER}`] }; } });
-    const c = calls.find((x) => x.decision === 'approved'); const okInv = !!c && !/^error|"ok":false/i.test(String(c.result));
+    const c = calls.find((x) => x.decision === 'approved'); const okInv = !!c && !/^error|"ok":false|403|NOT_AUTHORIZED|PERMISSION_DENIED/i.test(String(c.result));
+    if (c && !okInv && /403|NOT_AUTHORIZED|PERMISSION_DENIED|insufficient/i.test(String(c.result))) {
+      await ledger('invoice', { agent: 'founder', shopId: shop.id, shop: shop.name, amount: qty * wholesale, detail: `B2B invoice drafted by founder (${qty} × ${prod.title} @ $${wholesale}) — guardrail approved; PayPal returned 403: Invoicing is not enabled on this sandbox app yet`, ok: false, needsInvoicing: true });
+      return { kind, ok: false, needsInvoicing: true, summary: { status: 'needs_invoicing_enabled', message: 'The founder drafted and the guardrail approved this invoice, but PayPal Invoicing is not enabled on this sandbox app (HTTP 403). Enable Invoicing in the PayPal developer dashboard → app features.' }, calls };
+    }
     await ledger('invoice', { agent: 'founder', shopId: shop.id, shop: shop.name, amount: qty * wholesale, detail: `B2B wholesale invoice via Agent Toolkit create_invoice: ${qty} × ${prod.title} @ $${wholesale} → ${c ? String(c.result).slice(0, 120) : 'blocked'}`, ok: okInv });
     return { kind, ok: okInv, result: c?.result, calls };
   }
@@ -220,15 +232,17 @@ export async function ledgerView() {
   const byOrder = new Map<string, any>();
   for (const r of rows) {
     if (!r.orderId || r.kind === 'capture_failed') continue;
-    const o = byOrder.get(r.orderId) || { orderId: r.orderId, shop: r.shop, at: r.at, revenue: 0, supplierCost: 0, payouts: 0, rejected: 0, test: false, sim: false };
+    const o = byOrder.get(r.orderId) || { orderId: r.orderId, shopId: r.shopId, shop: r.shop, at: r.at, revenue: 0, fees: 0, supplierCost: 0, payouts: 0, rejected: 0, test: false, sim: false };
     if (r.kind === 'revenue') { o.revenue += r.amount; o.test = !!r.test; o.sim = !!r.sim; o.at = r.at; }
     if (r.kind === 'supplier_cost') o.supplierCost += r.amount;
+    if (r.kind === 'paypal_fee') o.fees += r.amount;
+    if (!o.shopId && r.shopId) o.shopId = r.shopId;
     if (r.kind === 'payout') o.payouts += r.amount;
     if (r.kind === 'payout_reversed') o.payouts -= r.amount;
     if (r.kind === 'rejected') o.rejected++;
     byOrder.set(r.orderId, o);
   }
-  const orders = [...byOrder.values()].map((o) => ({ ...o, profit: Math.round((o.revenue - o.supplierCost - o.payouts) * 100) / 100 }));
+  const orders = [...byOrder.values()].map((o) => ({ ...o, profit: Math.round((o.revenue - o.fees - o.supplierCost - o.payouts) * 100) / 100 }));
   return { ...splitTotals(orders), orders, events: rows, limits: LIMITS };
 }
 
@@ -279,7 +293,35 @@ export function startPayoutPoller(ms = 60_000) {
 
 /** One source of truth: headline totals count only real PayPal-sandbox orders. Test and simulated orders are reported separately. */
 export function splitTotals(orders: any[]) {
-  const sum = (xs: any[]) => { const t = xs.reduce((s, o) => ({ revenue: s.revenue + o.revenue, supplierCost: s.supplierCost + o.supplierCost, payouts: s.payouts + o.payouts, profit: s.profit + o.profit }), { revenue: 0, supplierCost: 0, payouts: 0, profit: 0 });
-    const r = (n: number) => Math.round(n * 100) / 100; return { revenue: r(t.revenue), supplierCost: r(t.supplierCost), payouts: r(t.payouts), profit: r(t.profit), orders: xs.length }; };
+  const sum = (xs: any[]) => { const t = xs.reduce((s, o) => ({ revenue: s.revenue + o.revenue, fees: s.fees + (o.fees || 0), supplierCost: s.supplierCost + o.supplierCost, payouts: s.payouts + o.payouts, profit: s.profit + o.profit }), { revenue: 0, fees: 0, supplierCost: 0, payouts: 0, profit: 0 });
+    const r = (n: number) => Math.round(n * 100) / 100; return { revenue: r(t.revenue), fees: r(t.fees), supplierCost: r(t.supplierCost), payouts: r(t.payouts), profit: r(t.profit), orders: xs.length }; };
   return { totals: sum(orders.filter((o) => !o.test && !o.sim)), simulatedTotals: sum(orders.filter((o) => o.test || o.sim)) };
+}
+
+// PayPal's own fee for a capture (GET /v2/payments/captures/{id} → seller_receivable_breakdown.paypal_fee).
+export async function captureFee(captureId: string): Promise<number> {
+  const { ok, j } = await pp('GET', `/v2/payments/captures/${encodeURIComponent(captureId)}`);
+  return ok ? Math.round(Number(j?.seller_receivable_breakdown?.paypal_fee?.value || 0) * 100) / 100 : 0;
+}
+// One-off backfill: orders captured before fees were recorded get the real fee from PayPal (never estimated).
+export async function backfillFees() {
+  const rows = (await db.list('ledger', 5000)).map((r) => r.data);
+  const have = new Set(rows.filter((r) => r.kind === 'paypal_fee').map((r) => r.orderId));
+  let n = 0, tried = 0;
+  for (const r of rows.filter((x) => x.kind === 'revenue' && !x.sim && !have.has(x.orderId))) {
+    if (++tried > 200) break;
+    const cid = String(r.detail || '').match(/capture\s+(\w+)/)?.[1]; if (!cid) continue;
+    const fee = await captureFee(cid).catch(() => 0);
+    if (fee > 0) { await db.put('ledger', 'fee_' + r.orderId, { kind: 'paypal_fee', at: r.at, orderId: r.orderId, shopId: r.shopId, shop: r.shop, agent: 'accountant', amount: fee, detail: `PayPal fee on capture ${cid} (backfilled from PayPal)`, test: !!r.test }); n++; }
+  }
+  return n;
+}
+// Per-store unit economics from the ledger (real, non-simulated orders only).
+export function storeEconomics(orders: any[]) {
+  const m = new Map<string, any>(); const r = (n: number) => Math.round(n * 100) / 100;
+  for (const o of orders.filter((x) => !x.test && !x.sim && x.revenue > 0)) {
+    const k = o.shopId || o.shop; const s = m.get(k) || { shopId: o.shopId, shop: o.shop, orders: 0, revenue: 0, fees: 0, supplierCost: 0, payouts: 0, profit: 0 };
+    s.orders++; s.revenue += o.revenue; s.fees += o.fees || 0; s.supplierCost += o.supplierCost; s.payouts += o.payouts; s.profit += o.profit; m.set(k, s);
+  }
+  return [...m.values()].map((s) => ({ ...s, revenue: r(s.revenue), fees: r(s.fees), supplierCost: r(s.supplierCost), payouts: r(s.payouts), profit: r(s.profit), margin: s.revenue ? Math.round((s.profit / s.revenue) * 1000) / 10 : 0, aov: r(s.revenue / s.orders) })).sort((a, b) => b.revenue - a.revenue);
 }

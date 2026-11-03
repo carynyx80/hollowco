@@ -127,9 +127,21 @@ The AI founder acts through **PayPal's official Agent Toolkit** (`@paypal/agent-
 
 ## AI tools used
 
-- Grok Bot (AI agent) wrote and deployed this codebase
+- Built by Carynyx, with Grok Bot used as an AI coding assistant (code generation, refactors, test scaffolding)
 - LLM + image model via provider abstraction (OpenAI / xAI) or deterministic mock
 - PayPal REST APIs (Orders v2, Payouts, Invoicing), PayPal JS SDK
+
+## Unit economics & webhooks
+
+- `GET /economics`: per-store P&L from the ledger (revenue, PayPal fee from each capture's `seller_receivable_breakdown`, supplier cost, AI staff payouts, profit, margin) plus the founder's decision memos. Real sandbox captures only. Shown at `/impact`, per store on the dashboard, and on `/ledger`.
+- `POST /paypal/webhook`: verified with `POST /v1/notifications/verify-webhook-signature` when `PAYPAL_WEBHOOK_ID` is set; state is always re-read from PayPal regardless.
+- `create_invoice` returns 403 until Invoicing is enabled for the sandbox app; the UI shows "needs Invoicing enabled" instead of an error.
+- `list_transactions` (PayPal Transaction Search) lags captures by up to ~3 hours in sandbox; reconcile says so.
+
+## Credits
+
+- 3D city assets: see [web/public/city/CREDITS.md](web/public/city/CREDITS.md)
+- Fonts: Cormorant Garamond, Inter Tight, IBM Plex Mono — all [SIL Open Font License 1.1](https://openfontlicense.org), served via Google Fonts / `next/font`.
 
 ## License
 
