@@ -319,4 +319,4 @@ async function repriceShops() {
     if (changed) { await db.put('shops', sid, s); console.log('repriced', sid); }
   }
 }
-db.init().then(hidden.migrate).then(repriceShops).then(() => auth.ensureDemo().catch((e) => console.error('demo', e.message))).then(() => backfillPlots().catch((e) => console.error('plots', e.message))).then(() => (startPayoutPoller(), app.listen(port, () => console.log(`HollowCo API on :${port} db=${db.dbMode} ai=${aiMode()} supplier=${printfulMode()}`))));
+db.init().then(() => hidden.migrate().catch((e) => console.error('hidden', e.message))).then(repriceShops).then(() => auth.ensureDemo().catch((e) => console.error('demo', e.message))).then(() => backfillPlots().catch((e) => console.error('plots', e.message))).then(() => (startPayoutPoller(), app.listen(port, () => console.log(`HollowCo API on :${port} db=${db.dbMode} ai=${aiMode()} supplier=${printfulMode()}`))));
