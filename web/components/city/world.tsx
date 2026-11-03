@@ -86,7 +86,7 @@ const TREE_URLS = [0, 1, 2, 3, 4].map((i) => `/city/models/tree${i}.glb`);
 function TreeModels({ spots }: { spots: { x: number; z: number; k: number; v: number }[] }) {
   const gltfs = useGLTF(TREE_URLS) as any[];
   const groups = useMemo(() => { const by: { x: number; z: number; k: number; r: number }[][] = TREE_URLS.map(() => []);
-    spots.forEach((s, n) => { const vi = s.v > 0.9 ? 4 : s.v > 0.78 ? 3 : Math.floor(s.v / 0.78 * 3); by[vi].push({ x: s.x, z: s.z, k: s.k, r: hash(n * 3.3) * 6.28 }); }); return by; }, [spots]);
+    spots.forEach((s, n) => { const vi = s.v > 0.88 ? 4 : s.v > 0.83 ? 3 : Math.floor(s.v / 0.83 * 3); by[vi].push({ x: s.x, z: s.z, k: s.k, r: hash(n * 3.3) * 6.28 }); }); return by; }, [spots]);
   const models = useMemo(() => gltfs.map((g, vi) => { const sc = g.scene as THREE.Object3D; sc.updateMatrixWorld(true); const box = new THREE.Box3().setFromObject(sc), c = box.getCenter(new THREE.Vector3()), h = box.max.y - box.min.y;
     const H = vi === 4 ? 4.2 : 3.4; const fix = new THREE.Matrix4().makeScale(H / h, H / h, H / h).multiply(new THREE.Matrix4().makeTranslation(-c.x, -box.min.y, -c.z));
     const parts: { geo: THREE.BufferGeometry; mat: THREE.Material }[] = [];
