@@ -79,13 +79,13 @@ export async function fulfil(orderId: string) {
   await ledger('revenue', { orderId, shopId: o.shopId, shop: shop?.name, agent: 'accountant', amount: revenue, detail: sim ? '[SIMULATED] simulated customer — no money moved' : `PayPal capture ${o.captureId || ''}`, test: !!o.test, sim });
   const tasks: { agent: string; task: string }[] = [];
   o.supplier = []; let supplierCost = 0;
-  for (const it of o.items) {
+  for (const [ix, it] of o.items.entries()) {
     const p = shop.products.find((x: any) => x.id === it.productId);
     if (p.digital) { tasks.push({ agent: 'writer', task: `wrote "${p.title}"` }); continue; }
     tasks.push({ agent: 'designer', task: `designed ${p.kind} for ${shop.name}` });
-    const d = await draftOrder({ kind: p.kind, designUrl: p.design, recipient: o.shipping || { name: 'HollowCo Demo Buyer', address1: '19749 Dearborn St', city: 'Chatsworth', state_code: 'CA', country_code: 'US', zip: '91311' }, externalId: orderId.replace(/[^a-z0-9]/gi, '') });
-    o.supplier.push({ productId: p.id, ...d }); supplierCost += Number(d.cost || 0) * it.qty;
-    await ledger('supplier_cost', { orderId, shopId: o.shopId, shop: shop.name, agent: 'supplier', sim, amount: d.cost * it.qty, detail: `${d.mode === 'simulated' ? '[SIMULATED] ' : ''}${d.note} id=${d.id}` });
+    const d = await draftOrder({ kind: p.kind, designUrl: p.design, recipient: o.shipping || { name: 'HollowCo Demo Buyer', address1: '19749 Dearborn St', city: 'Chatsworth', state_code: 'CA', country_code: 'US', zip: '91311' }, externalId: orderId.replace(/[^a-z0-9]/gi, '') + (ix ? 'i' + ix : ''), qty: it.qty });
+    o.supplier.push({ productId: p.id, ...d }); supplierCost += Number(d.cost || 0) * (d.perUnit ? it.qty : 1);
+    await ledger('supplier_cost', { orderId, shopId: o.shopId, shop: shop.name, agent: 'supplier', sim, amount: Number(d.cost || 0) * (d.perUnit ? it.qty : 1), detail: `${d.mode === 'simulated' ? '[SIMULATED] ' : ''}${d.note} id=${d.id}` });
   }
   // Staff are paid from gross margin (revenue minus supplier cost), so the company can never pay out more than it keeps.
   const payBase = Math.max(0, Math.round((revenue - supplierCost) * 100) / 100);

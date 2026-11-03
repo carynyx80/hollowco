@@ -86,7 +86,7 @@ app.post('/shops/jobs', wrap(async (q: any, r: any) => {
 app.get('/shops/jobs/:id', (q: any, r: any) => { const j = jobs.get(q.params.id); j ? r.json({ ...j, elapsedMs: Date.now() - j.started }) : r.status(404).json({ error: 'not found' }); });
 app.post('/shops', wrap(async (q: any, r: any) => { const u = await need(q); await shopQuota(u); r.json(pub(await createShop(q.body.idea, (s) => console.log(s), u.id, (p) => assignPlot(p.shopId, p.kinds, p.color, p.text)))); cityCache = null; }));
 app.get('/shops', wrap(async (_q: any, r: any) => r.json((await db.list('shops', 50)).map((x) => ({ id: x.id, name: x.data.name, tagline: x.data.tagline, logo: x.data.logo, colors: x.data.colors })))));
-app.get('/shops/:id', wrap(async (q: any, r: any) => { const s = await db.get('shops', q.params.id); s ? r.json(pub(s)) : r.status(404).json({ error: 'not found' }); }));
+app.get('/shops/:id', wrap(async (q: any, r: any) => { const s = await db.get('shops', q.params.id); if (!s) return r.status(404).json({ error: 'not found' }); const { ownerId, idea, notices, ...rest } = pub(s); r.json({ ...rest, owner: ownerId ? displayName(await db.get('users', ownerId).catch(() => null)) : 'HollowCo' }); }));
 app.get('/assets/:id', wrap(async (q: any, r: any) => {
   const a = await db.get('assets', q.params.id); if (!a) return r.status(404).end();
   r.setHeader('Content-Type', a.mime); r.setHeader('Cache-Control', 'public, max-age=31536000, immutable'); r.end(Buffer.from(a.b64, 'base64'));
@@ -103,7 +103,7 @@ app.post('/orders', wrap(async (q: any, r: any) => {
   const pp = await createOrder(items, orderId);
   if (!pp.ok) throw new Error('PayPal create failed: ' + (pp.j.message || pp.status));
   const total = items.reduce((s: number, i: any) => s + i.price * i.qty, 0);
-  await db.put('orders', orderId, { id: orderId, shopId: shop.id, items, total, paypalOrderId: pp.j.id, status: pp.j.status, shipping: q.body.shipping, createdAt: new Date().toISOString() });
+  await db.put('orders', orderId, { id: orderId, shopId: shop.id, items, total, paypalOrderId: pp.j.id, status: pp.j.status, createdAt: new Date().toISOString() });
   await db.put('orders', 'pp_' + pp.j.id, { ref: orderId });
   r.json({ orderId, paypalOrderId: pp.j.id, approve: pp.j.links?.find((l: any) => l.rel === 'approve' || l.rel === 'payer-action')?.href });
 }));
@@ -131,6 +131,9 @@ async function syncOrder(ppId: string, tryCapture: boolean) {
     if (cap) { o.captureId = cap.id; o.captureStatus = cap.status; o.capturedAmount = Number(cap.amount?.value ?? o.total); }
     if (j?.payer) o.payer = { email: j.payer.email_address, name: [j.payer.name?.given_name, j.payer.name?.surname].filter(Boolean).join(' ') };
     if (j?.payment_source) o.paymentSource = Object.keys(j.payment_source)[0];
+    // Ship physical items to the address the buyer gave PayPal (Printful drafts only; never confirmed).
+    const sh = j?.purchase_units?.[0]?.shipping;
+    if (sh?.address?.address_line_1 && !o.shipping) o.shipping = { name: String(sh.name?.full_name || o.payer?.name || 'HollowCo Buyer').slice(0, 80), address1: sh.address.address_line_1, address2: sh.address.address_line_2, city: sh.address.admin_area_2, state_code: sh.address.admin_area_1, country_code: sh.address.country_code, zip: sh.address.postal_code };
     await db.put('orders', o.id, o);
   }
   return o.status === 'COMPLETED' ? await fulfil(o.id) : o;

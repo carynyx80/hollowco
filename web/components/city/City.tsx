@@ -10,6 +10,7 @@ import { useToast } from '@/components/Toast';
 import { AuthForm } from '@/components/AuthForm';
 import { PayButton, OrderResult } from '@/components/PayButton';
 import { CountUp } from '@/components/Cinema';
+import { Catalogue } from '@/components/catalogue/Catalogue';
 import { BANK, DISTRICT_INFO, DOCK, PITCH, SHORE, arcPath, bounds, detectQuality, emit, faceOf, heightOf, pathLen, plotXZ, streetPath, type CityShop, type P, type Quality, type Site } from './layout';
 
 const Scene = dynamic(() => import('./Scene'), { ssr: false, loading: () => <div className="absolute inset-0 grid place-items-center"><div className="city-loader"><span />Raising the city…</div></div> });
@@ -35,7 +36,7 @@ export default function City({ lowPower = false, deep }: { lowPower?: boolean; d
   const [raw, setRaw] = useState<any[]>([]); const [sites, setSites] = useState<Site[]>([]);
   const known = useRef<Set<string> | null>(null); const fresh = useRef(new Set<string>());
   const [feed, setFeed] = useState<Feed[]>([]); const seen = useRef<Set<string> | null>(null); const history = useRef<Ev[]>([]);
-  const [tot, setTot] = useState<any>(null); const [panel, setPanel] = useState<Panel>(null); const [focus, setFocus] = useState<string | null>(null);
+  const [tot, setTot] = useState<any>(null); const [panel, setPanel] = useState<Panel>(null); const [cat, setCat] = useState<null | { shopId: string; pid?: string }>(null); const [focus, setFocus] = useState<string | null>(null);
   const [pulses, setPulses] = useState<Record<string, number>>({}); const [bankHot, setBankHot] = useState(0);
   const [building, setBuilding] = useState<{ log: string; at: number } | null>(null); const [sound, setSound] = useState(false); const soundRef = useRef(false); soundRef.current = sound;
   const [q, setQ] = useState(''); const [busy, setBusy] = useState(''); const [clock, setClock] = useState(lagos()); const ownJail = useRef(0); const [hint, setHint] = useState(true);
@@ -112,7 +113,7 @@ export default function City({ lowPower = false, deep }: { lowPower?: boolean; d
   }, [loadShops]);
   const flewSite = useRef(''); useEffect(() => { if (!building) { flewSite.current = ''; return; } const mineSite = sites.find((x) => x.owner === (user?.displayName || user?.name)) || sites[sites.length - 1]; if (mineSite && flewSite.current !== mineSite.shopId) { flewSite.current = mineSite.shopId; flyTo(mineSite.x, mineSite.z, 8, false, mineSite.face); } }, [sites, building, user]);
   const close = () => { setPanel(null); setFocus(null); if (sp.get('panel') || location.pathname !== '/') router.replace('/', { scroll: false }); emit('fly', { ...HOME, ms: 2600 }); };
-  const openShop = (s: CityShop, pid?: string) => { setFocus(s.id); flyShop(s, true); setPanel(pid ? { k: 'product', shopId: s.id, pid } : { k: 'shop', id: s.id }); };
+  const openShop = (s: CityShop, pid?: string) => { setFocus(s.id); flyShop(s, true); setPanel({ k: 'shop', id: s.id }); if (pid) setTimeout(() => setCat({ shopId: s.id, pid }), 900); };
   const deepDone = useRef(false); useEffect(() => { if (deepDone.current || !deep?.shop || !shops.length) return; deepDone.current = true; const s = shops.find((x) => x.id === deep.shop); if (!s) { toast('That store isn’t in the city (yet)', 'err'); return; } setTimeout(() => openShop(s, deep.product), 600); }, [shops, deep]); // eslint-disable-line react-hooks/exhaustive-deps
   const pickDistrict = (d: string | null) => { setHl(d); if (!d) { emit('fly', HOME); return; } const ss = shops.filter((s) => s.plot.district === d); if (!ss.length) return; const cx = ss.reduce((a, s) => a + s.x, 0) / ss.length, cz = ss.reduce((a, s) => a + s.z, 0) / ss.length; emit('fly', { pos: [cx + 20, 42, cz + 46], look: [cx, 2, cz], ms: 2400 }); };
   const openBank = () => { emit('fly', { pos: [BANK[0] + 6, 16, BANK[1] + 22], look: [BANK[0] + 6, 11, BANK[1]] }); setPanel({ k: 'ledger' }); };
@@ -191,20 +192,23 @@ export default function City({ lowPower = false, deep }: { lowPower?: boolean; d
       {panel.k === 'ledger' && <div className="city-embed"><LedgerPanel /></div>}
       {panel.k === 'hq' && <div className="city-embed"><DashboardPanel embedded /></div>}
       {(panel.k === 'signin' || panel.k === 'signup') && <AuthForm mode={panel.k} embedded onSwitch={() => setPanel({ k: panel.k === 'signin' ? 'signup' : 'signin' })} onDone={(u) => { setUser(u); setPanel(null); if (sp.get('panel')) router.replace('/', { scroll: false }); setTimeout(() => api('/me/dashboard').then((d) => { const s = shopsRef.current.find((x) => (d.shops || []).some((y: any) => y.id === x.id)); setFocus(s?.id || null); if (s) emit('fly', { pos: [s.x + 1.5, 2.6, s.z + s.face * 7], look: [s.x + 2, 2.2, s.z], ms: 1700 }); setTimeout(() => { setPanel({ k: 'hq' }); if (s) flyShop(s, true); }, 1500); }).catch(() => {}), 50); }} />}
-      {panel.k === 'shop' && <ShopPanel id={panel.id} onProduct={(pid) => setPanel({ k: 'product', shopId: panel.id, pid })} />}
+      {panel.k === 'shop' && <ShopPanel id={panel.id} onProduct={(pid) => setCat({ shopId: panel.id, pid })} onCatalogue={() => setCat({ shopId: panel.id })} />}
       {panel.k === 'product' && <ProductPanel shopId={panel.shopId} pid={panel.pid} onBack={() => setPanel({ k: 'shop', id: panel.shopId })} />}
       {panel.k === 'jail' && <JailPanel busy={busy === 'jail'} onSend={jailbreak} />}
       {panel.k === 'about' && <div className="p-7"><p className="eyebrow">The beacon</p><h2 className="font-display text-4xl mt-1">A city with <span className="italic text-coral-600">nobody</span> in it.</h2><p className="mt-3 text-sm text-char/65 leading-relaxed">Every building is a real company opened by an AI founder from one sentence. Its founder, writer and designer walk the block. Gold light is a real PayPal capture, green is an agent payout, orange is a Printful cost heading for the dock. When an AI tries to break the rules, the guard towers fire — code, not the model, decides what money moves.</p><div className="mt-5 flex gap-2">{user ? <button onClick={openHq} className="btn-primary">Fly into my HQ</button> : <button onClick={() => setPanel({ k: 'signup' })} className="btn-primary">Found a company — free</button>}</div></div>}
     </motion.aside>}</AnimatePresence>
+    <AnimatePresence>{cat && <Catalogue key={cat.shopId + (cat.pid || '')} shopId={cat.shopId} initialProduct={cat.pid} onClose={() => setCat(null)} />}</AnimatePresence>
   </div>;
 }
 
-function ShopPanel({ id, onProduct }: { id: string; onProduct: (pid: string) => void }) {
+function ShopPanel({ id, onProduct, onCatalogue }: { id: string; onProduct: (pid: string) => void; onCatalogue: () => void }) {
   const [s, setS] = useState<any>(null); useEffect(() => { api(`/shops/${id}`).then(setS).catch(() => setS({ error: true })); }, [id]);
   if (!s) return <div className="p-6 space-y-3"><div className="shimmer h-20" /><div className="grid grid-cols-2 gap-3">{[0, 1, 2, 3].map((i) => <div key={i} className="shimmer aspect-square" />)}</div></div>;
   if (s.error) return <p className="p-6">This building is closed.</p>;
   return <div className="p-6"><div className="flex items-center gap-4 pr-10"><img src={s.logo} alt="" className="h-14 w-14 rounded-xl object-cover" /><div><p className="eyebrow !text-[10px]">Shop · walk in</p><h2 className="font-display text-3xl leading-tight">{s.name}</h2><p className="text-sm text-char/55">{s.tagline}</p></div></div>
     <div className="mt-5 grid grid-cols-2 gap-3" data-testid="shop-panel-products">{(s.products || []).filter((p: any) => !(p.comingSoon && !p.image)).map((p: any) => <button key={p.id} onClick={() => onProduct(p.id)} className="card lift overflow-hidden text-left"><img src={p.image} alt={p.title} className="aspect-square w-full object-cover" /><div className="p-3"><p className="text-sm font-medium line-clamp-2">{p.title}</p>{p.comingSoon ? <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-char/60" data-testid="coming-soon">Coming soon</p> : <p className="mt-1 text-sm font-semibold text-coral-600">{usd(p.price)}</p>}</div></button>)}</div>
+    {(() => { const ps = (s.products || []).filter((p: any) => !(p.comingSoon && !p.image)); const kinds = [...new Set(ps.filter((p: any) => !p.comingSoon).map((p: any) => ({ ebook: 'e-books', mug: 'mugs', tshirt: 't-shirts' } as any)[p.kind] || p.kind))]; const soon = ps.some((p: any) => p.comingSoon);
+      return <div className="cat-entry" data-testid="catalogue-card"><div className="cat-entry-cover">The<br />Catalogue<br /><span className="not-italic text-[9px] tracking-widest">VOL.01</span></div><div className="flex-1 min-w-0"><p className="k">New · browse the collection</p><h3>The Catalogue</h3><p className="s">{ps.length} pieces · {kinds.join(', ')}{soon ? ' & drops coming soon' : ''}</p></div><button onClick={onCatalogue} className="cat-entry-btn" data-testid="open-catalogue">Open catalogue <span aria-hidden>→</span></button></div>; })()}
     <div className="mt-4 flex gap-3 text-xs"><Link href={`/office/${id}`} className="underline text-char/60">Step inside (Hollow Office)</Link></div></div>;
 }
 function ProductPanel({ shopId, pid, onBack }: { shopId: string; pid: string; onBack: () => void }) {
