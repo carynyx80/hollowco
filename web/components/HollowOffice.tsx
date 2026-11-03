@@ -25,7 +25,7 @@ const onFront = (x: number, y: number, z: number) => onBack(x, y, z); // faces w
 /* ---------- cast ---------- */
 type Actor = 'founder' | 'writer' | 'designer' | 'guard' | 'customer';
 const HOME: Record<Actor, [number, number]> = { founder: [5.9, 7.2], writer: [3.0, 4.15], designer: [8.0, 4.15], guard: [2.6, 6.6], customer: [0.6, 9.6] };
-const HUE: Record<Actor, string> = { founder: '#B8975A', writer: '#A9B4A6', designer: '#B98A7A', guard: '#8FAE84', customer: '#C9B27C' };
+const HUE: Record<Actor, string> = { founder: '#B8975A', writer: '#A9B4A6', designer: '#B98A7A', guard: '#4F7A47', customer: '#8C6F3C' };
 const NAME: Record<Actor, string> = { founder: 'AI Founder', writer: 'Writer', designer: 'Designer', guard: 'Guard bot', customer: 'Customer' };
 const VAULT: [number, number] = [1.2, 8.3], DOCK: [number, number] = [10.9, 8.6];
 
@@ -36,10 +36,10 @@ function Character({ who, typing, alarm }: { who: Actor; typing?: boolean; alarm
     <g className="ho-bob">
       {who === 'guard' ? <>
         <rect x={-13} y={-40} width={26} height={30} rx={8} fill={shade(c, 0.45)} stroke={c} strokeOpacity={0.7} />
-        <path d="M0 -36 l9 4 v8 c0 6 -5 9 -9 11 c-4 -2 -9 -5 -9 -11 v-8 z" fill={alarm ? '#C0624A' : c} opacity={0.9} />
+        <path d="M0 -36 l9 4 v8 c0 6 -5 9 -9 11 c-4 -2 -9 -5 -9 -11 v-8 z" fill={alarm ? '#A6452F' : c} opacity={0.9} />
         <rect x={-11} y={-60} width={22} height={18} rx={7} fill="#ECEAE3" stroke={c} />
-        <rect x={-7} y={-54} width={14} height={4} rx={2} fill={alarm ? '#C0624A' : c} className="ho-glow" />
-        <line x1={0} y1={-60} x2={0} y2={-67} stroke={c} strokeWidth={2} /><circle cx={0} cy={-68} r={2.5} fill={alarm ? '#C0624A' : c} className="ho-glow" />
+        <rect x={-7} y={-54} width={14} height={4} rx={2} fill={alarm ? '#A6452F' : c} className="ho-glow" />
+        <line x1={0} y1={-60} x2={0} y2={-67} stroke={c} strokeWidth={2} /><circle cx={0} cy={-68} r={2.5} fill={alarm ? '#A6452F' : c} className="ho-glow" />
       </> : <>
         <path d={`M-12 -6 C-13 -26 -10 -34 0 -34 C10 -34 13 -26 12 -6 Z`} fill={shade(c, who === 'customer' ? 0.7 : 0.55)} stroke={c} strokeOpacity={0.6} />
         {who === 'founder' && <circle cx={0} cy={-21} r={5} fill="none" stroke="#fff" strokeWidth={2.5} opacity={0.9} />}
@@ -68,7 +68,7 @@ function toScenes(evs: Ev[]): Scene[] {
   return out;
 }
 const LABEL: Record<string, string> = { shop_created: 'Shop opened', revenue: 'Sale', supplier_cost: 'Printful draft', payout: 'Payout', rejected: 'Guardrail blocked', capture_failed: 'Capture failed', payout_reversed: 'Payout reversed' };
-const FEEDC: Record<string, string> = { shop_created: '#B8975A', revenue: '#C9B27C', supplier_cost: '#D2A066', payout: '#8FAE84', rejected: '#C0624A' };
+const FEEDC: Record<string, string> = { shop_created: '#B8975A', revenue: '#8C6F3C', supplier_cost: '#9A6A2E', payout: '#4F7A47', rejected: '#A6452F' };
 const batchStatus = (d?: string) => (d || '').split(' ').pop() || '';
 const short = (s: string, n = 120) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
 
@@ -120,22 +120,22 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
     move('customer', [0.6, 9.6]); await wait(200); move('customer', [2.3, 8.9]); await wait(1300);
     say('customer', item ? `I'll take “${short(item.name, 40)}”` : 'Checking out…');
     await wait(900);
-    if (rev) { coin([2.3, 8.9], VAULT, '#FFC439', usd(rev.amount!)); beep(880); beep(1320, 0.2); await wait(1100); say('customer', null); tick(`+${usd(rev.amount!)} ${rev.sim ? 'simulated sale' : 'PayPal capture'}`, '#C9B27C'); }
+    if (rev) { coin([2.3, 8.9], VAULT, '#FFC439', usd(rev.amount!)); beep(880); beep(1320, 0.2); await wait(1100); say('customer', null); tick(`+${usd(rev.amount!)} ${rev.sim ? 'simulated sale' : 'PayPal capture'}`, '#8C6F3C'); }
     const props = [...sc.evs.filter((e) => e.kind === 'payout' && e.reason).map((e) => `Pay ${e.agent} ${usd(e.amount!)}: ${e.reason}`), ...sc.evs.filter((e) => e.kind === 'rejected').map((e) => `Pay ${e.proposal?.agent} ${usd(e.proposal?.amount)}: ${e.proposal?.reason || ''}`)];
     say('founder', props[0] ? `Proposal → ${short(props[0], 140)}` : 'Who earned a cut of this sale?', 'think'); await wait(2200);
     const digital = item ? !!item.digital : !sc.evs.some((e) => e.kind === 'supplier_cost');
     const worker: Actor = digital ? 'writer' : 'designer';
     patch(() => ({ typing: { [worker]: true }, screen: prod?.image || shop?.logo, screenTitle: prod?.title || item?.name }));
     say(worker, digital ? 'Packaging the e-book PDF…' : 'Sending print file to Printful…', 'say'); await wait(1800);
-    for (const e of sc.evs.filter((x) => x.kind === 'supplier_cost')) { const id = uid.current++; patch(() => ({ box: { id, from: [8.4, 5.2], to: DOCK } })); beep(330, 0.25, 'triangle'); await wait(1600); tick(`−${usd(e.amount!)} Printful ${e.sim ? 'simulated' : 'draft'}`, '#D2A066'); }
+    for (const e of sc.evs.filter((x) => x.kind === 'supplier_cost')) { const id = uid.current++; patch(() => ({ box: { id, from: [8.4, 5.2], to: DOCK } })); beep(330, 0.25, 'triangle'); await wait(1600); tick(`−${usd(e.amount!)} Printful ${e.sim ? 'simulated' : 'draft'}`, '#9A6A2E'); }
     say(worker, null); patch(() => ({ typing: {} }));
     for (const e of sc.evs.filter((x) => x.kind === 'rejected')) { say('guard', `${short((e.reasons || []).join(' · '), 110)}`, 'warn'); beep(220, 0.3, 'square'); await wait(2000); say('guard', null); }
     say('founder', null);
     for (const e of sc.evs.filter((x) => x.kind === 'payout')) {
       const to: Actor = e.agent === 'designer' ? 'designer' : 'writer'; const tgt = HOME[to];
       move('founder', [tgt[0] + 0.6, tgt[1] + 1.1]); await wait(1300);
-      coin([tgt[0] + 0.6, tgt[1] + 1.1], tgt, '#8FAE84', usd(e.amount!)); beep(1040); say(to, `Thanks! ${usd(e.amount!)} · ${batchStatus(e.detail)}`); await wait(1200);
-      tick(`→ ${e.agent} ${usd(e.amount!)} · PayPal ${batchStatus(e.detail)}`, '#8FAE84'); say(to, null);
+      coin([tgt[0] + 0.6, tgt[1] + 1.1], tgt, '#4F7A47', usd(e.amount!)); beep(1040); say(to, `Thanks! ${usd(e.amount!)} · ${batchStatus(e.detail)}`); await wait(1200);
+      tick(`→ ${e.agent} ${usd(e.amount!)} · PayPal ${batchStatus(e.detail)}`, '#4F7A47'); say(to, null);
     }
     move('founder', HOME.founder); move('customer', [0.2, 10.4]); await wait(1300);
     patch(() => ({ customer: false, box: undefined, caption: undefined })); move('customer', HOME.customer);
@@ -146,7 +146,7 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
     const atk = String(e.detail || '').replace(/^jailbreak attempt:\s*/i, '');
     say('founder', real ? `Proposal → pay ${pr!.recipient} ${usd(pr!.amount)} (“${short(pr!.reason || '', 60)}”)` : `I won’t propose a payout for that${atk ? ` (“${short(atk, 70)}”)` : ''} — nothing to send.`, 'think'); await wait(1600);
     move('guard', [VAULT[0] + 0.9, VAULT[1] - 0.6]); await wait(1100);
-    say('guard', `BLOCKED ${short((e.reasons || []).join(' · '), 150)}`, 'warn'); tick(real ? `blocked ${usd(pr!.amount)} → ${pr!.recipient}` : `jailbreak refused · no payout proposed`, '#C0624A'); await wait(3200);
+    say('guard', `BLOCKED ${short((e.reasons || []).join(' · '), 150)}`, 'warn'); tick(real ? `blocked ${usd(pr!.amount)} → ${pr!.recipient}` : `jailbreak refused · no payout proposed`, '#A6452F'); await wait(3200);
     patch(() => ({ alarm: false, caption: undefined })); say('guard', null); say('founder', null); move('guard', HOME.guard); await wait(800);
   }
   async function playShop(e: Ev, replay: boolean) {
@@ -296,11 +296,11 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
         </svg>
         {/* speech bubbles (HTML for wrapping) */}
         <AnimatePresence>{(Object.keys(st.bubbles) as Actor[]).map((a) => { const b = st.bubbles[a]!; const p = iso(...st.pos[a]); return <motion.div key={a + b.t} initial={{ opacity: 0, y: 8, scale: 0.92 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduce ? 0 : 0.25 }} data-testid={`bubble-${a}`}
-          className={`absolute z-10 -translate-x-1/2 -translate-y-full max-w-[260px] w-max rounded-xl border px-3 py-2 text-[11px] leading-snug shadow-xl backdrop-blur pointer-events-none ${b.tone === 'warn' ? 'border-red-400/60 bg-[#F6E3DD]/95 text-red-100' : b.tone === 'think' ? 'border-coral/50 bg-white/95 text-char/90 italic' : 'border-black/[.08] bg-[#ECEAE3]/95 text-char/90'}`}
+          className={`absolute z-10 -translate-x-1/2 -translate-y-full max-w-[260px] w-max rounded-xl border px-3 py-2 text-[11px] leading-snug shadow-xl backdrop-blur pointer-events-none ${b.tone === 'warn' ? 'border-red-400/60 bg-[#F6E3DD]/95 text-red-800' : b.tone === 'think' ? 'border-coral/50 bg-white/95 text-char/90 italic' : 'border-black/[.08] bg-[#ECEAE3]/95 text-char/90'}`}
           style={{ ...pct([p[0], p[1] - 104]) }}>{b.tone === 'think' && <span className="not-italic mr-1">…</span>}{b.t}</motion.div>; })}</AnimatePresence>
         {/* HUD */}
         <div className="absolute left-3 top-3 grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]" data-testid="office-hud">
-          {[['Revenue', pl.revenue, '#C9B27C'], ['Costs', pl.supplierCost, '#D2A066'], ['Payouts', pl.payouts, '#8FAE84'], ['Profit', pl.profit, pl.profit < 0 ? '#C0624A' : '#0E0D0B']].map(([k, v, c]) => <div key={k as string} className="rounded-lg border border-black/[.08] bg-white/85 text-char backdrop-blur px-2.5 py-1.5"><p className="text-char/50">{k}</p><p className="font-semibold tabular-nums text-sm" style={{ color: c as string }}>{usd(v as number)}</p></div>)}
+          {[['Revenue', pl.revenue, '#8C6F3C'], ['Costs', pl.supplierCost, '#9A6A2E'], ['Payouts', pl.payouts, '#4F7A47'], ['Profit', pl.profit, pl.profit < 0 ? '#A6452F' : '#0E0D0B']].map(([k, v, c]) => <div key={k as string} className="rounded-lg border border-black/[.08] bg-white/85 text-char backdrop-blur px-2.5 py-1.5"><p className="text-char/50">{k}</p><p className="font-semibold tabular-nums text-sm" style={{ color: c as string }}>{usd(v as number)}</p></div>)}
         </div>
         <div className="absolute right-3 top-3 w-56 rounded-lg border border-black/[.08] bg-white/85 text-char backdrop-blur p-2 text-[11px] font-mono" data-testid="office-ticker">
           <p className="text-[9px] uppercase tracking-[.16em] text-char/55 mb-1">Mini ledger</p>
