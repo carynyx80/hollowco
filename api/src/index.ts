@@ -306,6 +306,17 @@ app.patch('/me/profile', wrap(async (q: any, r: any) => {
   u.name = n; await db.put('users', u.id, u); cityCache = null; r.json({ user: auth.publicUser(u) });
 }));
 app.get('/activity', wrap(async (q: any, r: any) => r.json((await hidden.publicRows(await db.list('ledger', 200))).slice(0, Math.min(100, Number(q.query.limit) || 40)).map((x) => x.data))));
+// Founder decision memos: the live memo written at fulfilment, or for older orders the same arithmetic recomputed from their ledger rows (labelled).
+function decisionsFrom(v: any) {
+  const ev = v.events.filter((e: any) => !e.sim && !e.test); const f = (n: number) => (Math.round(n * 100) / 100).toFixed(2);
+  const live = new Map(ev.filter((e: any) => e.kind === 'decision').map((e: any) => [e.orderId, e]));
+  return v.orders.filter((o: any) => !o.test && !o.sim && o.revenue > 0).sort((a: any, b: any) => String(b.at).localeCompare(String(a.at))).slice(0, 8).map((o: any) => {
+    const reasons = ev.filter((e: any) => e.orderId === o.orderId && e.kind === 'payout').map((e: any) => `${e.agent} $${f(e.amount)}${e.reason ? ` — “${String(e.reason).slice(0, 90)}”` : ''}`);
+    const blocked = ev.filter((e: any) => e.orderId === o.orderId && e.kind === 'rejected').map((e: any) => (e.reasons || []).join('; ')).filter(Boolean);
+    const d: any = live.get(o.orderId); const margin = o.revenue - o.fees - o.supplierCost;
+    return { at: o.at, shop: o.shop, live: !!d, detail: d?.detail || `Revenue $${f(o.revenue)} − PayPal fee $${f(o.fees)} − supplier $${f(o.supplierCost)} = margin $${f(margin)}. Staff budget cap ${LIMITS.maxPayoutPctOfRevenue * 100}% of margin. Paid staff $${f(o.payouts)}; company keeps $${f(o.profit)} (${Math.round((o.profit / o.revenue) * 100)}% net).`, payouts: reasons, blocked };
+  });
+}
 let econCache: { at: number; body: any } | null = null; let feesBackfilled = false;
 app.get('/economics', wrap(async (_q: any, r: any) => {
   if (!feesBackfilled) { feesBackfilled = true; await backfillFees().catch((e) => console.error('fees', e.message)); }
@@ -313,7 +324,7 @@ app.get('/economics', wrap(async (_q: any, r: any) => {
     const v = await hidden.publicLedger(await ledgerView());
     const stores = storeEconomics(v.orders); const t = v.totals;
     econCache = { at: Date.now(), body: { source: 'ledger (real PayPal sandbox captures only; simulated and test orders excluded)', totals: { ...t, margin: t.revenue ? Math.round((t.profit / t.revenue) * 1000) / 10 : 0, aov: t.orders ? Math.round((t.revenue / t.orders) * 100) / 100 : 0 }, stores: stores.slice(0, 20),
-      decisions: v.events.filter((e: any) => e.kind === 'decision' && !e.sim).slice(0, 8).map((e: any) => ({ at: e.at, shop: e.shop, detail: e.detail })) } };
+      decisions: decisionsFrom(v) } };
   }
   r.setHeader('Cache-Control', 'no-store'); r.json(econCache.body);
 }));
