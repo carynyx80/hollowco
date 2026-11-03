@@ -271,7 +271,7 @@ h1.font-display, .font-display.text-4xl, .font-display.text-5xl { font-weight: 5
 .city-root canvas{touch-action:none}
 @media (max-width:480px){.cat-entry{flex-wrap:wrap}.cat-entry .k{letter-spacing:.12em}.cat-entry-btn{width:100%;justify-content:center}}
 
-.city-poster { background: #ECEAE3 url('/city-poster.svg') center bottom / cover no-repeat; }
+.city-poster { background: #0E0D0B url('/city-capture.jpg') center / cover no-repeat; }
 
 html.hero-open .city-glass,html.hero-open [data-testid=city-dock],html.hero-open [data-testid=world-settings]{visibility:hidden}
 
