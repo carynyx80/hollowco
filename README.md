@@ -55,7 +55,12 @@ API env on Railway: `PAYPAL_*`, `DATABASE_URL`, `PUBLIC_API_URL`, `CORS_ORIGINS`
    - Or use your own PayPal sandbox *personal* account from developer.paypal.com.
 4. After capture you land on the receipt. E-books download as PDF. Shirts and mugs create a **Printful draft order** (never confirmed, nothing is printed or shipped). The AI accountant pays the staff agents via **PayPal Payouts**, checked by code guardrails. Everything shows on https://hollowco.vercel.app/ledger (AG Grid).
 
-Note: guest **card** checkout is unreliable in the PayPal sandbox (it often answers "We weren't able to add this card"), so please use **Pay with PayPal**.
+5. **Guest card test** (sandbox, no PayPal login): on checkout click the card button, then enter
+   - Card: Visa `4032 0341 5535 1326`, any future expiry, any CVV
+   - Set **Country/Region** to **United States**
+   - US billing address, e.g. `123 Main St, San Jose, CA 95131`, and a US phone number
+   - Turn **off** "Save info & create PayPal account"
+   - Click **Pay now as guest**
 
 ## Sandbox accounts
 

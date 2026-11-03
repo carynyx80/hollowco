@@ -25,15 +25,15 @@ function phaseAt(t: number) { const u = t % (CYCLE * 2); return u < CYCLE - 1.2 
 const lines = (b: Bounds) => { const xs: number[] = [], zs: number[] = []; for (let k = b.kx0; k <= b.kx1 + 1; k++) xs.push(k * PITCH); for (let k = b.kz0; k <= 2; k++) zs.push(k * PITCH); return { xs, zs }; };
 
 /* ---------------- background buildings on empty lots + an outer ring of city blocks ---------------- */
-export type Filler = { key: string; x: number; z: number; w: number; d: number; h: number; kind: 0 | 1 | 2 };
+export type Filler = { key: string; x: number; z: number; w: number; d: number; h: number; kind: number };
 export function fillerLots(inner: Bounds, outer: Bounds, shops: CityShop[], parks: (kx: number, kz: number) => boolean): Filler[] {
   const taken = new Set(shops.map((s) => `${s.plot.gx},${s.plot.gz}`)); const out: Filler[] = [];
   for (let kx = outer.kx0; kx <= outer.kx1; kx++) for (let kz = outer.kz0; kz <= outer.kz1; kz++) {
     if (isPlaza(kx, kz) || parks(kx, kz)) continue; const ring = kx < inner.kx0 || kx > inner.kx1 || kz < inner.kz0;
     for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) { const gx = kx * 2 + i, gz = kz * 2 + j; if (taken.has(`${gx},${gz}`)) continue; const n = gx * 73.1 + gz * 19.7;
       if (!ring && hash(n) < 0.45) continue; // leave some inner lots open: green space + room for new shops to rise
-      const tall = ring ? 1 + (Math.abs(kx) + Math.abs(kz) < 6 ? 1.6 : 0.6) : 0.7; const kind = (Math.floor(hash(n * 3) * 3)) as 0 | 1 | 2;
-      out.push({ key: `${gx},${gz}`, x: lotC(gx), z: lotC(gz) - faceOf(gz) * SETBACK, w: 5.4 + hash(n * 5) * 1.2, d: 5 + hash(n * 7) * 0.8, h: (4.5 + hash(n * 11) * 9 + (hash(n * 13) > 0.85 ? 14 : 0)) * tall, kind }); }
+      const tall = ring ? 1 + (Math.abs(kx) + Math.abs(kz) < 6 ? 1.6 : 0.6) : 0.7; const hh = (4.5 + hash(n * 11) * 9 + (hash(n * 13) > 0.85 ? 14 : 0)) * tall; const kind = hh > 15 && hash(n * 17) > 0.35 ? (hash(n * 19) > 0.5 ? 4 : 6) : Math.floor(hash(n * 3) * 4) + (hash(n * 23) > 0.75 ? 1 : 0);
+      out.push({ key: `${gx},${gz}`, x: lotC(gx), z: lotC(gz) - faceOf(gz) * SETBACK, w: 5.4 + hash(n * 5) * 1.2, d: 5 + hash(n * 7) * 0.8, h: hh, kind: Math.min(kind, 6) }); }
   }
   return out;
 }
@@ -44,14 +44,16 @@ function boxSides(f: Filler, tw: number, th: number) {
     g.rotateY(ry); g.translate(x + ox, 0.2 + h / 2, z + oz); parts.push(g); }
   return parts;
 }
-const FILL_TILE: [number, number][] = [[5.6, 6.4], [5.6, 5.0], [6, 6]];
-const FILL_KEY = ['brick', 'stucco', 'metal'] as const;
-const FILL_TINT = ['#d9b8a4', '#e9e1d2', '#c4c8cc'];
+// warm brick, dark brick, sandstone stucco, terracotta stucco, bronze glass curtain wall, tinted concrete, blue-grey glass
+const FILL_TILE: [number, number][] = [[5.6, 6.4], [5.6, 6.4], [5.6, 5.0], [5.6, 5.0], [6, 6], [6, 6], [6, 6]];
+const FILL_KEY = ['brick', 'brick', 'stucco', 'stucco', 'glass', 'metal', 'glass'] as const;
+const FILL_TINT = ['#e6ad90', '#9c6a55', '#e8cfa6', '#d49a78', '#c9a877', '#cbb9a0', '#9fb1bb'];
+const FILL_PBR: [number, number][] = [[0.88, 0], [0.9, 0], [0.85, 0], [0.85, 0], [0.18, 0.75], [0.8, 0.05], [0.15, 0.7]];
 export function FillerCity({ items }: { items: Filler[] }) {
-  const mats = useMemo(() => FILL_KEY.map((k, i) => new THREE.MeshStandardMaterial({ map: facadeMap(k), emissiveMap: facadeLit(k), emissive: '#ffffff', emissiveIntensity: 0, color: FILL_TINT[i], roughness: 0.88, metalness: 0.02 })), []);
+  const mats = useMemo(() => FILL_KEY.map((k, i) => new THREE.MeshStandardMaterial({ map: facadeMap(k), emissiveMap: facadeLit(k), emissive: '#ffffff', emissiveIntensity: 0, color: FILL_TINT[i], roughness: FILL_PBR[i][0], metalness: FILL_PBR[i][1], envMapIntensity: FILL_PBR[i][1] > 0.5 ? 1.6 : 1 })), []);
   const roof = useMemo(() => new THREE.MeshStandardMaterial({ map: roofTex(), color: '#7d7f84', roughness: 0.95 }), []);
   const geos = useMemo(() => {
-    const sides: THREE.BufferGeometry[][] = [[], [], []]; const roofs: THREE.BufferGeometry[] = []; const trim: THREE.BufferGeometry[] = [];
+    const sides: THREE.BufferGeometry[][] = FILL_KEY.map(() => []); const roofs: THREE.BufferGeometry[] = []; const trim: THREE.BufferGeometry[] = [];
     items.forEach((f, i) => { sides[f.kind].push(...boxSides(f, FILL_TILE[f.kind][0], FILL_TILE[f.kind][1]));
       const r = new THREE.PlaneGeometry(f.w, f.d); r.rotateX(-Math.PI / 2); r.translate(f.x, 0.2 + f.h, f.z); roofs.push(r);
       const p = new THREE.BoxGeometry(f.w + 0.3, 0.35, f.d + 0.3); p.translate(f.x, 0.2 + f.h + 0.17, f.z); trim.push(p); // parapet

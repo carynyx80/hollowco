@@ -2,7 +2,8 @@
 // Streets, blocks, parks, streetlights, trees, water, traffic and pedestrians. Everything repeated is instanced.
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useMemo, useRef } from 'react';
+import { useGLTF } from '@react-three/drei';
 import { ENV, PITCH, ROAD, SHORE, bus, lotC, samplePath, type Bounds, type CityShop, type P } from './layout';
 import { grassTex, paveTex, roadTex, zebraTex } from './tex';
 
@@ -77,12 +78,28 @@ export function Trees({ b, shops, density, filled }: { b: Bounds; shops: CitySho
       for (const s of [-1, 1]) for (const u of [-3.4, 3.4]) { add(cx + u, cz + s * e, 0.8); add(cx + s * e, cz + u, 0.8); }
       for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) { const gx = kx * 2 + i, gz = kz * 2 + j; if (taken.has(`${gx},${gz}`) || isPlaza(kx, kz)) continue; const x = lotC(gx), z = lotC(gz); add(x - 1.6, z - 1.2, 1); add(x + 1.5, z + 1.4, 1.1); add(x + 1.2, z - 1.7, 0.9); } }
     return { t, c, col }; }, [b.kx0, b.kx1, b.kz0, b.kz1, taken, density]);
-  useInst(trunk, d.t); useInst(crown, d.c, d.col);
-  return <group>
-    <instancedMesh key={`t${d.t.length}`} ref={trunk} args={[undefined, undefined, Math.max(1, d.t.length)]} castShadow><cylinderGeometry args={[0.08, 0.13, 1.6, 5]} /><meshStandardMaterial color="#5a4030" roughness={1} /></instancedMesh>
-    <instancedMesh key={`c${d.c.length}`} ref={crown} args={[undefined, undefined, Math.max(1, d.c.length)]} castShadow><icosahedronGeometry args={[0.95, 1]} /><meshStandardMaterial roughness={0.9} flatShading /></instancedMesh>
-  </group>;
+  // positions from the matrices above; drawn with CC0 tree models (Quaternius), low-poly icosahedrons only while they load
+  const spots = useMemo(() => d.t.map((m, n) => { const e = m.elements; return { x: e[12], z: e[14], k: e[5], v: hash(n * 13.7 + e[12]) }; }), [d.t]);
+  return <Suspense fallback={null}><TreeModels spots={spots} /></Suspense>;
 }
+const TREE_URLS = [0, 1, 2, 3, 4].map((i) => `/city/models/tree${i}.glb`);
+function TreeModels({ spots }: { spots: { x: number; z: number; k: number; v: number }[] }) {
+  const gltfs = useGLTF(TREE_URLS) as any[];
+  const groups = useMemo(() => { const by: { x: number; z: number; k: number; r: number }[][] = TREE_URLS.map(() => []);
+    spots.forEach((s, n) => { const vi = s.v > 0.9 ? 4 : s.v > 0.78 ? 3 : Math.floor(s.v / 0.78 * 3); by[vi].push({ x: s.x, z: s.z, k: s.k, r: hash(n * 3.3) * 6.28 }); }); return by; }, [spots]);
+  const models = useMemo(() => gltfs.map((g, vi) => { const sc = g.scene as THREE.Object3D; sc.updateMatrixWorld(true); const box = new THREE.Box3().setFromObject(sc), c = box.getCenter(new THREE.Vector3()), h = box.max.y - box.min.y;
+    const H = vi === 4 ? 4.2 : 3.4; const fix = new THREE.Matrix4().makeScale(H / h, H / h, H / h).multiply(new THREE.Matrix4().makeTranslation(-c.x, -box.min.y, -c.z));
+    const parts: { geo: THREE.BufferGeometry; mat: THREE.Material }[] = [];
+    sc.traverse((o: any) => { if (!o.isMesh) return; const geo = (o.geometry as THREE.BufferGeometry).clone(); geo.applyMatrix4(new THREE.Matrix4().multiplyMatrices(fix, o.matrixWorld)); const m = (o.material as THREE.MeshStandardMaterial).clone(); m.roughness = 0.9; m.metalness = 0; m.flatShading = false; parts.push({ geo, mat: m }); });
+    return parts; }), [gltfs]);
+  return <group>{models.map((parts, vi) => groups[vi].length > 0 && parts.map((p, pi) => <TreePart key={`${vi}-${pi}-${groups[vi].length}`} geo={p.geo} mat={p.mat} at={groups[vi]} />))}</group>;
+}
+function TreePart({ geo, mat, at }: { geo: THREE.BufferGeometry; mat: THREE.Material; at: { x: number; z: number; k: number; r: number }[] }) {
+  const ref = useRef<THREE.InstancedMesh>(null);
+  useEffect(() => { const m = ref.current; if (!m) return; const o = new THREE.Object3D(); at.forEach((t, i) => { o.position.set(t.x, 0.2, t.z); o.rotation.set(0, t.r, 0); o.scale.setScalar(t.k); o.updateMatrix(); m.setMatrixAt(i, o.matrix); }); m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere(); }, [at]);
+  return <instancedMesh ref={ref} args={[geo, mat, at.length]} castShadow receiveShadow />;
+}
+TREE_URLS.forEach((u) => useGLTF.preload(u));
 
 /* ---------- harbour: water with waves, quay, pier, Printful dock is drawn by the scene ---------- */
 export function Water({ b }: { b: Bounds }) {

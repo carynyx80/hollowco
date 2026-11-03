@@ -21,3 +21,10 @@
 ## Textures & HDRI (Poly Haven, CC0) — https://polyhaven.com/license
 asphalt_02, red_brick_03, brick_wall_02, concrete_wall_008, painted_plaster_wall, square_floor_patern_01 (1k, WebP);
 HDRI potsdamer_platz_1k.hdr.
+
+## Trees (poly.pizza, CC0, Quaternius)
+- tree0 Tree — https://poly.pizza/m/2paAm1ja4w
+- tree1 Tree — https://poly.pizza/m/9nvGuZlbpE
+- tree2 Tree — https://poly.pizza/m/1BkD9JnKrE
+- tree3 Autumn Tree — https://poly.pizza/m/2lRubrT6Na
+- tree4 Palm Tree — https://poly.pizza/m/A6cKJYFsIb

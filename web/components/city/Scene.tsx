@@ -175,14 +175,22 @@ function Rig({ paused, b }: { paused: boolean; b: { kx0: number; kx1: number; kz
         let best = 0, bd = 1e9; for (let i = 0; i < 200; i++) { samplePath(route, i / 200, a); const d = (a[0] - k0.target.x) ** 2 + (a[2] - k0.target.z) ** 2; if (d < bd) { bd = d; best = i / 200; } } u.current = best; resume.current = false; }
       const street = view === 'street'; u.current = (u.current + (dt * (street ? 2.2 : 3.4)) / L) % 1;
       samplePath(route, u.current, a); samplePath(route, (u.current + 6 / L) % 1, c); dir.set(c[0] - a[0], c[2] - a[2]).normalize(); smooth.current.lerp(dir, Math.min(1, dt * 0.9)).normalize(); const f = smooth.current;
-      if (street) { want.set(a[0] - f.x * 4.5 - f.y * 1.6, 1.25, a[2] - f.y * 4.5 + f.x * 1.6); look.set(a[0] + f.x * 10, 1.5, a[2] + f.y * 10); }
+      if (street) { // camera rides the lane centreline itself, so it can never meet a lamp, tree or facade
+        samplePath(route, (u.current + 1 - 3 / L) % 1, c); want.set(c[0], 1.3, c[2]); look.set(a[0] + f.x * 9, 1.45, a[2] + f.y * 9); }
       else { want.set(a[0] - f.x * 22 - f.y * 7, 12.5, a[2] - f.y * 22 + f.x * 7); look.set(a[0] + f.x * 8, 2.5, a[2] + f.y * 8); }
-      const k = 1 - Math.pow(0.12, dt); camera.position.lerp(want, k); k0.target.lerp(look, k);
+      const k = 1 - Math.pow(street ? 0.02 : 0.12, dt); camera.position.lerp(want, k); if (street) clampToRoad(camera.position); k0.target.lerp(look, k);
     } else if (idle.current <= 3.5) resume.current = true;
-    k0.autoRotate = false; k0.update();
+    k0.autoRotate = false; k0.update(); if (view === 'street') clampToRoad(camera.position);
   });
   const street = view === 'street';
   return <OrbitControls ref={ctl} makeDefault enableDamping dampingFactor={0.08} minDistance={street ? 1.5 : 4} maxDistance={240} maxPolarAngle={street ? 1.56 : 1.45} target={[0, 3, 6]} onStart={() => { idle.current = -6; fly.current = null; }} />;
+}
+
+/* keep a street-level camera inside the asphalt band (|offset from nearest street line| < 1.9) */
+function clampToRoad(v: THREE.Vector3) {
+  if (v.y > 3) return; const rx = v.x - Math.round(v.x / PITCH) * PITCH, rz = v.z - Math.round(v.z / PITCH) * PITCH, lim = 1.9;
+  if (Math.abs(rx) <= lim || Math.abs(rz) <= lim) return;
+  if (Math.abs(rx) < Math.abs(rz)) v.x -= rx - Math.sign(rx) * lim; else v.z -= rz - Math.sign(rz) * lim;
 }
 
 /* Ink & Brass loading screen (textures, HDRI, people and car models stream in lazily). */
