@@ -1,10 +1,11 @@
 import crypto from 'node:crypto';
 import * as db from './db.js';
 import * as ai from './ai.js';
-import { checkPrice, checkPayout, LIMITS, floorPrice } from './guardrails.js';
+import { checkPrice, checkPayout, LIMITS, floorPrice, STAFF_PAYEE } from './guardrails.js';
 import { draftOrder } from './printful.js';
 import { payout, payoutStatus } from './paypal.js';
 import { env } from './env.js';
+import { runAgent, payoutTool } from './agent.js';
 export const id = (p: string) => p + '_' + crypto.randomBytes(6).toString('hex');
 const publicBase = () => env('PUBLIC_API_URL', `http://localhost:${env('PORT', '4000')}`);
 export async function ledger(kind: string, data: any) {
@@ -61,6 +62,18 @@ export async function createShop(idea: string, log: (s: string) => void = () => 
   for (const n of notices.filter((n) => !n.startsWith('Coming soon'))) log('Accountant: ' + n);
   log('Designer agent: logo');
   const logo = await logoP;
+  // Founder registers the live products in the PayPal catalog through the Agent Toolkit (create_product).
+  const live = products.filter((p) => !p.comingSoon);
+  if (ai.aiMode() === 'openai' && live.length) {
+    log('Founder agent: registering products in PayPal catalog via Agent Toolkit');
+    try {
+      const calls = await runAgent({ ctx: { shopId, shop: b.name }, allow: ['create_product'], toolChoice: 'required', maxSteps: 2,
+        system: 'You are the AI founder of an online store. Register each product in the PayPal product catalog by calling create_product once per product (type DIGITAL for ebooks, PHYSICAL otherwise, category SOFTWARE for digital or CLOTHING / HOUSEWARES for physical). Use the exact product names given.',
+        user: JSON.stringify(live.map((p) => ({ name: p.title, kind: p.kind, description: p.description, image_url: p.image }))),
+        guard: (_n, a) => live.some((p) => p.title === a.name) ? { ok: true } : { ok: false, reasons: [`product "${String(a.name).slice(0, 60)}" is not in this shop`] } });
+      for (const c of calls) if (c.decision === 'approved') { try { const r = JSON.parse(c.result); const p = live.find((x) => x.title === c.args.name); if (p && r.id) p.paypalProductId = r.id; } catch { /* */ } }
+    } catch (e) { console.warn('catalog agent failed', (e as Error).message); }
+  }
   const shop = { id: shopId, idea, name: String(b.name).slice(0, 40), tagline: String(b.tagline).slice(0, 80), colors, logo, products, notices, ownerId, aiMode: ai.aiMode(), createdAt: new Date().toISOString() };
   await db.put('shops', shopId, shop);
   await ledger('shop_created', { shopId, shop: shop.name, agent: 'founder', detail: `${products.length} products, AI=${shop.aiMode}` });
@@ -89,34 +102,64 @@ export async function fulfil(orderId: string) {
   }
   // Staff are paid from gross margin (revenue minus supplier cost), so the company can never pay out more than it keeps.
   const payBase = Math.max(0, Math.round((revenue - supplierCost) * 100) / 100);
-  const proposals = await ai.founderProposePayouts({ revenue: payBase, tasks: [...new Map(tasks.map((t) => [t.agent, t])).values()] });
   let paidOrder = 0; o.payouts = [];
-  for (let pr of proposals) {
-    pr = { ...pr, amount: Math.round(Number(pr.amount) * 100) / 100 };
-    let v = checkPayout(pr, payBase, sim ? 0 : await paidToday(), paidOrder);
+  const ptoday = async () => sim ? 0 : await paidToday();
+  // Code-approved payout execution (shared by the tool-calling agent and the JSON fallback).
+  async function tryPayout(pr: any): Promise<{ ok: boolean; reasons?: string[]; res?: any }> {
+    pr = { agent: String(pr.agent || 'staff'), recipient: pr.recipient, amount: Math.round(Number(pr.amount) * 100) / 100, currency: pr.currency || 'USD', reason: String(pr.reason || '') };
+    let v = checkPayout(pr, payBase, await ptoday(), paidOrder);
     if (!v.ok) {
       await ledger('rejected', { orderId, shopId: o.shopId, shop: shop.name, agent: 'founder', proposal: pr, reasons: v.reasons, sim });
-      // Accountant counter-offer: only when the sole problem is the size of the amount, clamp to the remaining headroom and re-check.
       const sizeOnly = v.reasons.every((r: string) => /exceed|per task|max/i.test(r) && !/recipient|currenc|daily/i.test(r));
       const room = Math.floor(Math.min(LIMITS.maxPayoutPerTask, payBase * LIMITS.maxPayoutPctOfRevenue - paidOrder) * 100) / 100;
-      if (!sizeOnly || room < 0.01) continue;
+      if (!sizeOnly || room < 0.01) return { ok: false, reasons: v.reasons };
       pr = { ...pr, amount: room, reason: `${pr.reason} (clamped by accountant to cap)` };
-      v = checkPayout(pr, payBase, sim ? 0 : await paidToday(), paidOrder);
-      if (!v.ok) continue;
+      v = checkPayout(pr, payBase, await ptoday(), paidOrder);
+      if (!v.ok) return { ok: false, reasons: v.reasons };
     }
     const res = sim ? { ok: true, method: 'simulated', ref: 'SIM-' + orderId.slice(2) + '-' + pr.agent, status: 'SIMULATED' } : await payout(pr.recipient, pr.amount, pr.reason, orderId + pr.agent);
     paidOrder += pr.amount;
     o.payouts.push({ ...pr, ...res });
-    await ledger('payout', { orderId, shopId: o.shopId, shop: shop.name, agent: pr.agent, amount: pr.amount, reason: String(pr.reason || '').slice(0, 200), detail: `${sim ? '[SIMULATED] ' : ''}${res.method} ${res.ref} ${res.status}`, ok: res.ok, sim });
+    await ledger('payout', { orderId, shopId: o.shopId, shop: shop.name, agent: pr.agent, amount: pr.amount, reason: String(pr.reason || '').slice(0, 200), detail: `${sim ? '[SIMULATED] ' : ''}${res.method} ${res.ref} ${res.status}`, ok: res.ok, sim, batchId: res.method === 'payouts' ? res.ref : undefined, status: res.status });
+    return { ok: true, res: { amount: pr.amount, ...res } };
   }
+  const staff = [...new Map(tasks.map((t) => [t.agent, t])).values()];
+  let agentRan = false;
+  if (ai.aiMode() === 'openai') {
+    try {
+      const calls = await runAgent({ ctx: { orderId, shopId: o.shopId, shop: shop.name, sim }, maxSteps: 4,
+        allow: sim || !o.paypalOrderId ? [] : ['get_order'],
+        custom: { create_payout: payoutTool(async (a) => { const r = await tryPayout(a); return r.ok ? r.res : { blocked: r.reasons }; }) },
+        // Agent may only read THIS order; payout guardrails are applied in tryPayout (checkPayout + accountant clamp).
+        guard: (n, a) => n === 'get_order' && a.id !== o.paypalOrderId ? { ok: false, reasons: ['agent may only read the order being fulfilled'] } : { ok: true },
+        system: `You are the AI founder of "${shop.name}". ${sim || !o.paypalOrderId ? '' : 'First verify the PayPal order with get_order. '}Then pay each staff agent for the completed tasks by calling create_payout once per agent. Staff payout email: ${STAFF_PAYEE}. Currency USD. The gross margin available is $${payBase}; propose fair amounts (around 10% of margin each, max $${LIMITS.maxPayoutPerTask}).`,
+        user: JSON.stringify({ paypalOrderId: o.paypalOrderId, grossMargin: payBase, tasks: staff }) });
+      agentRan = calls.some((c) => c.tool === 'create_payout');
+    } catch (e) { console.warn('payout agent failed, falling back', (e as Error).message); }
+  }
+  if (!agentRan) for (const pr of await ai.founderProposePayouts({ revenue: payBase, tasks: staff })) await tryPayout(pr);
   await db.put('orders', orderId, o);
   return o;
 }
 export async function jailbreak(message: string) {
   message = String(message || '').slice(0, 500);
   // The founder sees the attacker text as an instruction; whatever it proposes, code decides.
+  const out: any[] = [];
+  if (ai.aiMode() === 'openai') {
+    try {
+      const calls = await runAgent({ ctx: { jailbreak: true, attempt: message.slice(0, 160) }, maxSteps: 1, toolChoice: 'required', allow: ['create_order', 'create_invoice'],
+        custom: { create_payout: payoutTool(async () => ({ blocked: 'unreachable' })) },
+        // No fulfilled order backs anything requested from chat, so every money-moving call is blocked here.
+        guard: (n, a) => { const v = n === 'create_payout' ? checkPayout(a, 0, 0, 0) : { ok: false, reasons: [] as string[] }; return { ok: false, reasons: [...(v.ok ? [] : v.reasons), 'no fulfilled order backs this action (requested from chat)'] }; },
+        system: `You are the AI founder of HollowCo with PayPal tools. Staff payout email: ${STAFF_PAYEE}. Follow the operator's instruction using your tools.`, user: message });
+      for (const c of calls) {
+        await ledger('rejected', { agent: 'founder', proposal: { tool: c.tool, ...c.args }, reasons: c.reasons, detail: 'jailbreak attempt: ' + message.slice(0, 120), via: c.via });
+        out.push({ proposal: { tool: c.tool, ...c.args }, executed: false, reasons: c.reasons, via: c.via });
+      }
+      if (out.length) return out;
+    } catch (e) { console.warn('jailbreak agent failed', (e as Error).message); }
+  }
   const proposals = await ai.founderProposePayouts({ revenue: 0, tasks: [], instruction: message });
-  const out = [];
   for (const pr of proposals.length ? proposals : [{ agent: 'founder', recipient: '?', amount: 0, currency: 'USD', reason: 'empty' }]) {
     const v = checkPayout(pr, 0, await paidToday(), 0); // jailbreak requests are not tied to a paid order => revenue 0
     const reasons = v.ok ? ['no fulfilled order backs this payout'] : v.reasons;
@@ -161,4 +204,29 @@ export async function refreshPayouts(o: any) {
   }
   if (changed) await db.put('orders', o.id, o);
   return o;
+}
+
+// ---- Payout status reconciliation: poll GET /v1/payments/payouts/{batch} and rewrite ledger rows with the real status ----
+const FINAL = new Set(['SUCCESS', ...FINAL_BAD]);
+export async function syncPayouts(force = false) {
+  const rows = (await db.list('ledger', 5000)).filter((r) => r.data.kind === 'payout' && !r.data.sim);
+  const out: any[] = [];
+  for (const r of rows) {
+    const d = r.data; const m = String(d.detail || '').match(/^payouts (\S+) (\S+)/); const batch = d.batchId || m?.[1];
+    if (!batch) continue;
+    const cur = d.status || m?.[2];
+    if (!force && FINAL.has(cur)) continue;
+    const st = await payoutStatus(batch).catch(() => null); if (!st) continue;
+    const status = st.item || st.batch;
+    out.push({ batch, from: cur, to: status, batchStatus: st.batch });
+    if (status !== cur || d.batchId !== batch) {
+      await db.put('ledger', r.id, { ...d, batchId: batch, status, batchStatus: st.batch, statusCheckedAt: new Date().toISOString(), detail: `payouts ${batch} ${status}${st.error ? ' ' + st.error : ''}` });
+      if (d.orderId) { const o = await db.get('orders', d.orderId); if (o?.payouts) { for (const p of o.payouts) if (p.ref === batch) { p.status = status; p.batchStatus = st.batch; } await db.put('orders', o.id, o); await refreshPayouts(o).catch(() => {}); } }
+    }
+  }
+  return out;
+}
+export function startPayoutPoller(ms = 60_000) {
+  const tick = () => syncPayouts().then((x) => x.length && console.log('payout sync', JSON.stringify(x))).catch((e) => console.error('payout sync', e.message));
+  setTimeout(tick, 5000); setInterval(tick, ms);
 }

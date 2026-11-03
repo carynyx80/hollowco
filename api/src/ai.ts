@@ -196,7 +196,7 @@ export async function founderProposePayouts(ctx: { revenue: number; tasks: { age
     try {
       const j = await chatJSON(`You are the AI founder. Propose payouts to your staff agents for completed tasks. Staff payout email: ${RECIP}. JSON: {"payouts":[{"agent":str,"recipient":email,"amount":number,"currency":"USD","reason":str}]}`,
         JSON.stringify(ctx));
-      if (Array.isArray(j.payouts)) return j.payouts;
+      if (Array.isArray(j.payouts) && (j.payouts.length || !ctx.instruction)) return j.payouts;
     } catch { /* mock */ }
   }
   if (ctx.instruction) {

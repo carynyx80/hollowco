@@ -10,7 +10,8 @@ import { env } from './env.js';
 import { aiMode } from './ai.js';
 import { printfulMode } from './printful.js';
 import { createOrder, createMultiOrder, captureOrder, getOrder } from './paypal.js';
-import { createShop, fulfil, id, jailbreak, ledger, ledgerView, refreshPayouts } from './core.js';
+import { createShop, fulfil, id, jailbreak, ledger, ledgerView, refreshPayouts, syncPayouts, startPayoutPoller } from './core.js';
+import { toolkitToolNames, TOOLKIT_ACTIONS } from './agent.js';
 import { LIMITS } from './guardrails.js';
 import { checkShopQuota, takeAction, isDemo, SHOP_LIMITS } from './limits.js';
 import { usageSnapshot } from './ai.js';
@@ -198,12 +199,45 @@ app.get('/orders/pp/:ppId', wrap(async (q: any, r: any) => r.json(await orderVie
 // PayPal webhook. We never trust the payload: we only take the order id from it and re-read the order from PayPal's API.
 app.post('/paypal/webhook', async (q: any, r: any) => {
   const ev = q.body || {}; const res = ev.resource || {};
+  if (String(ev.event_type || '').startsWith('PAYMENT.PAYOUTS')) { // re-read from PayPal; never trust the payload
+    try { await syncPayouts(true); await ledger('webhook', { detail: `${ev.event_type} ${res.payout_batch_id || ''}` }); } catch (e: any) { console.error('webhook', e.message); }
+    return r.json({ ok: true });
+  }
   const ppId = ev.event_type?.startsWith('CHECKOUT.ORDER') ? res.id : res.supplementary_data?.related_ids?.order_id;
   try {
     if (ppId && (await db.get('orders', 'pp_' + ppId))) { await syncOrder(ppId, ev.event_type === 'CHECKOUT.ORDER.APPROVED'); await ledger('webhook', { detail: `${ev.event_type} ${ppId}` }); }
   } catch (e: any) { console.error('webhook', e.message); }
   r.json({ ok: true });
 });
+// Payout reconciliation: force a status poll now (the background poller also runs every 60s).
+let lastSync = 0;
+app.post('/payouts/sync', wrap(async (_q: any, r: any) => { if (Date.now() - lastSync < 10000) return r.status(429).json({ error: 'synced moments ago' }); lastSync = Date.now(); r.json(await syncPayouts(true)); }));
+app.get('/payouts', wrap(async (_q: any, r: any) => r.json((await db.list('ledger', 5000)).filter((x) => x.data.kind === 'payout').map((x) => ({ at: x.data.at, shop: x.data.shop, agent: x.data.agent, amount: x.data.amount, sim: !!x.data.sim, batchId: x.data.batchId || String(x.data.detail || '').split(' ')[1], status: x.data.status || String(x.data.detail || '').split(' ')[2], checkedAt: x.data.statusCheckedAt })))));
+// City stats: real counts from the shops table and the ledger only.
+let statsCache: { at: number; body: any } | null = null;
+app.get('/stats', wrap(async (_q: any, r: any) => {
+  if (!statsCache || Date.now() - statsCache.at > 5000) {
+    const [shops, rows] = await Promise.all([db.list('shops', 100000), db.list('ledger', 100000)]);
+    const L = rows.map((x) => x.data); const real = (k: string) => L.filter((e) => e.kind === k && !e.sim);
+    const pay = real('payout'); const st = (e: any) => e.status || String(e.detail || '').split(' ')[2];
+    const tools = L.filter((e) => e.kind === 'agent_tool'); const byTool: Record<string, number> = {};
+    for (const t of tools) byTool[t.tool] = (byTool[t.tool] || 0) + 1;
+    const round = (n: number) => Math.round(n * 100) / 100;
+    statsCache = { at: Date.now(), body: {
+      storesBuilt: shops.length, products: shops.reduce((n, s) => n + (s.data.products || []).filter((p: any) => !p.comingSoon).length, 0),
+      orders: real('revenue').length, simulatedOrders: L.filter((e) => e.kind === 'revenue' && e.sim).length,
+      sandboxRevenue: round(real('revenue').reduce((a, e) => a + Number(e.amount || 0), 0)),
+      payoutsSent: pay.length, payoutsSentAmount: round(pay.reduce((a, e) => a + Number(e.amount || 0), 0)),
+      payoutsSucceeded: pay.filter((e) => st(e) === 'SUCCESS').length, payoutsByStatus: pay.reduce((m: any, e) => (m[st(e)] = (m[st(e)] || 0) + 1, m), {}),
+      guardrailBlocks: L.filter((e) => e.kind === 'rejected').length + tools.filter((t) => t.decision === 'blocked' && !t.jailbreak).length,
+      jailbreaksBlocked: L.filter((e) => e.kind === 'rejected' && /^jailbreak attempt/i.test(e.detail || '')).length,
+      toolkitCalls: tools.filter((t) => t.via === 'toolkit').length, agentToolCalls: tools.length, agentToolsBlocked: tools.filter((t) => t.decision === 'blocked').length, byTool,
+      toolkitTools: toolkitToolNames() } };
+  }
+  r.setHeader('Cache-Control', 'no-store'); r.json(statsCache.body);
+}));
+app.get('/agent/toolkit', (_q, r) => r.json({ package: '@paypal/agent-toolkit/openai', actions: TOOLKIT_ACTIONS, tools: toolkitToolNames(), custom: ['create_payout (PayPal Payouts API v1, guarded)'] }));
+app.get('/agent/calls', wrap(async (q: any, r: any) => r.json((await db.list('ledger', 3000)).map((x) => x.data).filter((e) => e.kind === 'agent_tool').slice(0, Math.min(100, Number(q.query.limit) || 30)))));
 // Demo: a clearly-labelled SIMULATED customer buys one product. No PayPal call, no money moves, payouts are simulated too.
 let lastSim = 0;
 app.post('/simulate/order', wrap(async (q: any, r: any) => {
@@ -280,4 +314,4 @@ async function repriceShops() {
     if (changed) { await db.put('shops', sid, s); console.log('repriced', sid); }
   }
 }
-db.init().then(repriceShops).then(() => auth.ensureDemo().catch((e) => console.error('demo', e.message))).then(() => backfillPlots().catch((e) => console.error('plots', e.message))).then(() => app.listen(port, () => console.log(`HollowCo API on :${port} db=${db.dbMode} ai=${aiMode()} supplier=${printfulMode()}`)));
+db.init().then(repriceShops).then(() => auth.ensureDemo().catch((e) => console.error('demo', e.message))).then(() => backfillPlots().catch((e) => console.error('plots', e.message))).then(() => (startPayoutPoller(), app.listen(port, () => console.log(`HollowCo API on :${port} db=${db.dbMode} ai=${aiMode()} supplier=${printfulMode()}`))));

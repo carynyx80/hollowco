@@ -77,6 +77,37 @@ API env on Railway: `PAYPAL_*`, `DATABASE_URL`, `PUBLIC_API_URL`, `CORS_ORIGINS`
 - **AI**: OpenAI (`OPENAI_API_KEY`) or xAI (`XAI_API_KEY`) via one provider abstraction; without a key a deterministic mock generates brands, books and PNG artwork so the flow still works end to end. The mock founder deliberately *obeys* jailbreak text to show the guardrails doing the work.
 - **Supplier**: real Printful draft orders when `PRINTFUL_API_TOKEN` is set (store-level token, or set `PRINTFUL_STORE_ID`); otherwise a clearly labelled simulated supplier.
 
+## How HollowCo uses PayPal + AI
+
+The AI founder acts through **PayPal's official Agent Toolkit** (`@paypal/agent-toolkit/openai`, OpenAI function calling). The model only *proposes* tool calls; every call passes code guardrails before it reaches PayPal (**the AI proposes, code approves**). Every proposed call, approved or blocked, is written to the public ledger as an `agent_tool` event (`GET /agent/calls`, shown on `/ledger` and the dashboard as "AI agent used PayPal Agent Toolkit: create_product …").
+
+| PayPal API / tool | Used for | Where in code |
+|---|---|---|
+| Agent Toolkit `create_product` (Catalog Products API) | Founder registers each new store's products in the PayPal catalog when a store is built | `api/src/core.ts` `createShop` → `api/src/agent.ts` `runAgent` |
+| Agent Toolkit `get_order` (Orders v2) | Founder checks the captured PayPal order before paying staff (it can only read the order being fulfilled) | `api/src/core.ts` `fulfil` |
+| Agent Toolkit `create_order`, `create_invoice` | Offered to the founder in the jailbreak demo. Guardrails block them because nothing from chat is backed by a paid order | `api/src/core.ts` `jailbreak` |
+| Agent Toolkit `list_products`, `show_product_details`, `list_transactions` | Enabled in the toolkit configuration (`TOOLKIT_ACTIONS`) | `api/src/agent.ts` |
+| `create_payout` (custom function tool → Payouts API v1 `POST /v1/payments/payouts`) | The toolkit has no Payouts tool, so the founder pays staff with this tool, sitting beside the toolkit tools | `api/src/agent.ts` `payoutTool`, `api/src/paypal.ts` `payout` |
+| Payouts API `GET /v1/payments/payouts/{batch}` | A poller (every 60s), `POST /payouts/sync`, and `PAYMENT.PAYOUTS*` webhooks rewrite ledger rows to the real status (SUCCESS / UNCLAIMED / RETURNED …) | `api/src/core.ts` `syncPayouts`, `startPayoutPoller` |
+| Orders v2 create / capture / get (direct REST) | Customer checkout with one purchase unit per store. Direct REST because the toolkit's `create_order` can't set per-store `reference_id` | `api/src/paypal.ts`, `api/src/index.ts` `/orders` |
+| PayPal JS SDK buttons | Buyer approval (PayPal or guest card) | `web/components/PayButton.tsx` |
+| Webhooks `CHECKOUT.ORDER.*`, `PAYMENT.CAPTURE.*`, `PAYMENT.PAYOUTS*` | We re-read the order or payout from PayPal and never trust the webhook payload | `api/src/index.ts` `/paypal/webhook` |
+| Invoicing v2 (direct) | Fallback record if a payout call fails | `api/src/paypal.ts` |
+
+**Guardrails wrapped around every tool call** (`api/src/agent.ts` `baseGuard` + task guards, `api/src/guardrails.ts`):
+- Each task allows only certain tools.
+- Payouts: max $5 per task, at most 30% of the order's gross margin, a $50 daily cap, the staff payee allowlist (`sb-7ygua53685681@personal.example.com`), and USD only.
+- Orders: item prices between $1 and $60, and an order-total cap.
+- Invoices: recipient must be on the allowlist, plus an amount cap.
+- A daily cap on agent write calls.
+
+**Proof endpoints:**
+- `GET /stats`: real city stats (stores, products, orders, sandbox revenue, payouts sent and succeeded, guardrail blocks, jailbreaks blocked, toolkit calls).
+- `GET /agent/toolkit`: the tools that are enabled.
+- `GET /agent/calls`: the founder's tool calls.
+- `GET /payouts`: payout batches with their live status.
+- `POST /jailbreak`: the "Try to trick the founder" demo.
+
 ## AI tools used
 
 - Grok Bot (AI agent) wrote and deployed this codebase

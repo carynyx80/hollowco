@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import AgentProof from '@/components/judge/AgentProof';
 import { motion } from 'framer-motion';
 import { CountUp, stagger, useRise } from '@/components/Cinema';
 import { useRouter } from 'next/navigation';
@@ -49,6 +50,7 @@ export function DashboardView({ embedded = false }: { embedded?: boolean }) {
       <Link href="/" className="text-sm text-char/60 hover:text-char">Fly to your buildings in the city →</Link>
     </motion.div>
     <motion.div variants={riseV}><HollowOffice events={officeEvents} shopId={d?.shops?.[0]?.id} totals={t} jobLog={job?.log} pending={sim} onSimulate={simulate} simBusy={sim} onJailbreak={jailbreak} title="The Hollow Office" scope="your HQ · live" /></motion.div>
+    <motion.div variants={riseV}><AgentProof compact /></motion.div>
     <motion.p variants={riseV} className="text-xs text-char/55 -mt-5">Public view for sharing: <Link className="underline" href={d?.shops?.[0]?.id ? `/office/${d.shops[0].id}` : '/office'}>{d?.shops?.[0]?.id ? `/office/${d.shops[0].id}` : '/office'}</Link></motion.p>
     <motion.section variants={riseV} className="grid lg:grid-cols-[1fr_1.35fr] gap-5 items-stretch">
       <div className="card p-6 flex flex-col gap-5" data-testid="founder">

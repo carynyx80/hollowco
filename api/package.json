@@ -6,12 +6,14 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
-    "test": "tsx src/limits.test.ts && tsx src/e2e.ts", "test:unit": "tsx src/limits.test.ts"
+    "test": "tsx src/limits.test.ts && tsx src/e2e.ts",
+    "test:unit": "tsx src/limits.test.ts"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "@paypal/agent-toolkit": "^1.11.0",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
