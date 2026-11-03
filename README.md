@@ -71,6 +71,14 @@ API env on Railway: `PAYPAL_*`, `DATABASE_URL`, `PUBLIC_API_URL`, `CORS_ORIGINS`
    - Turn **off** "Save info & create PayPal account"
    - Click **Pay now as guest**
 
+## Tests
+
+```bash
+cd api && npm install && npm test
+```
+
+Runs offline (in-memory DB, mock AI, no PayPal calls): order capture state (completed / declined / pending / shipping), guardrail rejection (non-allowlisted recipient, wrong currency, bad amounts and prices), payout limits (per-task, % of revenue, daily cap, idempotent fulfilment of an e-book order) and test/simulated rows being excluded from headline totals. `npm run test:e2e` runs the full sandbox flow and needs PayPal sandbox credentials.
+
 ## Sandbox accounts
 
 - Buyer (customer): `sb-vkeld53675758@personal.example.com`. Buyer only, never a payee.
