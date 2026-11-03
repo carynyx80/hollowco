@@ -54,20 +54,22 @@ function Character({ who, typing, alarm }: { who: Actor; typing?: boolean; alarm
 }
 
 /* ---------- events -> scenes ---------- */
-type Ev = { at: string; kind: string; shop?: string; shopId?: string; orderId?: string; agent?: string; amount?: number; detail?: string; reason?: string; reasons?: string[]; proposal?: any; sim?: boolean; ok?: boolean };
-type Scene = { type: 'order'; orderId: string; shopId?: string; evs: Ev[] } | { type: 'jail'; ev: Ev } | { type: 'shop'; ev: Ev };
+type Ev = { at: string; kind: string; shop?: string; shopId?: string; orderId?: string; agent?: string; amount?: number; detail?: string; reason?: string; reasons?: string[]; proposal?: any; sim?: boolean; ok?: boolean; tool?: string; via?: string; decision?: string };
+type Scene = { type: 'order'; orderId: string; shopId?: string; evs: Ev[] } | { type: 'jail'; ev: Ev } | { type: 'shop'; ev: Ev; tools?: Ev[] };
 const evKey = (e: Ev) => `${e.at}|${e.kind}|${e.agent || ''}|${e.amount ?? ''}`;
 function toScenes(evs: Ev[]): Scene[] {
-  const asc = [...evs].sort((a, b) => a.at.localeCompare(b.at)); const out: Scene[] = []; const byOrder = new Map<string, Scene & { type: 'order' }>();
+  const asc = [...evs].sort((a, b) => a.at.localeCompare(b.at)); const out: Scene[] = []; const shopTools = new Map<string, Ev[]>(); const byOrder = new Map<string, Scene & { type: 'order' }>();
   for (const e of asc) {
-    if (e.orderId && ['revenue', 'supplier_cost', 'payout', 'rejected', 'capture_failed', 'payout_reversed'].includes(e.kind)) {
+    if (e.kind === 'agent_tool' && !e.orderId) { if (e.shopId) (shopTools.get(e.shopId) || shopTools.set(e.shopId, []).get(e.shopId)!).push(e); continue; }
+    if (e.orderId && ['agent_tool', 'revenue', 'supplier_cost', 'payout', 'rejected', 'capture_failed', 'payout_reversed'].includes(e.kind)) {
       let s = byOrder.get(e.orderId); if (!s) { s = { type: 'order', orderId: e.orderId, shopId: e.shopId, evs: [] }; byOrder.set(e.orderId, s); out.push(s); } s.evs.push(e);
     } else if (e.kind === 'rejected') out.push({ type: 'jail', ev: e });
     else if (e.kind === 'shop_created') out.push({ type: 'shop', ev: e });
   }
+  for (const s of out) if (s.type === 'shop' && s.ev.shopId) s.tools = shopTools.get(s.ev.shopId);
   return out;
 }
-const LABEL: Record<string, string> = { shop_created: 'Shop opened', revenue: 'Sale', supplier_cost: 'Printful draft', payout: 'Payout', rejected: 'Guardrail blocked', capture_failed: 'Capture failed', payout_reversed: 'Payout reversed' };
+const LABEL: Record<string, string> = { shop_created: 'Shop opened', revenue: 'Sale', supplier_cost: 'Printful draft', payout: 'Payout', rejected: 'Guardrail blocked', capture_failed: 'Capture failed', payout_reversed: 'Payout reversed', agent_tool: 'PayPal Agent Toolkit' };
 const FEEDC: Record<string, string> = { shop_created: '#B8975A', revenue: '#8C6F3C', supplier_cost: '#9A6A2E', payout: '#4F7A47', rejected: '#A6452F' };
 const batchStatus = (d?: string) => (d || '').split(' ').pop() || '';
 const short = (s: string, n = 120) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
@@ -130,6 +132,7 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
     for (const e of sc.evs.filter((x) => x.kind === 'supplier_cost')) { const id = uid.current++; patch(() => ({ box: { id, from: [8.4, 5.2], to: DOCK } })); beep(330, 0.25, 'triangle'); await wait(1600); tick(`−${usd(e.amount!)} Printful ${e.sim ? 'simulated' : 'draft'}`, '#9A6A2E'); }
     say(worker, null); patch(() => ({ typing: {} }));
     for (const e of sc.evs.filter((x) => x.kind === 'rejected')) { say('guard', `${short((e.reasons || []).join(' · '), 110)}`, 'warn'); beep(220, 0.3, 'square'); await wait(2000); say('guard', null); }
+    for (const e of sc.evs.filter((x) => x.kind === 'agent_tool' && x.via === 'toolkit')) { say('founder', `PayPal Agent Toolkit → ${e.tool}${e.decision === 'blocked' ? ' (blocked)' : ' ✓'}`, 'think'); beep(760); tick(`Agent Toolkit · ${e.tool} ${e.decision === 'blocked' ? 'blocked' : 'ok'}`, '#B8975A'); await wait(1600); }
     say('founder', null);
     for (const e of sc.evs.filter((x) => x.kind === 'payout')) {
       const to: Actor = e.agent === 'designer' ? 'designer' : 'writer'; const tgt = HOME[to];
@@ -149,17 +152,18 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
     say('guard', `BLOCKED ${short((e.reasons || []).join(' · '), 150)}`, 'warn'); tick(real ? `blocked ${usd(pr!.amount)} → ${pr!.recipient}` : `jailbreak refused · no payout proposed`, '#A6452F'); await wait(3200);
     patch(() => ({ alarm: false, caption: undefined })); say('guard', null); say('founder', null); move('guard', HOME.guard); await wait(800);
   }
-  async function playShop(e: Ev, replay: boolean) {
+  async function playShop(e: Ev, replay: boolean, tools: Ev[] = []) {
     patch(() => ({ caption: `${replay ? 'Replay · ' : ''}Founder is building “${e.shop}”` })); say('founder', `New company: ${e.shop}`, 'think');
     patch(() => ({ typing: { writer: true, designer: true } })); await wait(1200);
     const s = await getShop(e.shopId); setShop(null); await wait(500); if (s) { setShop(s); setFocus(s.id); patch(() => ({ screen: s.logo, screenTitle: 'Logo' })); }
+    for (const t of tools.filter((x) => x.via === 'toolkit')) { say('founder', `PayPal Agent Toolkit → ${t.tool}${t.decision === 'blocked' ? ' (blocked)' : ' ✓'}`, 'think'); tick(`Agent Toolkit · ${t.tool}`, '#B8975A'); beep(760); await wait(1100); }
     beep(660); beep(990, 0.25); tick(`opened ${e.shop}`, '#B8975A'); await wait(2600);
     patch(() => ({ typing: {}, caption: undefined })); say('founder', null);
   }
   const pump = useCallback(async () => {
     if (busy.current) return; busy.current = true; setPlaying(true);
     while (queue.current.length) { const sc = queue.current.shift()! as Scene & { replay?: boolean }; const r = !!sc.replay;
-      try { if (sc.type === 'order') await playOrder(sc, r); else if (sc.type === 'jail') await playJail(sc.ev, r); else await playShop(sc.ev, r); } catch {} await wait(400); }
+      try { if (sc.type === 'order') await playOrder(sc, r); else if (sc.type === 'jail') await playJail(sc.ev, r); else await playShop(sc.ev, r, sc.tools); } catch {} await wait(400); }
     busy.current = false; setPlaying(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
