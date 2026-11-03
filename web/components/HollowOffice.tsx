@@ -44,7 +44,7 @@ function Character({ who, typing, alarm }: { who: Actor; typing?: boolean; alarm
         <path d={`M-12 -6 C-13 -26 -10 -34 0 -34 C10 -34 13 -26 12 -6 Z`} fill={shade(c, who === 'customer' ? 0.7 : 0.55)} stroke={c} strokeOpacity={0.6} />
         {who === 'founder' && <circle cx={0} cy={-21} r={5} fill="none" stroke="#fff" strokeWidth={2.5} opacity={0.9} />}
         {who === 'founder' && <circle cx={2.5} cy={-19} r={1.6} fill="#A9B4A6" />}
-        <circle cx={0} cy={-44} r={11} fill={who === 'customer' ? '#e7c9a9' : '#13110e'} stroke={c} strokeWidth={1.5} />
+        <circle cx={0} cy={-44} r={11} fill={who === 'customer' ? '#e7c9a9' : '#2A2722'} stroke={c} strokeWidth={1.5} />
         {who !== 'customer' ? <rect x={-7} y={-47} width={14} height={5} rx={2.5} fill={c} className="ho-blink" /> : <><circle cx={-3.5} cy={-45} r={1.4} fill="#222" /><circle cx={3.5} cy={-45} r={1.4} fill="#222" /></>}
         {who === 'customer' && <><rect x={9} y={-20} width={10} height={11} rx={2} fill="#C9B27C" /><path d="M11 -20 q3 -5 6 0" stroke="#C9B27C" fill="none" /></>}
         {typing && <><rect x={-13} y={-18} width={7} height={4} rx={2} fill={c} className="ho-type" /><rect x={6} y={-18} width={7} height={4} rx={2} fill={c} className="ho-type2" /></>}
@@ -225,9 +225,9 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
           <polygon points={pts([iso(0, 0, 4), iso(0, 10, 4), iso(0, 10), iso(0, 0)])} fill="url(#hoWallL)" stroke="#D6D1C6" />
           <polygon points={pts([iso(0, 0, 4), iso(12, 0, 4), iso(12, 0), iso(0, 0)])} fill="url(#hoWallR)" stroke="#D6D1C6" />
           {/* window strip on back wall */}
-          {[0.6, 1.9].map((x) => <g key={x} transform={onBack(x, 0, 3.4)}><rect width={46} height={70} rx={4} fill="#1a1712" stroke="#C4BEB2" /><rect x={4} y={4} width={38} height={62} fill="#A9B4A6" opacity={0.08} /><circle cx={30} cy={18} r={3} fill="#fff" opacity={0.6} /></g>)}
+          {[0.6, 1.9].map((x) => <g key={x} transform={onBack(x, 0, 3.4)}><rect width={46} height={70} rx={4} fill="#DCD8CE" stroke="#C4BEB2" /><rect x={4} y={4} width={38} height={62} fill="#A9B4A6" opacity={0.08} /><circle cx={30} cy={18} r={3} fill="#fff" opacity={0.6} /></g>)}
           {/* floor */}
-          <polygon points={pts([iso(0, 0), iso(12, 0), iso(12, 10), iso(0, 10)])} fill="#11100d" stroke="#D6D1C6" />
+          <polygon points={pts([iso(0, 0), iso(12, 0), iso(12, 10), iso(0, 10)])} fill="#EFEDE6" stroke="#D6D1C6" />
           {Array.from({ length: 11 }, (_, i) => <line key={'a' + i} x1={iso(i + 1, 0)[0]} y1={iso(i + 1, 0)[1]} x2={iso(i + 1, 10)[0]} y2={iso(i + 1, 10)[1]} stroke="#ffffff" strokeOpacity={0.04} />)}
           {Array.from({ length: 9 }, (_, i) => <line key={'b' + i} x1={iso(0, i + 1)[0]} y1={iso(0, i + 1)[1]} x2={iso(12, i + 1)[0]} y2={iso(12, i + 1)[1]} stroke="#ffffff" strokeOpacity={0.04} />)}
           {/* rug under founder */}
@@ -270,7 +270,7 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
           <Box x={11} y={0.4} w={0.6} d={0.6} h={0.5} c="#D6D1C6" />
           {[[-8, -14], [6, -18], [0, -26], [-4, -20], [9, -10]].map(([dx, dy], i) => <ellipse key={i} cx={iso(11.3, 0.7, 0.5)[0] + dx} cy={iso(11.3, 0.7, 0.5)[1] + dy} rx={7} ry={4} fill="#8FAE84" opacity={0.75} transform={`rotate(${dx * 4} ${iso(11.3, 0.7, 0.5)[0] + dx} ${iso(11.3, 0.7, 0.5)[1] + dy})`} />)}
           {/* PayPal vault by the door */}
-          <g transform={onLeft(10, 2.3)}><rect width={44} height={100} rx={3} fill="#0d0c0a" stroke="#C4BEB2" /><rect x={4} y={4} width={36} height={96} fill="#C9B27C" opacity={0.06} /><text x={22} y={-6} fontSize={9} fill="#C9B27C" textAnchor="middle" opacity={0.8}>DOOR</text></g>
+          <g transform={onLeft(10, 2.3)}><rect width={44} height={100} rx={3} fill="#D6D1C6" stroke="#C4BEB2" /><rect x={4} y={4} width={36} height={96} fill="#C9B27C" opacity={0.06} /><text x={22} y={-6} fontSize={9} fill="#C9B27C" textAnchor="middle" opacity={0.8}>DOOR</text></g>
           <Box x={VAULT[0] - 0.7} y={VAULT[1] - 0.7} w={1.4} d={1.3} h={1.4} c="#D6D1C6" stroke="#A9B4A633" />
           <g transform={onFront(VAULT[0] - 0.55, VAULT[1] + 0.6, 1.25)}><rect width={44} height={38} rx={4} fill="#003087" /><text x={22} y={17} textAnchor="middle" fontSize={10} fontWeight={800} fill="#fff" fontStyle="italic">Pay<tspan fill="#009CDE">Pal</tspan></text><text x={22} y={30} textAnchor="middle" fontSize={7} fill="#0E0D0B">VAULT · INBOX</text></g>
           {/* Printful dock */}

@@ -4,7 +4,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { AllCommunityModule, ModuleRegistry, themeQuartz } from 'ag-grid-community';
 import { api } from '@/lib/api';
 ModuleRegistry.registerModules([AllCommunityModule]);
-const theme = themeQuartz.withParams({ accentColor: '#B8975A', foregroundColor: '#0E0D0B', backgroundColor: '#FFFFFF', headerBackgroundColor: '#ECEAE3', headerTextColor: '#6F6B62', borderColor: '#DFDBD1', rowHoverColor: '#F4F2EC', oddRowBackgroundColor: '#FBFAF7', fontFamily: 'var(--font-ui)', headerFontSize: 11, headerFontWeight: 500, fontSize: 13, borderRadius: 6, wrapperBorderRadius: 6, spacing: 7, cellTextColor: '#EDE6D6' });
+const theme = themeQuartz.withParams({ accentColor: '#B8975A', foregroundColor: '#0E0D0B', backgroundColor: '#FFFFFF', headerBackgroundColor: '#ECEAE3', headerTextColor: '#6F6B62', borderColor: '#DFDBD1', rowHoverColor: '#F4F2EC', oddRowBackgroundColor: '#FBFAF7', fontFamily: 'var(--font-ui)', headerFontSize: 11, headerFontWeight: 500, fontSize: 13, borderRadius: 6, wrapperBorderRadius: 6, spacing: 7, cellTextColor: '#0E0D0B' });
 const usd = (p: any) => (p.value == null ? '' : `$${Number(p.value).toFixed(2)}`);
 export default function Ledger() {
   const [d, setD] = useState<any>(null);
