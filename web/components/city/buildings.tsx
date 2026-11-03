@@ -8,7 +8,7 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { DISTRICT_INFO, ENV, type CityShop, type Style } from './layout';
 import { TILE, doorTex, facadeBox, facadeLit, facadeMap, roofTex, signTex, stripeTex } from './tex';
 
-const GOLD = '#FFC94D';
+const GOLD = '#D9B56E';
 export const DIMS: Record<Style, [number, number]> = { glass: [4.8, 4.8], brick: [5.6, 5.2], boutique: [5.6, 4.8], warehouse: [6.2, 5.8] };
 const TK: Record<Style, keyof typeof TILE> = { glass: 'glass', brick: 'brick', boutique: 'stucco', warehouse: 'metal' };
 const hashS = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return (h >>> 0) / 4294967296; };
@@ -30,7 +30,7 @@ export function tintOf(s: CityShop) {
   if (st === 'glass') return ['#9fc4e8', '#a8e0d8', '#c9d4e6', '#b8c9ff'][Math.floor(r * 4)];
   if (st === 'brick') return ['#ffffff', '#e6c3a8', '#ffd7c2', '#c9a58f', '#f0e0d0'][Math.floor(r * 5)];
   if (st === 'warehouse') return ['#d7dde3', '#b9c7d6', '#c9d6c3', '#e0d2bf'][Math.floor(r * 4)];
-  return '#' + new THREE.Color(s.colors?.[0] || s.plot.color || '#ff7ad9').lerp(new THREE.Color('#ffffff'), 0.62).getHexString();
+  return '#' + new THREE.Color(s.colors?.[0] || s.plot.color || '#B98A7A').lerp(new THREE.Color('#ffffff'), 0.62).getHexString();
 }
 const accentOf = (s: CityShop) => s.colors?.[1] && s.colors[1].toLowerCase() !== '#ffffff' ? s.colors[1] : s.colors?.[0] || s.plot.color || GOLD;
 
@@ -114,10 +114,10 @@ export const Building = memo(function Building({ s, onPick, focus, pulse, quiet,
       <mesh position={[0, s.h + 14, 0]}><cylinderGeometry args={[0.3, 1.4, 28, 12, 1, true]} /><meshBasicMaterial color={dist?.color || GOLD} transparent opacity={0.13} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} /></mesh></>}
     {!quiet && (focus || hover || s.mine) && <Billboard position={[0, s.h + (s.plot.style === 'glass' ? 6.5 : 4.6), 0]}><Html center zIndexRange={[10, 0]} className="city-label">
       <button className={`city-tag ${focus ? 'city-tag-on' : ''}`} style={{ borderColor: (s.colors?.[0] || GOLD) + '99' }} onClick={() => onPick(s)} data-testid={`tag-${s.id}`}>
-        {s.mine && <span className="text-[9px] tracking-widest" style={{ color: GOLD }}>★ YOUR STORE</span>}
+        {s.mine && <span className="text-[9px] tracking-widest" style={{ color: GOLD }}>YOUR STORE</span>}
         <b>{s.name}</b><span>by {s.owner} · {dist?.label}</span>
         <span>{s.products} products{s.minPrice ? ` · from $${s.minPrice.toFixed(2)}` : ''} · <span style={{ color: GOLD }}>${s.revenue.toFixed(2)}</span> sales</span>
-        {hover && <span style={{ color: '#5EF0A6' }}>Click to walk in &amp; shop →</span>}
+        {hover && <span style={{ color: '#8FAE84' }}>Click to walk in &amp; shop →</span>}
       </button></Html></Billboard>}
   </group>;
 });

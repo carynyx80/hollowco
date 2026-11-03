@@ -9,7 +9,7 @@ import { Ground, Lamps, People, Traffic, Trees, Water } from './world';
 import { Buildings } from './buildings';
 import { facadeBox, facadeLit, facadeMap, TILE } from './tex';
 
-const IRIS = '#8B7BFF', CYAN = '#5CE1FF', GOLD = '#FFC94D', RED = '#FF4D6D', ORANGE = '#FF9F43';
+const IRIS = '#B8975A', CYAN = '#A9B4A6', GOLD = '#D9B56E', RED = '#C0624A', ORANGE = '#D2A066';
 const MAXP = 60, TRAIL = 7;
 const glow = (c: string, k = 2.4) => new THREE.Color(c).multiplyScalar(k);
 const on = (t: string, f: (d: any) => void) => { const h = (e: any) => f(e.detail); bus.addEventListener(t, h); return () => bus.removeEventListener(t, h); };
@@ -21,8 +21,8 @@ function Daylight({ hour, q }: { hour: number; q: Quality }) {
   const day = THREE.MathUtils.smoothstep(e, -0.12, 0.3); const az = ((hour - 6) / 12) * Math.PI;
   const sunDir = useMemo(() => new THREE.Vector3(Math.cos(az) * 0.8, Math.max(e, 0.05), 0.45 - Math.sin(az) * 0.2).normalize(), [az, e]);
   const moonDir = useMemo(() => new THREE.Vector3(-0.4, 0.7, -0.5).normalize(), []);
-  const fogC = useMemo(() => new THREE.Color('#0b0e1c').lerp(new THREE.Color(e < 0.25 ? '#e9b38a' : '#b9cde2'), day), [day, e]);
-  useEffect(() => { ENV.night = 1 - day; scene.fog = new THREE.Fog(fogC, 90 + day * 40, 330 + day * 120); scene.background = day > 0.04 ? null : new THREE.Color('#05070f'); }, [day, fogC, scene]);
+  const fogC = useMemo(() => new THREE.Color('#0f0d0a').lerp(new THREE.Color(e < 0.25 ? '#e9b38a' : '#b9cde2'), day), [day, e]);
+  useEffect(() => { ENV.night = 1 - day; scene.fog = new THREE.Fog(fogC, 90 + day * 40, 330 + day * 120); scene.background = day > 0.04 ? null : new THREE.Color('#0a0907'); }, [day, fogC, scene]);
   useFrame(() => { const t: THREE.Vector3 = controls?.target || new THREE.Vector3(); const L = sun.current; if (!L) return; const dir = day > 0.02 ? sunDir : moonDir;
     L.position.set(t.x + dir.x * 90, dir.y * 90, t.z + dir.z * 90); L.target.position.copy(t); L.target.updateMatrixWorld(); });
   const warm = new THREE.Color('#ffd2a1').lerp(new THREE.Color('#fff6e8'), THREE.MathUtils.clamp(e * 2, 0, 1));
@@ -30,9 +30,9 @@ function Daylight({ hour, q }: { hour: number; q: Quality }) {
   return <>
     {day > 0.04 && <Sky distance={4500} sunPosition={[sunDir.x * 100, sunDir.y * 100, sunDir.z * 100]} turbidity={5 + (1 - e) * 4} rayleigh={1.2 + (1 - e) * 1.5} mieCoefficient={0.006} mieDirectionalG={0.85} />}
     <Stars radius={300} depth={60} count={q === 'low' ? 800 : 2600} factor={5} fade speed={0.3} saturation={0} />
-    <hemisphereLight ref={hemi} args={[day > 0.04 ? '#cfe1ff' : '#3b4a7a', '#3a3328', 0.25 + day * 0.85]} />
-    <ambientLight intensity={0.12 + (1 - day) * 0.18} color={day > 0.04 ? '#ffffff' : '#7a7fff'} />
-    <directionalLight ref={sun} intensity={day > 0.02 ? 0.4 + day * 2.6 : 0.45} color={day > 0.02 ? warm : '#9fb3ff'} castShadow={sh > 0}
+    <hemisphereLight ref={hemi} args={[day > 0.04 ? '#cfe1ff' : '#4a4234', '#3a3328', 0.25 + day * 0.85]} />
+    <ambientLight intensity={0.12 + (1 - day) * 0.18} color={day > 0.04 ? '#ffffff' : '#b8a07a'} />
+    <directionalLight ref={sun} intensity={day > 0.02 ? 0.4 + day * 2.6 : 0.45} color={day > 0.02 ? warm : '#c9bfa8'} castShadow={sh > 0}
       shadow-mapSize={[sh || 512, sh || 512]} shadow-camera-left={-70} shadow-camera-right={70} shadow-camera-top={70} shadow-camera-bottom={-70} shadow-camera-far={260} shadow-bias={-0.0004} shadow-normalBias={0.04} />
   </>;
 }
@@ -83,7 +83,7 @@ function ConstructionSite({ s }: { s: Site }) {
       <mesh position={[-5.4, 14.3, 0]}><sphereGeometry args={[0.18]} /><meshBasicMaterial color={glow(RED, 3)} toneMapped={false} /></mesh></group>
     <Sparkles count={70} scale={[6, 9, 6]} position={[0, 4, 0]} size={4} speed={1.6} color={GOLD} />
     <pointLight position={[0, 3, 0]} color={GOLD} intensity={70} distance={14} />
-    <Billboard position={[0, 16, 0]}><Html center zIndexRange={[20, 0]}><div className="city-bubble" data-testid="construction-bubble"><b>🏗 {s.name || 'New store'} · by {s.owner}</b><span>{s.log}</span></div></Html></Billboard>
+    <Billboard position={[0, 16, 0]}><Html center zIndexRange={[20, 0]}><div className="city-bubble" data-testid="construction-bubble"><b>{s.name || 'New store'} · by {s.owner}</b><span>{s.log}</span></div></Html></Billboard>
   </group>;
 }
 function DistrictLabels({ shops, hl, onPick }: { shops: CityShop[]; hl: string | null; onPick: (d: string) => void }) {
@@ -101,7 +101,7 @@ function Beacon({ onPick }: { onPick: () => void }) {
     <mesh position={[0, 7, 0]}><cylinderGeometry args={[0.45, 1.0, 14, 8]} /><meshStandardMaterial color="#17172b" metalness={0.8} roughness={0.25} emissive={IRIS} emissiveIntensity={0.08} /></mesh>
     {[2, 5, 8, 11].map((y) => <mesh key={y} position={[0, y, 0]}><torusGeometry args={[1.02 - y * 0.045, 0.04, 6, 32]} /><meshBasicMaterial color={glow(CYAN, 1.5)} toneMapped={false} /></mesh>)}
     <group ref={ring} position={[0, 18, 0]}>
-      <mesh><torusGeometry args={[3, 0.62, 24, 96]} /><meshStandardMaterial color="#ffffff" emissive="#C9C1FF" emissiveIntensity={2.2} toneMapped={false} metalness={0.2} roughness={0.2} /></mesh>
+      <mesh><torusGeometry args={[3, 0.62, 24, 96]} /><meshStandardMaterial color="#ffffff" emissive="#D4B98A" emissiveIntensity={2.2} toneMapped={false} metalness={0.2} roughness={0.2} /></mesh>
       <mesh ref={dot} position={[1.15, -1.2, 0]}><sphereGeometry args={[0.6, 32, 32]} /><meshBasicMaterial color={glow(CYAN, 4)} toneMapped={false} /></mesh>
     </group>
     <pointLight position={[0, 18, 0]} color={IRIS} intensity={260} distance={60} decay={2} />
@@ -127,7 +127,7 @@ function Guards({ onPick, at }: { onPick: () => void; at: [number, number][] }) 
       <mesh position={[0, 11, 0]}><cylinderGeometry args={[0.25, 1.8, 22, 16, 1, true]} /><meshBasicMaterial color={CYAN} transparent opacity={0.06} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} /></mesh>
     </group>
     <pointLight ref={(r) => { lights.current[i] = r; }} position={[0, 10, 0]} color={RED} intensity={0} distance={40} />
-    {alarm && (alarm.idx == null ? i === 0 || i === 1 : alarm.idx === i) && <Billboard position={[0, 13, 0]}><Html center distanceFactor={38} zIndexRange={[20, 0]}><div className="city-bubble city-bubble-red" data-testid="guard-bubble"><b>✋ GUARDRAIL BLOCKED</b><span>{alarm.text}</span></div></Html></Billboard>}
+    {alarm && (alarm.idx == null ? i === 0 || i === 1 : alarm.idx === i) && <Billboard position={[0, 13, 0]}><Html center distanceFactor={38} zIndexRange={[20, 0]}><div className="city-bubble city-bubble-red" data-testid="guard-bubble"><b>GUARDRAIL BLOCKED</b><span>{alarm.text}</span></div></Html></Billboard>}
   </group>)}</>;
 }
 
@@ -173,9 +173,9 @@ export default function CityScene(p: SceneProps) {
     <Daylight hour={p.hour} q={p.quality} />
     {Q.env && <Environment frames={1} resolution={128} background={false}>
       <Lightformer form="rect" intensity={night > 0.5 ? 0.6 : 2.2} color={night > 0.5 ? '#5a6cff' : '#ffffff'} scale={[60, 20, 1]} position={[0, 30, -60]} />
-      <Lightformer form="rect" intensity={night > 0.5 ? 0.4 : 1.4} color={night > 0.5 ? '#ff9f43' : '#cfe1ff'} scale={[60, 12, 1]} position={[-60, 10, 0]} rotation-y={Math.PI / 2} />
-      <Lightformer form="ring" intensity={night > 0.5 ? 1.2 : 3} color={night > 0.5 ? '#8b7bff' : '#fff6e8'} scale={14} position={[40, 40, 40]} />
-      <mesh scale={200}><sphereGeometry /><meshBasicMaterial color={night > 0.5 ? '#0b0e1c' : '#8fb0d6'} side={THREE.BackSide} /></mesh>
+      <Lightformer form="rect" intensity={night > 0.5 ? 0.4 : 1.4} color={night > 0.5 ? '#D2A066' : '#cfe1ff'} scale={[60, 12, 1]} position={[-60, 10, 0]} rotation-y={Math.PI / 2} />
+      <Lightformer form="ring" intensity={night > 0.5 ? 1.2 : 3} color={night > 0.5 ? '#B8975A' : '#fff6e8'} scale={14} position={[40, 40, 40]} />
+      <mesh scale={200}><sphereGeometry /><meshBasicMaterial color={night > 0.5 ? '#0f0d0a' : '#8fb0d6'} side={THREE.BackSide} /></mesh>
     </Environment>}
     <Ground b={b} shops={p.shops} /><Water b={b} /><Lamps b={b} /><Trees b={b} shops={p.shops} density={Q.trees} />
     <Traffic b={b} count={Q.cars} /><People b={b} count={Q.peds} shops={p.shops} />
@@ -185,6 +185,6 @@ export default function CityScene(p: SceneProps) {
     <DistrictLabels shops={p.shops} hl={p.hl} onPick={p.onDistrict} />
     <Packets />
     <Rig paused={p.paused} />
-    {Q.bloom && <EffectComposer multisampling={Q.ms}><Bloom mipmapBlur intensity={0.5 + night * 0.7} luminanceThreshold={0.9 - night * 0.15} luminanceSmoothing={0.2} radius={0.7} /><Vignette offset={0.3} darkness={0.55 + night * 0.2} /></EffectComposer>}
+    {Q.bloom && <EffectComposer multisampling={Q.ms}><Bloom mipmapBlur intensity={0.25 + night * 0.35} luminanceThreshold={0.95 - night * 0.1} luminanceSmoothing={0.2} radius={0.7} /><Vignette offset={0.3} darkness={0.55 + night * 0.2} /></EffectComposer>}
   </Canvas>;
 }

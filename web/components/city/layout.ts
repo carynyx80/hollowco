@@ -10,10 +10,10 @@ export const SHORE = 40.5; // quay edge (promenade street at z=38)
 export const DOCK: [number, number] = [0, 48];
 export const PARKS: [number, number][] = [[9.5, -9.5], [-9.5, 9.5], [9.5, 9.5]];
 export const DISTRICT_INFO: Record<string, { label: string; color: string; icon: string }> = {
-  books: { label: 'Books Quarter', color: '#E8A87C', icon: '📚' },
-  fashion: { label: 'Fashion Avenue', color: '#FF7AD9', icon: '👕' },
-  goods: { label: 'Goods Market', color: '#FFB86B', icon: '☕' },
-  maker: { label: 'Maker Row', color: '#5CE1FF', icon: '✦' },
+  books: { label: 'Books Quarter', color: '#E8A87C', icon: 'I' },
+  fashion: { label: 'Fashion Avenue', color: '#B98A7A', icon: 'II' },
+  goods: { label: 'Goods Market', color: '#D2A066', icon: 'III' },
+  maker: { label: 'Maker Row', color: '#A9B4A6', icon: 'IV' },
 };
 export type P = [number, number, number];
 const nearS = (v: number) => Math.round(v / PITCH) * PITCH;

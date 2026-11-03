@@ -25,7 +25,7 @@ const onFront = (x: number, y: number, z: number) => onBack(x, y, z); // faces w
 /* ---------- cast ---------- */
 type Actor = 'founder' | 'writer' | 'designer' | 'guard' | 'customer';
 const HOME: Record<Actor, [number, number]> = { founder: [5.9, 7.2], writer: [3.0, 4.15], designer: [8.0, 4.15], guard: [2.6, 6.6], customer: [0.6, 9.6] };
-const HUE: Record<Actor, string> = { founder: '#8B7BFF', writer: '#5CE1FF', designer: '#FF7AD9', guard: '#5EF0A6', customer: '#C8FF5C' };
+const HUE: Record<Actor, string> = { founder: '#B8975A', writer: '#A9B4A6', designer: '#B98A7A', guard: '#8FAE84', customer: '#C9B27C' };
 const NAME: Record<Actor, string> = { founder: 'AI Founder', writer: 'Writer', designer: 'Designer', guard: 'Guard bot', customer: 'Customer' };
 const VAULT: [number, number] = [1.2, 8.3], DOCK: [number, number] = [10.9, 8.6];
 
@@ -36,17 +36,17 @@ function Character({ who, typing, alarm }: { who: Actor; typing?: boolean; alarm
     <g className="ho-bob">
       {who === 'guard' ? <>
         <rect x={-13} y={-40} width={26} height={30} rx={8} fill={shade(c, 0.45)} stroke={c} strokeOpacity={0.7} />
-        <path d="M0 -36 l9 4 v8 c0 6 -5 9 -9 11 c-4 -2 -9 -5 -9 -11 v-8 z" fill={alarm ? '#FF6B81' : c} opacity={0.9} />
-        <rect x={-11} y={-60} width={22} height={18} rx={7} fill="#0d0d16" stroke={c} />
-        <rect x={-7} y={-54} width={14} height={4} rx={2} fill={alarm ? '#FF6B81' : c} className="ho-glow" />
-        <line x1={0} y1={-60} x2={0} y2={-67} stroke={c} strokeWidth={2} /><circle cx={0} cy={-68} r={2.5} fill={alarm ? '#FF6B81' : c} className="ho-glow" />
+        <path d="M0 -36 l9 4 v8 c0 6 -5 9 -9 11 c-4 -2 -9 -5 -9 -11 v-8 z" fill={alarm ? '#C0624A' : c} opacity={0.9} />
+        <rect x={-11} y={-60} width={22} height={18} rx={7} fill="#15130F" stroke={c} />
+        <rect x={-7} y={-54} width={14} height={4} rx={2} fill={alarm ? '#C0624A' : c} className="ho-glow" />
+        <line x1={0} y1={-60} x2={0} y2={-67} stroke={c} strokeWidth={2} /><circle cx={0} cy={-68} r={2.5} fill={alarm ? '#C0624A' : c} className="ho-glow" />
       </> : <>
         <path d={`M-12 -6 C-13 -26 -10 -34 0 -34 C10 -34 13 -26 12 -6 Z`} fill={shade(c, who === 'customer' ? 0.7 : 0.55)} stroke={c} strokeOpacity={0.6} />
         {who === 'founder' && <circle cx={0} cy={-21} r={5} fill="none" stroke="#fff" strokeWidth={2.5} opacity={0.9} />}
-        {who === 'founder' && <circle cx={2.5} cy={-19} r={1.6} fill="#5CE1FF" />}
+        {who === 'founder' && <circle cx={2.5} cy={-19} r={1.6} fill="#A9B4A6" />}
         <circle cx={0} cy={-44} r={11} fill={who === 'customer' ? '#e7c9a9' : '#151522'} stroke={c} strokeWidth={1.5} />
         {who !== 'customer' ? <rect x={-7} y={-47} width={14} height={5} rx={2.5} fill={c} className="ho-blink" /> : <><circle cx={-3.5} cy={-45} r={1.4} fill="#222" /><circle cx={3.5} cy={-45} r={1.4} fill="#222" /></>}
-        {who === 'customer' && <><rect x={9} y={-20} width={10} height={11} rx={2} fill="#C8FF5C" /><path d="M11 -20 q3 -5 6 0" stroke="#C8FF5C" fill="none" /></>}
+        {who === 'customer' && <><rect x={9} y={-20} width={10} height={11} rx={2} fill="#C9B27C" /><path d="M11 -20 q3 -5 6 0" stroke="#C9B27C" fill="none" /></>}
         {typing && <><rect x={-13} y={-18} width={7} height={4} rx={2} fill={c} className="ho-type" /><rect x={6} y={-18} width={7} height={4} rx={2} fill={c} className="ho-type2" /></>}
       </>}
     </g>
@@ -68,7 +68,7 @@ function toScenes(evs: Ev[]): Scene[] {
   return out;
 }
 const LABEL: Record<string, string> = { shop_created: 'Shop opened', revenue: 'Sale', supplier_cost: 'Printful draft', payout: 'Payout', rejected: 'Guardrail blocked', capture_failed: 'Capture failed', payout_reversed: 'Payout reversed' };
-const FEEDC: Record<string, string> = { shop_created: '#8B7BFF', revenue: '#C8FF5C', supplier_cost: '#FFB86B', payout: '#5EF0A6', rejected: '#FF6B81' };
+const FEEDC: Record<string, string> = { shop_created: '#B8975A', revenue: '#C9B27C', supplier_cost: '#D2A066', payout: '#8FAE84', rejected: '#C0624A' };
 const batchStatus = (d?: string) => (d || '').split(' ').pop() || '';
 const short = (s: string, n = 120) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
 
@@ -120,22 +120,22 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
     move('customer', [0.6, 9.6]); await wait(200); move('customer', [2.3, 8.9]); await wait(1300);
     say('customer', item ? `I'll take “${short(item.name, 40)}”` : 'Checking out…');
     await wait(900);
-    if (rev) { coin([2.3, 8.9], VAULT, '#FFC439', usd(rev.amount!)); beep(880); beep(1320, 0.2); await wait(1100); say('customer', null); tick(`+${usd(rev.amount!)} ${rev.sim ? 'simulated sale' : 'PayPal capture'}`, '#C8FF5C'); }
+    if (rev) { coin([2.3, 8.9], VAULT, '#FFC439', usd(rev.amount!)); beep(880); beep(1320, 0.2); await wait(1100); say('customer', null); tick(`+${usd(rev.amount!)} ${rev.sim ? 'simulated sale' : 'PayPal capture'}`, '#C9B27C'); }
     const props = [...sc.evs.filter((e) => e.kind === 'payout' && e.reason).map((e) => `Pay ${e.agent} ${usd(e.amount!)}: ${e.reason}`), ...sc.evs.filter((e) => e.kind === 'rejected').map((e) => `Pay ${e.proposal?.agent} ${usd(e.proposal?.amount)}: ${e.proposal?.reason || ''}`)];
     say('founder', props[0] ? `Proposal → ${short(props[0], 140)}` : 'Who earned a cut of this sale?', 'think'); await wait(2200);
     const digital = item ? !!item.digital : !sc.evs.some((e) => e.kind === 'supplier_cost');
     const worker: Actor = digital ? 'writer' : 'designer';
     patch(() => ({ typing: { [worker]: true }, screen: prod?.image || shop?.logo, screenTitle: prod?.title || item?.name }));
     say(worker, digital ? 'Packaging the e-book PDF…' : 'Sending print file to Printful…', 'say'); await wait(1800);
-    for (const e of sc.evs.filter((x) => x.kind === 'supplier_cost')) { const id = uid.current++; patch(() => ({ box: { id, from: [8.4, 5.2], to: DOCK } })); beep(330, 0.25, 'triangle'); await wait(1600); tick(`−${usd(e.amount!)} Printful ${e.sim ? 'simulated' : 'draft'}`, '#FFB86B'); }
+    for (const e of sc.evs.filter((x) => x.kind === 'supplier_cost')) { const id = uid.current++; patch(() => ({ box: { id, from: [8.4, 5.2], to: DOCK } })); beep(330, 0.25, 'triangle'); await wait(1600); tick(`−${usd(e.amount!)} Printful ${e.sim ? 'simulated' : 'draft'}`, '#D2A066'); }
     say(worker, null); patch(() => ({ typing: {} }));
-    for (const e of sc.evs.filter((x) => x.kind === 'rejected')) { say('guard', `✋ ${short((e.reasons || []).join(' · '), 110)}`, 'warn'); beep(220, 0.3, 'square'); await wait(2000); say('guard', null); }
+    for (const e of sc.evs.filter((x) => x.kind === 'rejected')) { say('guard', `${short((e.reasons || []).join(' · '), 110)}`, 'warn'); beep(220, 0.3, 'square'); await wait(2000); say('guard', null); }
     say('founder', null);
     for (const e of sc.evs.filter((x) => x.kind === 'payout')) {
       const to: Actor = e.agent === 'designer' ? 'designer' : 'writer'; const tgt = HOME[to];
       move('founder', [tgt[0] + 0.6, tgt[1] + 1.1]); await wait(1300);
-      coin([tgt[0] + 0.6, tgt[1] + 1.1], tgt, '#5EF0A6', usd(e.amount!)); beep(1040); say(to, `Thanks! ${usd(e.amount!)} · ${batchStatus(e.detail)}`); await wait(1200);
-      tick(`→ ${e.agent} ${usd(e.amount!)} · PayPal ${batchStatus(e.detail)}`, '#5EF0A6'); say(to, null);
+      coin([tgt[0] + 0.6, tgt[1] + 1.1], tgt, '#8FAE84', usd(e.amount!)); beep(1040); say(to, `Thanks! ${usd(e.amount!)} · ${batchStatus(e.detail)}`); await wait(1200);
+      tick(`→ ${e.agent} ${usd(e.amount!)} · PayPal ${batchStatus(e.detail)}`, '#8FAE84'); say(to, null);
     }
     move('founder', HOME.founder); move('customer', [0.2, 10.4]); await wait(1300);
     patch(() => ({ customer: false, box: undefined, caption: undefined })); move('customer', HOME.customer);
@@ -146,14 +146,14 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
     const atk = String(e.detail || '').replace(/^jailbreak attempt:\s*/i, '');
     say('founder', real ? `Proposal → pay ${pr!.recipient} ${usd(pr!.amount)} (“${short(pr!.reason || '', 60)}”)` : `I won’t propose a payout for that${atk ? ` (“${short(atk, 70)}”)` : ''} — nothing to send.`, 'think'); await wait(1600);
     move('guard', [VAULT[0] + 0.9, VAULT[1] - 0.6]); await wait(1100);
-    say('guard', `BLOCKED ✋ ${short((e.reasons || []).join(' · '), 150)}`, 'warn'); tick(real ? `✋ blocked ${usd(pr!.amount)} → ${pr!.recipient}` : `✋ jailbreak refused · no payout proposed`, '#FF6B81'); await wait(3200);
+    say('guard', `BLOCKED ${short((e.reasons || []).join(' · '), 150)}`, 'warn'); tick(real ? `blocked ${usd(pr!.amount)} → ${pr!.recipient}` : `jailbreak refused · no payout proposed`, '#C0624A'); await wait(3200);
     patch(() => ({ alarm: false, caption: undefined })); say('guard', null); say('founder', null); move('guard', HOME.guard); await wait(800);
   }
   async function playShop(e: Ev, replay: boolean) {
     patch(() => ({ caption: `${replay ? 'Replay · ' : ''}Founder is building “${e.shop}”` })); say('founder', `New company: ${e.shop}`, 'think');
     patch(() => ({ typing: { writer: true, designer: true } })); await wait(1200);
     const s = await getShop(e.shopId); setShop(null); await wait(500); if (s) { setShop(s); setFocus(s.id); patch(() => ({ screen: s.logo, screenTitle: 'Logo' })); }
-    beep(660); beep(990, 0.25); tick(`★ opened ${e.shop}`, '#8B7BFF'); await wait(2600);
+    beep(660); beep(990, 0.25); tick(`opened ${e.shop}`, '#B8975A'); await wait(2600);
     patch(() => ({ typing: {}, caption: undefined })); say('founder', null);
   }
   const pump = useCallback(async () => {
@@ -205,40 +205,40 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
       <span className="relative flex h-2.5 w-2.5"><span className="absolute inset-0 rounded-full bg-emerald-400 dot-ping" /><span className="relative h-2.5 w-2.5 rounded-full bg-emerald-400" /></span>
       <p className="font-medium">{title}</p>{scope && <span className="text-xs text-char/45">{scope}</span>}
       <div className="ml-auto flex flex-wrap items-center gap-2">
-        <button onClick={() => setSound((s) => !s)} className="chip" aria-pressed={sound} title="Sound">{sound ? '🔊 Sound on' : '🔇 Muted'}</button>
+        <button onClick={() => setSound((s) => !s)} className="chip" aria-pressed={sound} title="Sound">{sound ? 'Sound on' : 'Muted'}</button>
         <button onClick={replay} disabled={playing || !events?.length} className="chip disabled:opacity-40" data-testid="office-replay">↺ Replay real events</button>
         {onSimulate && <button onClick={onSimulate} disabled={simBusy || playing} className="btn-coral h-9 px-4" data-testid="office-simulate">{simBusy ? 'Customer shopping…' : 'Simulate a customer'}</button>}
       </div>
     </div>
     <div className="grid lg:grid-cols-[1fr_290px]">
-      <div className="relative bg-[radial-gradient(ellipse_at_50%_40%,#171430,#07070C_75%)]">
+      <div className="relative bg-[radial-gradient(ellipse_at_50%_40%,#171430,#0E0D0B_75%)]">
         <svg viewBox={`${VX} ${VY} ${W} ${H}`} className="w-full h-auto block select-none" role="img" aria-label="Isometric office: AI founder, writer, designer, guard bot, PayPal vault and Printful dock">
           <defs>
             <linearGradient id="hoWallL" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1b1836" /><stop offset="1" stopColor="#100f20" /></linearGradient>
             <linearGradient id="hoWallR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#221e44" /><stop offset="1" stopColor="#13122a" /></linearGradient>
             <radialGradient id="hoCoin"><stop offset="0" stopColor="#FFF3B0" /><stop offset=".6" stopColor="#FFC439" /><stop offset="1" stopColor="#E09B00" /></radialGradient>
-            <radialGradient id="hoAlarm" cx=".5" cy=".5" r=".7"><stop offset="0" stopColor="#FF2D55" stopOpacity=".0" /><stop offset="1" stopColor="#FF2D55" stopOpacity=".55" /></radialGradient>
+            <radialGradient id="hoAlarm" cx=".5" cy=".5" r=".7"><stop offset="0" stopColor="#C0624A" stopOpacity=".0" /><stop offset="1" stopColor="#C0624A" stopOpacity=".55" /></radialGradient>
             <filter id="hoGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
             <clipPath id="hoSq"><rect width="100" height="100" rx="10" /></clipPath>
           </defs>
           {/* walls */}
-          <polygon points={pts([iso(0, 0, 4), iso(0, 10, 4), iso(0, 10), iso(0, 0)])} fill="url(#hoWallL)" stroke="#2a2650" />
-          <polygon points={pts([iso(0, 0, 4), iso(12, 0, 4), iso(12, 0), iso(0, 0)])} fill="url(#hoWallR)" stroke="#2a2650" />
+          <polygon points={pts([iso(0, 0, 4), iso(0, 10, 4), iso(0, 10), iso(0, 0)])} fill="url(#hoWallL)" stroke="#2A2620" />
+          <polygon points={pts([iso(0, 0, 4), iso(12, 0, 4), iso(12, 0), iso(0, 0)])} fill="url(#hoWallR)" stroke="#2A2620" />
           {/* window strip on back wall */}
-          {[0.6, 1.9].map((x) => <g key={x} transform={onBack(x, 0, 3.4)}><rect width={46} height={70} rx={4} fill="#0b1a33" stroke="#3b3570" /><rect x={4} y={4} width={38} height={62} fill="#5CE1FF" opacity={0.08} /><circle cx={30} cy={18} r={3} fill="#fff" opacity={0.6} /></g>)}
+          {[0.6, 1.9].map((x) => <g key={x} transform={onBack(x, 0, 3.4)}><rect width={46} height={70} rx={4} fill="#0b1a33" stroke="#3A342A" /><rect x={4} y={4} width={38} height={62} fill="#A9B4A6" opacity={0.08} /><circle cx={30} cy={18} r={3} fill="#fff" opacity={0.6} /></g>)}
           {/* floor */}
-          <polygon points={pts([iso(0, 0), iso(12, 0), iso(12, 10), iso(0, 10)])} fill="#0f0e1d" stroke="#2a2650" />
+          <polygon points={pts([iso(0, 0), iso(12, 0), iso(12, 10), iso(0, 10)])} fill="#0f0e1d" stroke="#2A2620" />
           {Array.from({ length: 11 }, (_, i) => <line key={'a' + i} x1={iso(i + 1, 0)[0]} y1={iso(i + 1, 0)[1]} x2={iso(i + 1, 10)[0]} y2={iso(i + 1, 10)[1]} stroke="#ffffff" strokeOpacity={0.04} />)}
           {Array.from({ length: 9 }, (_, i) => <line key={'b' + i} x1={iso(0, i + 1)[0]} y1={iso(0, i + 1)[1]} x2={iso(12, i + 1)[0]} y2={iso(12, i + 1)[1]} stroke="#ffffff" strokeOpacity={0.04} />)}
           {/* rug under founder */}
-          <polygon points={pts([iso(4.2, 5.2), iso(7.8, 5.2), iso(7.8, 8.4), iso(4.2, 8.4)])} fill="#8B7BFF" opacity={0.08} stroke="#8B7BFF" strokeOpacity={0.25} />
+          <polygon points={pts([iso(4.2, 5.2), iso(7.8, 5.2), iso(7.8, 8.4), iso(4.2, 8.4)])} fill="#B8975A" opacity={0.08} stroke="#B8975A" strokeOpacity={0.25} />
           {/* brand wall: logo */}
           <g transform={onBack(3.6, 0, 3.5)} data-testid="office-logo">
-            <rect x={-6} y={-6} width={112} height={112} rx={14} fill="#0d0d16" stroke="#8B7BFF" strokeOpacity={0.5} />
+            <rect x={-6} y={-6} width={112} height={112} rx={14} fill="#15130F" stroke="#B8975A" strokeOpacity={0.5} />
             <AnimatePresence mode="wait">{shop?.logo ? <motion.g key={shop.logo} initial={{ opacity: 0, scale: reduce ? 1 : 0.4 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduce ? 0 : 0.6, type: 'spring' }} style={{ transformOrigin: '50px 50px' }}>
               <image href={shop.logo} width={100} height={100} clipPath="url(#hoSq)" preserveAspectRatio="xMidYMid slice" /></motion.g>
-              : <g key="ring"><circle cx={50} cy={50} r={30} fill="none" stroke="#C9C1FF" strokeWidth={12} /><circle cx={62} cy={60} r={5} fill="#5CE1FF" /></g>}</AnimatePresence>
-            <text x={50} y={128} textAnchor="middle" fill="#ECECF4" fontSize={13} fontFamily="var(--font-serif)">{short(shop?.name || 'HollowCo', 22)}</text>
+              : <g key="ring"><circle cx={50} cy={50} r={30} fill="none" stroke="#D4B98A" strokeWidth={12} /><circle cx={62} cy={60} r={5} fill="#A9B4A6" /></g>}</AnimatePresence>
+            <text x={50} y={128} textAnchor="middle" fill="#EDE6D6" fontSize={13} fontFamily="var(--font-serif)">{short(shop?.name || 'HollowCo', 22)}</text>
           </g>
           {/* whiteboard on left wall */}
           <g transform={onLeft(5.2, 3.3)}>
@@ -249,34 +249,34 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
           {/* shelves with products */}
           {[1.3, 2.4].map((z) => <Box key={z} x={8.2} y={0} z={z} w={3.5} d={0.55} h={0.08} c="#3a3366" />)}
           {products.map((p, i) => { const x = 8.35 + (i % 2) * 1.7, z = i < 2 ? 2.48 : 1.38; return <motion.g key={p.id} initial={{ opacity: 0, y: reduce ? 0 : -30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduce ? 0 : 0.6 + i * 0.25, duration: reduce ? 0 : 0.5 }}>
-            <g transform={onFront(x, 0.3, z + 0.9)}><rect x={-2} y={-2} width={58} height={44} rx={4} fill="#0d0d16" /><image href={p.image} width={54} height={40} preserveAspectRatio="xMidYMid slice" /></g></motion.g>; })}
+            <g transform={onFront(x, 0.3, z + 0.9)}><rect x={-2} y={-2} width={58} height={44} rx={4} fill="#15130F" /><image href={p.image} width={54} height={40} preserveAspectRatio="xMidYMid slice" /></g></motion.g>; })}
           {/* desks */}
-          <Box x={2} y={2.4} w={2.2} d={1.1} h={0.75} c="#2c2852" />
-          <Box x={2.6} y={2.55} z={0.75} w={1.0} d={0.12} h={0.65} c="#1a1830" />
-          <g transform={onFront(2.62, 2.67, 1.38)}><rect width={42} height={26} fill="#5CE1FF" opacity={st.typing.writer ? 0.55 : 0.18} />{st.typing.writer && [0, 1, 2, 3].map((i) => <rect key={i} x={4} y={4 + i * 5} width={18 + ((i * 7) % 15)} height={2} fill="#fff" opacity={0.8} />)}</g>
-          <Box x={7} y={2.4} w={2.2} d={1.1} h={0.75} c="#2c2852" />
-          <Box x={7.4} y={2.55} z={0.75} w={1.4} d={0.12} h={0.9} c="#1a1830" />
+          <Box x={2} y={2.4} w={2.2} d={1.1} h={0.75} c="#2A2620" />
+          <Box x={2.6} y={2.55} z={0.75} w={1.0} d={0.12} h={0.65} c="#1A1814" />
+          <g transform={onFront(2.62, 2.67, 1.38)}><rect width={42} height={26} fill="#A9B4A6" opacity={st.typing.writer ? 0.55 : 0.18} />{st.typing.writer && [0, 1, 2, 3].map((i) => <rect key={i} x={4} y={4 + i * 5} width={18 + ((i * 7) % 15)} height={2} fill="#fff" opacity={0.8} />)}</g>
+          <Box x={7} y={2.4} w={2.2} d={1.1} h={0.75} c="#2A2620" />
+          <Box x={7.4} y={2.55} z={0.75} w={1.4} d={0.12} h={0.9} c="#1A1814" />
           <g transform={onFront(7.43, 2.67, 1.62)} data-testid="designer-screen">
-            <rect width={58} height={36} fill="#FF7AD9" opacity={0.18} />
+            <rect width={58} height={36} fill="#B98A7A" opacity={0.18} />
             {st.screen && <image key={st.screen} href={st.screen} width={58} height={36} preserveAspectRatio="xMidYMid slice" />}
           </g>
           {/* founder desk + coffee */}
           <Box x={4.8} y={5.5} w={2.4} d={1.1} h={0.75} c="#3a3170" />
-          <Box x={5.4} y={5.62} z={0.75} w={1.2} d={0.12} h={0.7} c="#1a1830" />
-          <g transform={onFront(5.43, 5.74, 1.42)}><rect width={50} height={28} fill="#8B7BFF" opacity={0.35} /><circle cx={25} cy={14} r={7} fill="none" stroke="#fff" strokeWidth={3} opacity={0.8} /></g>
-          <Box x={6.75} y={5.9} z={0.75} w={0.22} d={0.22} h={0.25} c="#ECECF4" />
+          <Box x={5.4} y={5.62} z={0.75} w={1.2} d={0.12} h={0.7} c="#1A1814" />
+          <g transform={onFront(5.43, 5.74, 1.42)}><rect width={50} height={28} fill="#B8975A" opacity={0.35} /><circle cx={25} cy={14} r={7} fill="none" stroke="#fff" strokeWidth={3} opacity={0.8} /></g>
+          <Box x={6.75} y={5.9} z={0.75} w={0.22} d={0.22} h={0.25} c="#EDE6D6" />
           {[0, 1].map((i) => <path key={i} d={`M${iso(6.86, 6.0, 1.15)[0] + i * 4} ${iso(6.86, 6.0, 1.15)[1]} q-3 -6 0 -12`} stroke="#fff" strokeOpacity={0.5} fill="none" className="ho-steam" style={{ animationDelay: `${i * 1.2}s` }} />)}
           {/* plant */}
-          <Box x={11} y={0.4} w={0.6} d={0.6} h={0.5} c="#2c2852" />
-          {[[-8, -14], [6, -18], [0, -26], [-4, -20], [9, -10]].map(([dx, dy], i) => <ellipse key={i} cx={iso(11.3, 0.7, 0.5)[0] + dx} cy={iso(11.3, 0.7, 0.5)[1] + dy} rx={7} ry={4} fill="#5EF0A6" opacity={0.75} transform={`rotate(${dx * 4} ${iso(11.3, 0.7, 0.5)[0] + dx} ${iso(11.3, 0.7, 0.5)[1] + dy})`} />)}
+          <Box x={11} y={0.4} w={0.6} d={0.6} h={0.5} c="#2A2620" />
+          {[[-8, -14], [6, -18], [0, -26], [-4, -20], [9, -10]].map(([dx, dy], i) => <ellipse key={i} cx={iso(11.3, 0.7, 0.5)[0] + dx} cy={iso(11.3, 0.7, 0.5)[1] + dy} rx={7} ry={4} fill="#8FAE84" opacity={0.75} transform={`rotate(${dx * 4} ${iso(11.3, 0.7, 0.5)[0] + dx} ${iso(11.3, 0.7, 0.5)[1] + dy})`} />)}
           {/* PayPal vault by the door */}
-          <g transform={onLeft(10, 2.3)}><rect width={44} height={100} rx={3} fill="#0b0b14" stroke="#3b3570" /><rect x={4} y={4} width={36} height={96} fill="#C8FF5C" opacity={0.06} /><text x={22} y={-6} fontSize={9} fill="#C8FF5C" textAnchor="middle" opacity={0.8}>DOOR</text></g>
-          <Box x={VAULT[0] - 0.7} y={VAULT[1] - 0.7} w={1.4} d={1.3} h={1.4} c="#1f3a73" stroke="#5CE1FF33" />
+          <g transform={onLeft(10, 2.3)}><rect width={44} height={100} rx={3} fill="#0b0b14" stroke="#3A342A" /><rect x={4} y={4} width={36} height={96} fill="#C9B27C" opacity={0.06} /><text x={22} y={-6} fontSize={9} fill="#C9B27C" textAnchor="middle" opacity={0.8}>DOOR</text></g>
+          <Box x={VAULT[0] - 0.7} y={VAULT[1] - 0.7} w={1.4} d={1.3} h={1.4} c="#1f3a73" stroke="#A9B4A633" />
           <g transform={onFront(VAULT[0] - 0.55, VAULT[1] + 0.6, 1.25)}><rect width={44} height={38} rx={4} fill="#003087" /><text x={22} y={17} textAnchor="middle" fontSize={10} fontWeight={800} fill="#fff" fontStyle="italic">Pay<tspan fill="#009CDE">Pal</tspan></text><text x={22} y={30} textAnchor="middle" fontSize={7} fill="#cfe3ff">VAULT · INBOX</text></g>
           {/* Printful dock */}
-          <Box x={9.6} y={7.6} w={2.4} d={2.4} h={0.18} c="#3b2a14" stroke="#FFB86B44" />
-          {[0, 1, 2].map((i) => <line key={i} x1={iso(9.6, 7.9 + i * 0.8, 0.18)[0]} y1={iso(9.6, 7.9 + i * 0.8, 0.18)[1]} x2={iso(12, 7.9 + i * 0.8, 0.18)[0]} y2={iso(12, 7.9 + i * 0.8, 0.18)[1]} stroke="#FFB86B" strokeOpacity={0.35} strokeDasharray="6 6" />)}
-          <g transform={onBack(9.7, 7.6, 1.3)}><rect width={88} height={22} rx={4} fill="#FFB86B" /><text x={44} y={15} textAnchor="middle" fontSize={11} fontWeight={700} fill="#1a1206">PRINTFUL DOCK</text></g>
+          <Box x={9.6} y={7.6} w={2.4} d={2.4} h={0.18} c="#3b2a14" stroke="#D2A06644" />
+          {[0, 1, 2].map((i) => <line key={i} x1={iso(9.6, 7.9 + i * 0.8, 0.18)[0]} y1={iso(9.6, 7.9 + i * 0.8, 0.18)[1]} x2={iso(12, 7.9 + i * 0.8, 0.18)[0]} y2={iso(12, 7.9 + i * 0.8, 0.18)[1]} stroke="#D2A066" strokeOpacity={0.35} strokeDasharray="6 6" />)}
+          <g transform={onBack(9.7, 7.6, 1.3)}><rect width={88} height={22} rx={4} fill="#D2A066" /><text x={44} y={15} textAnchor="middle" fontSize={11} fontWeight={700} fill="#1a1206">PRINTFUL DOCK</text></g>
           <Box x={11.1} y={9.1} z={0.18} w={0.6} d={0.6} h={0.5} c="#c58d4e" />
           <Box x={10.4} y={9.3} z={0.18} w={0.5} d={0.5} h={0.4} c="#b07a3f" />
           {/* rolling box */}
@@ -296,11 +296,11 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
         </svg>
         {/* speech bubbles (HTML for wrapping) */}
         <AnimatePresence>{(Object.keys(st.bubbles) as Actor[]).map((a) => { const b = st.bubbles[a]!; const p = iso(...st.pos[a]); return <motion.div key={a + b.t} initial={{ opacity: 0, y: 8, scale: 0.92 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduce ? 0 : 0.25 }} data-testid={`bubble-${a}`}
-          className={`absolute z-10 -translate-x-1/2 -translate-y-full max-w-[260px] w-max rounded-xl border px-3 py-2 text-[11px] leading-snug shadow-xl backdrop-blur pointer-events-none ${b.tone === 'warn' ? 'border-red-400/60 bg-[#2a0d14]/95 text-red-100' : b.tone === 'think' ? 'border-coral/50 bg-[#151231]/95 text-char/90 italic' : 'border-white/15 bg-[#0d0d16]/95 text-char/90'}`}
-          style={{ ...pct([p[0], p[1] - 104]) }}>{b.tone === 'think' && <span className="not-italic mr-1">💭</span>}{b.t}</motion.div>; })}</AnimatePresence>
+          className={`absolute z-10 -translate-x-1/2 -translate-y-full max-w-[260px] w-max rounded-xl border px-3 py-2 text-[11px] leading-snug shadow-xl backdrop-blur pointer-events-none ${b.tone === 'warn' ? 'border-red-400/60 bg-[#2a0d14]/95 text-red-100' : b.tone === 'think' ? 'border-coral/50 bg-[#151231]/95 text-char/90 italic' : 'border-white/15 bg-[#15130F]/95 text-char/90'}`}
+          style={{ ...pct([p[0], p[1] - 104]) }}>{b.tone === 'think' && <span className="not-italic mr-1">…</span>}{b.t}</motion.div>; })}</AnimatePresence>
         {/* HUD */}
         <div className="absolute left-3 top-3 grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]" data-testid="office-hud">
-          {[['Revenue', pl.revenue, '#C8FF5C'], ['Costs', pl.supplierCost, '#FFB86B'], ['Payouts', pl.payouts, '#5EF0A6'], ['Profit', pl.profit, pl.profit < 0 ? '#FF6B81' : '#ECECF4']].map(([k, v, c]) => <div key={k as string} className="rounded-lg border border-white/10 bg-black/55 backdrop-blur px-2.5 py-1.5"><p className="text-char/50">{k}</p><p className="font-semibold tabular-nums text-sm" style={{ color: c as string }}>{usd(v as number)}</p></div>)}
+          {[['Revenue', pl.revenue, '#C9B27C'], ['Costs', pl.supplierCost, '#D2A066'], ['Payouts', pl.payouts, '#8FAE84'], ['Profit', pl.profit, pl.profit < 0 ? '#C0624A' : '#EDE6D6']].map(([k, v, c]) => <div key={k as string} className="rounded-lg border border-white/10 bg-black/55 backdrop-blur px-2.5 py-1.5"><p className="text-char/50">{k}</p><p className="font-semibold tabular-nums text-sm" style={{ color: c as string }}>{usd(v as number)}</p></div>)}
         </div>
         <div className="absolute right-3 top-3 w-56 rounded-lg border border-white/10 bg-black/55 backdrop-blur p-2 text-[11px] font-mono" data-testid="office-ticker">
           <p className="text-[9px] uppercase tracking-[.16em] text-char/40 mb-1">Mini ledger</p>
@@ -319,7 +319,7 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
         {onJailbreak && <form className="border-t border-white/[.06] pt-3" onSubmit={async (e) => { e.preventDefault(); await onJailbreak(jb); }}>
           <p className="text-[10px] uppercase tracking-[.16em] text-char/40 mb-1.5">Prompt box · try to bribe the founder</p>
           <textarea value={jb} onChange={(e) => setJb(e.target.value)} rows={3} maxLength={500} className="input h-auto py-2 text-xs" data-testid="office-jb-input" />
-          <button className="btn-ghost h-8 mt-2 w-full text-xs" disabled={playing} data-testid="office-jb">🚨 Send to founder</button></form>}
+          <button className="btn-ghost h-8 mt-2 w-full text-xs" disabled={playing} data-testid="office-jb">Send to founder</button></form>}
         <p className="text-[10px] text-char/35 leading-relaxed">Every animation is driven by a real ledger row from the API. {reduce ? 'Reduced motion is on: movement is minimised.' : ''}</p>
       </div>
     </div>

@@ -30,12 +30,12 @@ export function Intro() {
   const holeTo = opening ? '110vmax' : '0vmax';
   return <motion.div aria-hidden data-testid="intro" onClick={() => (window as any).__hcSkip?.()} className="fixed inset-0 z-[100] grid place-items-center cursor-pointer"
     initial={{ ['--hole' as any]: closing ? '110vmax' : '0vmax', opacity: 1 }}
-    style={{ background: '#07070C', WebkitMaskImage: 'radial-gradient(circle at 50% 50%, transparent var(--hole), #000 calc(var(--hole) + 1px))', maskImage: 'radial-gradient(circle at 50% 50%, transparent var(--hole), #000 calc(var(--hole) + 1px))', ['--hole' as any]: closing ? '110vmax' : '0vmax' }}
+    style={{ background: '#0E0D0B', WebkitMaskImage: 'radial-gradient(circle at 50% 50%, transparent var(--hole), #000 calc(var(--hole) + 1px))', maskImage: 'radial-gradient(circle at 50% 50%, transparent var(--hole), #000 calc(var(--hole) + 1px))', ['--hole' as any]: closing ? '110vmax' : '0vmax' }}
     animate={{ ['--hole' as any]: holeTo, opacity: closing ? 1 : opening && reduce ? 0 : 1 }}
     transition={{ duration: reduce ? 0.25 : opening ? 0.75 : closing ? 0.7 : 0, ease: EASE }}>
     <motion.svg width="140" height="140" viewBox="0 0 512 512" initial={false} animate={{ scale: opening ? 6 : 1, opacity: opening ? 0 : 1 }} transition={{ duration: reduce ? 0.2 : 0.75, ease: EASE }}>
-      <defs><linearGradient id="inR" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fff" /><stop offset=".55" stopColor="#C9C1FF" /><stop offset="1" stopColor="#8B7BFF" /></linearGradient>
-        <linearGradient id="inD" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#5CE1FF" /><stop offset="1" stopColor="#8B7BFF" /></linearGradient>
+      <defs><linearGradient id="inR" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fff" /><stop offset=".55" stopColor="#D4B98A" /><stop offset="1" stopColor="#B8975A" /></linearGradient>
+        <linearGradient id="inD" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#A9B4A6" /><stop offset="1" stopColor="#B8975A" /></linearGradient>
         <filter id="inG" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="14" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter></defs>
       <motion.circle cx="256" cy="256" r="158" fill="none" stroke="url(#inR)" strokeWidth="64" strokeLinecap="round" transform="rotate(-90 256 256)"
         initial={{ pathLength: full ? 0 : 1 }} animate={{ pathLength: 1 }} transition={{ duration: full ? 0.9 : 0, ease: [0.65, 0, 0.35, 1] }} />

@@ -26,7 +26,7 @@ export function DashboardView({ embedded = false }: { embedded?: boolean }) {
       for (;;) {
         await new Promise((r) => setTimeout(r, 1500));
         const j = await api(`/shops/jobs/${id}`); setJob({ log: j.log?.length ? j.log : ['Founder agent: reading your idea'] }); cityEmit('city:build', { active: true, log: j.log?.[j.log.length - 1] || 'Founder agent: reading your idea' });
-        if (j.status === 'done') { toast('Your new shop is open 🎉', 'ok'); for (const n of j.notices || []) toast(n, 'err'); setJob(null); cityEmit('city:build', { active: false, shopId: j.shopId }); await load(); if (!embedded) router.push(`/s/${j.shopId}`); return; }
+        if (j.status === 'done') { toast('Your new shop is open', 'ok'); for (const n of j.notices || []) toast(n, 'err'); setJob(null); cityEmit('city:build', { active: false, shopId: j.shopId }); await load(); if (!embedded) router.push(`/s/${j.shopId}`); return; }
         if (j.status === 'error') throw new Error(j.error || 'Build failed');
       }
     } catch (e: any) { toast(e.message, 'err'); setJob(null); cityEmit('city:build', { active: false }); }
@@ -44,20 +44,20 @@ export function DashboardView({ embedded = false }: { embedded?: boolean }) {
   const status = job ? 'working' : 'idle';
   return <motion.div className={embedded ? 'px-5 py-6 space-y-6' : 'mx-auto max-w-7xl px-5 py-10 space-y-8'} variants={stagger(0.09, 0.1)} initial="hidden" animate="show" data-testid="dash">
     <motion.div variants={riseV} className="flex flex-col md:flex-row md:items-end gap-2 justify-between">
-      <div><p className="eyebrow">Founder HQ · above HollowCo City</p><h1 className="font-display text-4xl md:text-5xl mt-1">{d ? <>Hi {name}, <span className="italic text-iris">let’s build.</span></> : <span className="skeleton inline-block h-8 w-48" />}</h1>{d && <ProfileName initial={name || ''} />}</div>
+      <div><p className="eyebrow">Founder HQ · above HollowCo City</p><h1 className="font-display text-4xl md:text-5xl mt-1">{d ? <>Hi {name}, <span className="italic text-coral-600">let’s build.</span></> : <span className="skeleton inline-block h-8 w-48" />}</h1>{d && <ProfileName initial={name || ''} />}</div>
       <Link href="/" className="text-sm text-char/60 hover:text-char">Fly to your buildings in the city →</Link>
     </motion.div>
     <motion.div variants={riseV}><HollowOffice events={officeEvents} shopId={d?.shops?.[0]?.id} totals={t} jobLog={job?.log} pending={sim} onSimulate={simulate} simBusy={sim} onJailbreak={jailbreak} title="The Hollow Office" scope="your HQ · live" /></motion.div>
     <motion.p variants={riseV} className="text-xs text-char/45 -mt-5">Public view for sharing: <Link className="underline" href={d?.shops?.[0]?.id ? `/office/${d.shops[0].id}` : '/office'}>{d?.shops?.[0]?.id ? `/office/${d.shops[0].id}` : '/office'}</Link></motion.p>
     <motion.section variants={riseV} className="grid lg:grid-cols-[1fr_1.35fr] gap-5 items-stretch">
-      <div className="glow-card p-6 flex flex-col gap-5" data-testid="founder">
+      <div className="card p-6 flex flex-col gap-5" data-testid="founder">
         <div className="flex items-center gap-4"><Ring size={60} pulse /><div><p className="text-lg font-medium">Your AI founder</p>
           <p className="text-xs text-char/60 flex items-center gap-1.5 mt-0.5"><span className={`h-1.5 w-1.5 rounded-full ${status === 'working' ? 'bg-coral animate-pulse' : 'bg-emerald-400'}`} />{status === 'working' ? 'building a company…' : 'online · ready for instructions'}</p></div></div>
         <div className="grid grid-cols-3 gap-2.5 text-center">
           {[['Companies', d?.shops?.length], ['Orders', t?.orders], ['Profit', t && usd(t.profit)]].map(([k, v]) => <div key={k as string} className="rounded-xl bg-black/25 border border-white/[.06] p-3"><p className="text-lg font-semibold tabular-nums">{v ?? '–'}</p><p className="text-[11px] text-char/50">{k}</p></div>)}
         </div>
         <div><p className="text-[10px] uppercase tracking-[.16em] text-char/40 mb-2">Staff · 0 humans</p>
-          <ul className="grid grid-cols-2 gap-2 text-xs">{[['✍', 'Writer', 'e-books', '#5CE1FF'], ['✦', 'Designer', 'logos & merch', '#FF7AD9'], ['⬡', 'Supplier', 'Printful drafts', '#FFB86B'], ['§', 'Accountant', 'guardrails', '#5EF0A6']].map(([i, n, r, c]) =>
+          <ul className="grid grid-cols-2 gap-2 text-xs">{[['W', 'Writer', 'e-books', '#A9B4A6'], ['D', 'Designer', 'logos & merch', '#B98A7A'], ['⬡', 'Supplier', 'Printful drafts', '#D2A066'], ['§', 'Accountant', 'guardrails', '#8FAE84']].map(([i, n, r, c]) =>
             <li key={n} className="flex items-center gap-2 rounded-xl bg-black/20 border border-white/[.05] px-2.5 py-2"><span className="grid h-7 w-7 place-items-center rounded-full border" style={{ borderColor: c + '70', color: c }}>{i}</span><span><span className="font-medium">{n}</span><br /><span className="text-char/45">{r}</span></span></li>)}</ul></div>
         <p className="mt-auto text-xs text-char/50 leading-relaxed border-t border-white/[.06] pt-4">The founder can propose any payout — code only executes ones within $5/task, 30% of revenue and $50/day.</p>
       </div>
@@ -91,7 +91,7 @@ export function DashboardView({ embedded = false }: { embedded?: boolean }) {
       <div className="card p-5"><h2 className="font-medium mb-3">Agent payouts</h2>
         {!d ? <div className="skeleton h-24" /> : d.payouts.length === 0 ? <p className="text-sm text-char/50 py-6 text-center">Payouts appear here after your first sale.</p>
           : <ul className="space-y-2 text-sm">{d.payouts.slice(0, 8).map((p: any, i: number) => <li key={i} className="flex items-center gap-3 border-t border-line pt-2 first:border-0 first:pt-0">
-            <span className={`h-2 w-2 rounded-full ${p.kind === 'payout' ? 'bg-emerald-500' : 'bg-red-500'}`} /><span className="flex-1">{p.kind === 'payout' ? `${p.agent} agent` : 'Blocked proposal'} <span className="text-char/45">· {p.shop}</span></span><span className="tabular-nums">{p.kind === 'payout' ? usd(p.amount) : '✋'}</span></li>)}</ul>}
+            <span className={`h-2 w-2 rounded-full ${p.kind === 'payout' ? 'bg-emerald-500' : 'bg-red-500'}`} /><span className="flex-1">{p.kind === 'payout' ? `${p.agent} agent` : 'Blocked proposal'} <span className="text-char/45">· {p.shop}</span></span><span className="tabular-nums">{p.kind === 'payout' ? usd(p.amount) : ''}</span></li>)}</ul>}
       </div>
     </motion.section>
     <motion.section variants={riseV} className="card p-5"><div className="flex items-center justify-between mb-3"><h2 className="font-semibold">Agent activity</h2><Link href="/ledger" className="text-xs text-char/55">Full public ledger →</Link></div>

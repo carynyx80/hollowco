@@ -21,13 +21,13 @@ export function AuthForm({ mode, embedded, onDone, onSwitch }: { mode: 'signin' 
     } catch (e: any) { setErr(e.message); setBusy(false); if (!reduce) shake.start({ x: [0, -12, 10, -7, 5, -2, 0], transition: { duration: 0.45 } }); }
   }
   return <div className={embedded ? 'w-full' : 'relative isolate overflow-hidden min-h-[calc(100vh-4rem)] grid place-items-center px-5 py-16'}>
-    {!embedded && <div aria-hidden className="absolute inset-0 -z-10 bg-[#07070C]">
+    {!embedded && <div aria-hidden className="absolute inset-0 -z-10 bg-[#0E0D0B]">
       <div className="aurora absolute left-[10%] top-[8%] h-[46vmax] w-[46vmax] rounded-full bg-iris/25 blur-[90px]" />
       <div className="aurora absolute right-[-6%] bottom-[-10%] h-[40vmax] w-[40vmax] rounded-full bg-cyan/15 blur-[90px]" style={{ animationDelay: '-6s', animationDuration: '20s' }} />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,.06),transparent_60%)]" />
     </div>}
     <motion.div animate={shake} className="w-full max-w-md"><motion.div initial={reduce ? { opacity: 0 } : { opacity: 0, y: 30, scale: .97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: .7, ease: [0.22, 1, 0.36, 1] }}
-      className="rounded-3xl border border-white/[.12] bg-white/[.06] backdrop-blur-2xl p-8 shadow-[inset_0_1px_0_rgba(255,255,255,.12),0_40px_120px_-30px_rgba(139,123,255,.45)]" data-testid="auth-card">
+      className="rounded-lg border border-white/[.12] bg-white/[.06] backdrop-blur-2xl p-8 shadow-[inset_0_1px_0_rgba(255,255,255,.12),0_40px_120px_-30px_rgba(184,151,90,.45)]" data-testid="auth-card">
       <span className={busy ? 'inline-block ring-spin' : 'inline-block'} data-testid="auth-ring"><Ring size={40} pulse={!busy} /></span>
       <h1 className="mt-5 text-2xl font-semibold tracking-tight">{up ? 'Create your account' : 'Welcome back'}</h1>
       <p className="mt-1 text-sm text-char/55">{up ? 'Get an AI founder that builds and runs shops for you.' : 'Sign in to talk to your AI founder.'}</p>

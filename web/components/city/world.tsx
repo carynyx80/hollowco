@@ -140,7 +140,7 @@ export function People({ b, count, shops }: { b: Bounds; count: number; shops: C
   useEffect(() => on('shopper', ({ shopId, n = 3 }: { shopId: string; n?: number }) => { const s = byId.current.get(shopId); if (!s) return;
     for (let k = 0; k < n; k++) { const slot = peds[count + (next.current++ % SHOP_SLOTS)]; const door: P = [s.x + (k - 1) * 0.35, 0, s.z + s.face * 2.7], walk: P = [s.x + (k - 1) * 0.35, 0, s.z + s.face * 4.6];
       const from: P = [s.x + (hash(k + s.x) > 0.5 ? 1 : -1) * (6 + k * 1.4), 0, walk[2]]; slot.shop = { path: [from, walk, door, [door[0], 0, s.z + s.face * 2.2]], t0: performance.now() + k * 350, dur: 5200 }; } }), [peds, count]);
-  useEffect(() => { const cols = ['#e74c3c', '#3498db', '#f1c40f', '#ecf0f1', '#9b59b6', '#1abc9c', '#e67e22', '#34495e', '#ff7ad9']; const t = torso.current, h = head.current;
+  useEffect(() => { const cols = ['#e74c3c', '#3498db', '#f1c40f', '#ecf0f1', '#9b59b6', '#1abc9c', '#e67e22', '#34495e', '#B98A7A']; const t = torso.current, h = head.current;
     peds.forEach((_, i) => { t?.setColorAt(i, new THREE.Color(cols[i % cols.length])); h?.setColorAt(i, new THREE.Color().setHSL(0.07, 0.45, 0.2 + hash(i * 3) * 0.45)); }); if (t?.instanceColor) t.instanceColor.needsUpdate = true; if (h?.instanceColor) h.instanceColor.needsUpdate = true; }, [peds]);
   const o = useMemo(() => new THREE.Object3D(), []); const tmp = useMemo<P>(() => [0, 0, 0], []); const tmp2 = useMemo<P>(() => [0, 0, 0], []);
   useFrame((_, dt) => {
