@@ -27,7 +27,7 @@ export function DashboardView({ embedded = false }: { embedded?: boolean }) {
       for (;;) {
         await new Promise((r) => setTimeout(r, 1500));
         const j = await api(`/shops/jobs/${id}`); setJob({ log: j.log?.length ? j.log : ['Founder agent: reading your idea'] }); cityEmit('city:build', { active: true, log: j.log?.[j.log.length - 1] || 'Founder agent: reading your idea' });
-        if (j.status === 'done') { toast('Your new shop is open', 'ok'); for (const n of j.notices || []) toast(n, 'err'); setJob(null); setBuilt({ shopId: j.shopId, notices: j.notices || [] }); cityEmit('city:build', { active: false, shopId: j.shopId, stay: true }); await load(); return; }
+        if (j.status === 'done') { toast('Your new shop is open', 'ok'); for (const n of j.notices || []) toast(n, n.startsWith('Coming soon') ? 'info' : 'err'); setJob(null); setBuilt({ shopId: j.shopId, notices: j.notices || [] }); cityEmit('city:build', { active: false, shopId: j.shopId, stay: true }); await load(); return; }
         if (j.status === 'error') throw new Error(j.error || 'Build failed');
       }
     } catch (e: any) { toast(e.message, 'err'); setJob(null); cityEmit('city:build', { active: false }); }
