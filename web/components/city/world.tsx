@@ -66,12 +66,12 @@ export function Lamps({ b }: { b: Bounds }) {
 }
 
 /* ---------- trees: sidewalk rows, parks, empty lots ---------- */
-export function Trees({ b, shops, density }: { b: Bounds; shops: CityShop[]; density: number }) {
+export function Trees({ b, shops, density, filled }: { b: Bounds; shops: CityShop[]; density: number; filled?: Set<string> }) {
   const trunk = useRef<THREE.InstancedMesh>(null), crown = useRef<THREE.InstancedMesh>(null);
-  const taken = useMemo(() => new Set(shops.map((s) => `${s.plot.gx},${s.plot.gz}`)), [shops]);
+  const taken = useMemo(() => new Set([...shops.map((s) => `${s.plot.gx},${s.plot.gz}`), ...(filled || [])]), [shops, filled]);
   const d = useMemo(() => { const t: THREE.Matrix4[] = [], c: THREE.Matrix4[] = [], col: THREE.Color[] = []; let n = 0;
     const add = (x: number, z: number, s: number) => { n++; if (hash(n) > density) return; const k = s * (0.8 + hash(n * 3) * 0.5); t.push(M(x, 0.8 * k, z, k, k, k)); c.push(M(x, 2.1 * k, z, k * (0.9 + hash(n * 5) * 0.3), k, k * (0.9 + hash(n * 7) * 0.3), hash(n) * 6)); col.push(new THREE.Color().setHSL(0.24 + hash(n * 11) * 0.1, 0.45, 0.22 + hash(n * 13) * 0.12)); };
-    for (let kx = b.kx0; kx <= b.kx1; kx++) for (let kz = b.kz0; kz <= b.kz1; kz++) { const cx = kx * PITCH + PITCH / 2, cz = kz * PITCH + PITCH / 2, e = PITCH / 2 - ROAD / 2 - 0.6;
+    for (let kx = b.kx0; kx <= b.kx1; kx++) for (let kz = b.kz0; kz <= b.kz1; kz++) { const cx = kx * PITCH + PITCH / 2, cz = kz * PITCH + PITCH / 2, e = PITCH / 2 - ROAD / 2 - 0.3;
       if (kx === -1 && kz === -1) continue; // bank square
       if (isPark(kx, kz)) { for (let i = 0; i < 14; i++) { const a = hash(kx * 31 + kz * 17 + i) * 6.28, r = 2.5 + hash(i * 9 + kx) * 3.6; add(cx + Math.cos(a) * r, cz + Math.sin(a) * r, 1.15); } continue; }
       for (const s of [-1, 1]) for (const u of [-3.4, 3.4]) { add(cx + u, cz + s * e, 0.8); add(cx + s * e, cz + u, 0.8); }

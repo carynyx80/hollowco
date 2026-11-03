@@ -1,14 +1,28 @@
 import { assetUrl } from './layout';
+import { img, type TexName } from './assets';
 // Procedural textures (no network): facades, roads, signage. Generated once and shared.
 import * as THREE from 'three';
 const cache = new Map<string, THREE.CanvasTexture>();
 function rnd(seed: number) { let s = seed >>> 0 || 1; return () => ((s = Math.imul(s ^ (s >>> 15), 2246822519) ^ Math.imul(s ^ (s >>> 13), 3266489917)) >>> 0) / 4294967296; }
-export function canvasTex(key: string, w: number, h: number, draw: (g: CanvasRenderingContext2D, r: () => number) => void, srgb = true) {
+export function canvasTex(key: string, w: number, h: number, draw: (g: CanvasRenderingContext2D, r: () => number) => void, srgb = true, ss = 1) {
   const hit = cache.get(key); if (hit) return hit;
-  const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d')!; draw(g, rnd(key.length * 7919 + key.charCodeAt(0)));
+  const c = document.createElement('canvas'); c.width = w * ss; c.height = h * ss; const g = c.getContext('2d')!; g.scale(ss, ss); draw(g, rnd(key.length * 7919 + key.charCodeAt(0)));
   const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (srgb) t.colorSpace = THREE.SRGBColorSpace; cache.set(key, t); return t;
 }
 const noise = (g: CanvasRenderingContext2D, r: () => number, w: number, h: number, a: number, n = 4000) => { for (let i = 0; i < n; i++) { const v = r() > 0.5 ? 255 : 0; g.fillStyle = `rgba(${v},${v},${v},${a * r()})`; g.fillRect(r() * w, r() * h, 1 + r() * 2, 1 + r() * 2); } };
+/** Tile a preloaded CC0 photo texture across a canvas region (n x m repeats). Returns false if not loaded. */
+export function photo(g: CanvasRenderingContext2D, n: TexName, x: number, y: number, w: number, h: number, rx = 1, ry = 1, tint?: string) {
+  const im = img(n); if (!im) return false; const tw = w / rx, th = h / ry;
+  for (let i = 0; i < rx; i++) for (let j = 0; j < ry; j++) g.drawImage(im, x + i * tw, y + j * th, tw, th);
+  if (tint) { g.save(); g.globalCompositeOperation = 'multiply'; g.fillStyle = tint; g.fillRect(x, y, w, h); g.restore(); }
+  return true;
+}
+/** A THREE texture straight from a preloaded photo (for normal maps / ground). */
+const ptex = new Map<string, THREE.Texture>();
+export function photoTex(n: TexName, srgb = true) {
+  const hit = ptex.get(n); if (hit) return hit; const im = img(n); if (!im) return null;
+  const t = new THREE.Texture(im); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.needsUpdate = true; ptex.set(n, t); return t;
+}
 /* Facade tiles. Each texture is one tile; geometry UVs are scaled in world units (see TILE). */
 export const TILE = { glass: [9.6, 8.8], brick: [5.6, 6.4], stucco: [5.6, 5.0], metal: [6, 6] } as const;
 function facade(kind: keyof typeof TILE, lit: boolean) {
@@ -22,32 +36,35 @@ function facade(kind: keyof typeof TILE, lit: boolean) {
       }
       if (!lit) { g.fillStyle = '#9fb3c8'; for (let i = 0; i <= 8; i++) { g.fillRect(i * 32 - 1, 0, 2, 256); g.fillRect(0, i * 32 - 1, 256, 3); } }
     } else if (kind === 'brick') {
-      if (!lit) { g.fillStyle = '#8a4a36'; g.fillRect(0, 0, 256, 256); for (let y = 0; y < 256; y += 6) { g.fillStyle = 'rgba(40,20,14,.55)'; g.fillRect(0, y, 256, 1); for (let x = (y / 6) % 2 ? 0 : 8; x < 256; x += 16) g.fillRect(x, y, 1, 6); }
+      if (!lit && photo(g, r() > 2 ? 'brick_tan' : 'brick_red', 0, 0, 256, 256, 5, 6)) { /* photo brick */ } else if (!lit) { g.fillStyle = '#8a4a36'; g.fillRect(0, 0, 256, 256); for (let y = 0; y < 256; y += 6) { g.fillStyle = 'rgba(40,20,14,.55)'; g.fillRect(0, y, 256, 1); for (let x = (y / 6) % 2 ? 0 : 8; x < 256; x += 16) g.fillRect(x, y, 1, 6); }
         for (let i = 0; i < 1600; i++) { g.fillStyle = `rgba(${150 + r() * 60},${60 + r() * 40},${40 + r() * 30},.35)`; g.fillRect(((r() * 16) | 0) * 16, ((r() * 43) | 0) * 6 + 1, 15, 5); } } else { g.fillStyle = '#000'; g.fillRect(0, 0, 256, 256); }
       for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { const px = x * 64 + 16, py = y * 64 + 12;
         if (!lit) { g.fillStyle = '#d8cfc0'; g.fillRect(px - 3, py - 5, 38, 6); g.fillRect(px - 3, py + 40, 38, 4); g.fillStyle = '#1b2230'; g.fillRect(px, py, 32, 40); g.fillStyle = '#e9e2d3'; g.fillRect(px + 15, py, 2, 40); g.fillRect(px, py + 18, 32, 2); }
         else if (r() > 0.45) { g.fillStyle = r() > 0.3 ? '#ffcf8a' : '#fff1d6'; g.globalAlpha = 0.6 + r() * 0.4; g.fillRect(px + 1, py + 1, 14, 17); g.fillRect(px + 17, py + 1, 14, 17); g.fillRect(px + 1, py + 20, 14, 19); g.fillRect(px + 17, py + 20, 14, 19); g.globalAlpha = 1; } }
     } else if (kind === 'stucco') {
-      if (!lit) { g.fillStyle = '#efe9e0'; g.fillRect(0, 0, 256, 256); noise(g, r, 256, 256, 0.08, 6000); } else { g.fillStyle = '#000'; g.fillRect(0, 0, 256, 256); }
+      if (!lit) { if (!photo(g, 'plaster', 0, 0, 256, 256, 3, 3)) { g.fillStyle = '#efe9e0'; g.fillRect(0, 0, 256, 256); noise(g, r, 256, 256, 0.08, 6000); } } else { g.fillStyle = '#000'; g.fillRect(0, 0, 256, 256); }
       for (let y = 0; y < 2; y++) for (let x = 0; x < 3; x++) { const px = x * 85 + 24, py = y * 128 + 30;
         if (!lit) { g.fillStyle = '#6d5d4b'; g.fillRect(px - 12, py, 9, 60); g.fillRect(px + 42, py, 9, 60); g.fillStyle = '#20252e'; g.fillRect(px, py, 38, 60); g.fillStyle = '#fff'; g.fillRect(px + 18, py, 2, 60); g.fillRect(px - 4, py + 60, 46, 5); }
         else if (r() > 0.4) { g.fillStyle = '#ffd59a'; g.globalAlpha = 0.7; g.fillRect(px + 1, py + 1, 16, 58); g.fillRect(px + 21, py + 1, 16, 58); g.globalAlpha = 1; } }
     } else {
-      if (!lit) { for (let x = 0; x < 256; x += 8) { const gr = g.createLinearGradient(x, 0, x + 8, 0); gr.addColorStop(0, '#9aa3ad'); gr.addColorStop(0.5, '#d6dde3'); gr.addColorStop(1, '#7d868f'); g.fillStyle = gr; g.fillRect(x, 0, 8, 256); } noise(g, r, 256, 256, 0.1, 2500); g.fillStyle = '#2b3440'; for (let x = 12; x < 256; x += 42) g.fillRect(x, 14, 28, 16); }
+      if (!lit) { photo(g, 'concrete', 0, 0, 256, 256, 2, 2); g.globalAlpha = img('concrete') ? 0.45 : 1; for (let x = 0; x < 256; x += 8) { const gr = g.createLinearGradient(x, 0, x + 8, 0); gr.addColorStop(0, '#9aa3ad'); gr.addColorStop(0.5, '#d6dde3'); gr.addColorStop(1, '#7d868f'); g.fillStyle = gr; g.fillRect(x, 0, 8, 256); } noise(g, r, 256, 256, 0.1, 2500); g.globalAlpha = 1; g.fillStyle = '#2b3440'; for (let x = 12; x < 256; x += 42) g.fillRect(x, 14, 28, 16); }
       else { g.fillStyle = '#000'; g.fillRect(0, 0, 256, 256); g.fillStyle = '#ffe0a8'; for (let x = 12; x < 256; x += 42) if (r() > 0.35) g.fillRect(x + 1, 15, 26, 14); }
     }
-  }, !lit);
+  }, !lit, 2);
 }
 export const facadeMap = (k: keyof typeof TILE) => facade(k, false);
 export const facadeLit = (k: keyof typeof TILE) => facade(k, true);
 export const roofTex = () => canvasTex('roof', 128, 128, (g, r) => { g.fillStyle = '#4a4d52'; g.fillRect(0, 0, 128, 128); noise(g, r, 128, 128, 0.25, 3000); g.strokeStyle = 'rgba(0,0,0,.25)'; g.strokeRect(4, 4, 120, 120); });
 export const roadTex = () => canvasTex('road', 128, 512, (g, r) => {
-  g.fillStyle = '#2b2d31'; g.fillRect(0, 0, 128, 512); noise(g, r, 128, 512, 0.18, 9000);
-  g.fillStyle = '#e8e8e8'; g.fillRect(6, 0, 4, 512); g.fillRect(118, 0, 4, 512);
-  g.fillStyle = '#f2c94c'; for (let y = 0; y < 512; y += 64) g.fillRect(61, y, 6, 36);
-});
-export const zebraTex = () => canvasTex('zebra', 128, 64, (g) => { g.clearRect(0, 0, 128, 64); g.fillStyle = '#eeeeee'; for (let x = 4; x < 128; x += 16) g.fillRect(x, 0, 9, 64); });
-export const paveTex = () => canvasTex('pave', 256, 256, (g, r) => { g.fillStyle = '#9b9a96'; g.fillRect(0, 0, 256, 256); noise(g, r, 256, 256, 0.12, 6000); g.fillStyle = 'rgba(60,60,60,.35)'; for (let i = 0; i <= 256; i += 32) { g.fillRect(i, 0, 1, 256); g.fillRect(0, i, 256, 1); } });
+  if (!photo(g, 'asphalt', 0, 0, 128, 512, 1, 4, '#8a8a8a')) { g.fillStyle = '#2b2d31'; g.fillRect(0, 0, 128, 512); noise(g, r, 128, 512, 0.18, 9000); }
+  // worn paint: solid edge lines, double yellow centre, oil stains down each lane
+  for (let i = 0; i < 14; i++) { g.fillStyle = `rgba(10,10,10,${0.08 + r() * 0.12})`; g.beginPath(); g.ellipse(r() > 0.5 ? 32 + r() * 8 : 88 + r() * 8, r() * 512, 6 + r() * 8, 14 + r() * 20, 0, 0, 7); g.fill(); }
+  g.globalAlpha = 0.82; g.fillStyle = '#dcdad2'; g.fillRect(5, 0, 3, 512); g.fillRect(120, 0, 3, 512);
+  g.fillStyle = '#d9a93a'; g.fillRect(60, 0, 2.5, 512); g.fillRect(65.5, 0, 2.5, 512); g.globalAlpha = 1;
+  noise(g, r, 128, 512, 0.1, 3000);
+}, true, 2);
+export const zebraTex = () => canvasTex('zebra', 128, 64, (g, r) => { g.clearRect(0, 0, 128, 64); g.fillStyle = 'rgba(226,224,216,.85)'; for (let x = 4; x < 128; x += 16) g.fillRect(x, 0, 9, 64); g.globalCompositeOperation = 'destination-out'; noise(g, r, 128, 64, 0.6, 900); });
+export const paveTex = () => canvasTex('pave', 256, 256, (g, r) => { if (photo(g, 'pavers', 0, 0, 256, 256, 2, 2, '#c9c4ba')) return; g.fillStyle = '#9b9a96'; g.fillRect(0, 0, 256, 256); noise(g, r, 256, 256, 0.12, 6000); g.fillStyle = 'rgba(60,60,60,.35)'; for (let i = 0; i <= 256; i += 32) { g.fillRect(i, 0, 1, 256); g.fillRect(0, i, 256, 1); } });
 export const grassTex = () => canvasTex('grass', 256, 256, (g, r) => { g.fillStyle = '#3f6b35'; g.fillRect(0, 0, 256, 256); for (let i = 0; i < 9000; i++) { g.fillStyle = `rgba(${40 + r() * 60},${90 + r() * 70},${30 + r() * 40},.5)`; g.fillRect(r() * 256, r() * 256, 1, 2 + r() * 3); } });
 export const doorTex = () => canvasTex('door', 64, 128, (g) => { g.fillStyle = '#5b636c'; g.fillRect(0, 0, 64, 128); g.fillStyle = '#3a4148'; for (let y = 0; y < 128; y += 8) g.fillRect(0, y, 64, 2); g.fillStyle = '#f2c94c'; g.fillRect(0, 122, 64, 6); });
 export function stripeTex(a: string, b: string) { return canvasTex(`stripe-${a}-${b}`, 128, 16, (g) => { for (let x = 0; x < 128; x += 16) { g.fillStyle = (x / 16) % 2 ? b : a; g.fillRect(x, 0, 16, 16); } }); }

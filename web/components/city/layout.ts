@@ -5,6 +5,8 @@ export const lotC = (g: number) => Math.floor(g / 2) * PITCH + (((g % 2) + 2) % 
 export const plotXZ = (gx: number, gz: number): [number, number] => [lotC(gx), lotC(gz)];
 /** Front of the building faces the street on its z side. +1 = faces +z. */
 export const faceOf = (gz: number) => (((gz % 2) + 2) % 2 ? 1 : -1);
+/** Buildings sit this far back from the lot centre, away from their street, leaving a real sidewalk. */
+export const SETBACK = 0.7;
 export const BANK: [number, number] = [-9.5, -9.5];
 export const SHORE = 40.5; // quay edge (promenade street at z=38)
 export const DOCK: [number, number] = [0, 48];

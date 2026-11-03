@@ -123,3 +123,13 @@ html.city-mode footer { display: none; }
 .ag-cell[col-id="profit"], .ag-cell[col-id="amount"], .ag-cell[col-id="revenue"], .ag-cell[col-id="at"] { font-family: var(--font-mono); font-size: 12.5px; }
 .ag-header-cell-text { text-transform: uppercase; letter-spacing: .14em; font-size: 10.5px; }
 h1.font-display, .font-display.text-4xl, .font-display.text-5xl { font-weight: 500; }
+
+/* City loading screen — Ink & Brass */
+.city-loading{position:absolute;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 40%,#1a1712 0%,#0E0D0B 70%);color:#EDE6D6;transition:opacity .7s ease;pointer-events:none}
+.city-loading-out{opacity:0}
+.city-loading-inner{width:min(360px,80vw);text-align:center}
+.city-loading-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:#B8975A}
+.city-loading-title{font-family:'Cormorant Garamond',serif;font-size:40px;line-height:1.1;margin:10px 0 22px;font-style:italic}
+.city-loading-bar{height:2px;background:rgba(237,230,214,.12);overflow:hidden}
+.city-loading-bar span{display:block;height:100%;background:#B8975A;transition:width .3s ease}
+.city-loading-meta{margin-top:12px;font-family:'Inter Tight',sans-serif;font-size:12px;color:rgba(237,230,214,.6)}

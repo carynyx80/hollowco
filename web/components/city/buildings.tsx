@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Billboard, Html, Sparkles } from '@react-three/drei';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { DISTRICT_INFO, ENV, type CityShop, type Style } from './layout';
+import { DISTRICT_INFO, ENV, SETBACK, type CityShop, type Style } from './layout';
 import { TILE, doorTex, facadeBox, facadeLit, facadeMap, roofTex, signTex, stripeTex } from './tex';
 
 const GOLD = '#D9B56E';
@@ -104,7 +104,7 @@ export const Building = memo(function Building({ s, onPick, focus, pulse, quiet,
   useFrame(() => { const now = performance.now(); if (g.current && born.current) { const t = Math.min(1, (now - born.current) / 4200); g.current.scale.y = 0.02 + (1 - Math.pow(1 - t, 3)) * 0.98; if (t >= 1) { born.current = 0; setRising(false); } }
     const p = Math.max(0, 1 - (now - pulse) / 1600); if (glow.current) glow.current.emissiveIntensity = 0.35 + ENV.night * 0.7 + p * 4 + (focus || hover ? 0.6 : 0); if (light.current) light.current.intensity = p * 60; });
   const [, d] = DIMS[s.plot.style]; const dist = DISTRICT_INFO[s.plot.district]; const lit = hl === s.plot.district;
-  return <group position={[s.x, 0.2, s.z]} rotation-y={s.face > 0 ? 0 : Math.PI}
+  return <group position={[s.x, 0.2, s.z - s.face * SETBACK]} rotation-y={s.face > 0 ? 0 : Math.PI}
     onClick={(e) => { e.stopPropagation(); onPick(s); }} onPointerOver={(e) => { e.stopPropagation(); setHover(true); document.body.style.cursor = 'pointer'; }} onPointerOut={() => { setHover(false); document.body.style.cursor = ''; }}>
     <group ref={g}><Body s={s} h={s.h} glow={glow} /></group>
     <pointLight ref={light} position={[0, 2, d / 2 + 2]} color={GOLD} intensity={0} distance={10} />
@@ -127,8 +127,8 @@ function FarStyle({ style, shops }: { style: Style; shops: CityShop[] }) {
   const ref = useRef<THREE.InstancedMesh>(null); const roofRef = useRef<THREE.InstancedMesh>(null);
   const mat = useMemo(() => { const m = facadeMat(style, '#ffffff').clone(); m.map = m.map!.clone(); m.emissiveMap = m.emissiveMap!.clone(); m.map.repeat.set(1, 2); m.emissiveMap.repeat.set(1, 2); m.map.needsUpdate = m.emissiveMap.needsUpdate = true; NIGHT.add({ m, d: 0, n: 1.1 }); return m; }, [style]);
   useEffect(() => { const r = ref.current, rr = roofRef.current; if (!r || !rr) return; const o = new THREE.Object3D(); const [w, d] = DIMS[style];
-    shops.forEach((s, i) => { o.position.set(s.x, 0.2 + s.h / 2, s.z); o.rotation.set(0, 0, 0); o.scale.set(w, s.h, d); o.updateMatrix(); r.setMatrixAt(i, o.matrix); r.setColorAt(i, new THREE.Color(tintOf(s)));
-      o.position.set(s.x, 0.2 + s.h + 1.2, s.z + s.face * 0.3); o.scale.set(w * 0.85, 1.4, 0.12); o.updateMatrix(); rr.setMatrixAt(i, o.matrix); rr.setColorAt(i, new THREE.Color(accentOf(s)).multiplyScalar(1.8)); });
+    shops.forEach((s, i) => { o.position.set(s.x, 0.2 + s.h / 2, s.z - s.face * SETBACK); o.rotation.set(0, 0, 0); o.scale.set(w, s.h, d); o.updateMatrix(); r.setMatrixAt(i, o.matrix); r.setColorAt(i, new THREE.Color(tintOf(s)));
+      o.position.set(s.x, 0.2 + s.h + 1.2, s.z - s.face * SETBACK + s.face * 0.3); o.scale.set(w * 0.85, 1.4, 0.12); o.updateMatrix(); rr.setMatrixAt(i, o.matrix); rr.setColorAt(i, new THREE.Color(accentOf(s)).multiplyScalar(1.8)); });
     r.count = rr.count = shops.length; r.instanceMatrix.needsUpdate = rr.instanceMatrix.needsUpdate = true; if (r.instanceColor) r.instanceColor.needsUpdate = true; if (rr.instanceColor) rr.instanceColor.needsUpdate = true; r.computeBoundingSphere(); rr.computeBoundingSphere(); }, [shops, style]);
   const cap = Math.max(4, shops.length);
   return <><instancedMesh key={cap} ref={ref} args={[undefined, undefined, cap]} material={mat} castShadow receiveShadow><boxGeometry /></instancedMesh>

@@ -1,11 +1,14 @@
 'use client';
 import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Billboard, Environment, Html, Lightformer, OrbitControls, Sky, Sparkles, Stars } from '@react-three/drei';
-import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Billboard, Environment, Html, OrbitControls, Sky, Sparkles, Stars, useProgress } from '@react-three/drei';
+import { Bloom, BrightnessContrast, EffectComposer, HueSaturation, N8AO, Vignette } from '@react-three/postprocessing';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { HDRI, preloadImages } from './assets';
+import { Cars, FillerCity, Pedestrians, StreetProps, fillerLots } from './actors';
+import { isPark } from './world';
 import { BANK, DISTRICT_INFO, DOCK, ENV, PITCH, QUALITY, SHORE, bounds, bus, samplePath, type CityShop, type P, type Packet, type Quality, type Site } from './layout';
-import { Ground, Lamps, People, Traffic, Trees, Water } from './world';
+import { Ground, Lamps, Trees, Water } from './world';
 import { Buildings } from './buildings';
 import { facadeBox, facadeLit, facadeMap, TILE } from './tex';
 
@@ -21,8 +24,8 @@ function Daylight({ hour, q }: { hour: number; q: Quality }) {
   const day = THREE.MathUtils.smoothstep(e, -0.12, 0.3); const az = ((hour - 6) / 12) * Math.PI;
   const sunDir = useMemo(() => new THREE.Vector3(Math.cos(az) * 0.8, Math.max(e, 0.05), 0.45 - Math.sin(az) * 0.2).normalize(), [az, e]);
   const moonDir = useMemo(() => new THREE.Vector3(-0.4, 0.7, -0.5).normalize(), []);
-  const fogC = useMemo(() => new THREE.Color('#0f0d0a').lerp(new THREE.Color(e < 0.25 ? '#e9b38a' : '#b9cde2'), day), [day, e]);
-  useEffect(() => { ENV.night = 1 - day; scene.fog = new THREE.Fog(fogC, 90 + day * 40, 330 + day * 120); scene.background = day > 0.04 ? null : new THREE.Color('#0a0907'); }, [day, fogC, scene]);
+  const fogC = useMemo(() => new THREE.Color('#14110d').lerp(new THREE.Color(e < 0.25 ? '#d9a27a' : '#c2c4bf'), day), [day, e]);
+  useEffect(() => { ENV.night = 1 - day; scene.fog = new THREE.Fog(fogC, 45 + day * 25, 220 + day * 90); scene.background = day > 0.04 ? null : new THREE.Color('#0a0907'); }, [day, fogC, scene]);
   useFrame(() => { const t: THREE.Vector3 = controls?.target || new THREE.Vector3(); const L = sun.current; if (!L) return; const dir = day > 0.02 ? sunDir : moonDir;
     L.position.set(t.x + dir.x * 90, dir.y * 90, t.z + dir.z * 90); L.target.position.copy(t); L.target.updateMatrixWorld(); });
   const warm = new THREE.Color('#ffd2a1').lerp(new THREE.Color('#fff6e8'), THREE.MathUtils.clamp(e * 2, 0, 1));
@@ -150,41 +153,82 @@ function Packets() {
   return <instancedMesh ref={ref} args={[undefined, undefined, MAXP * TRAIL]} frustumCulled={false}><sphereGeometry args={[0.16, 10, 10]} /><meshBasicMaterial toneMapped={false} /></instancedMesh>;
 }
 
-function Rig({ paused }: { paused: boolean }) {
+/* Cinematic camera: low drone cruise along the streets when idle, smooth fly-to on click/deeplink, optional street level. */
+export type View = 'drone' | 'street';
+function Rig({ paused, b }: { paused: boolean; b: { kx0: number; kx1: number; kz0: number } }) {
   const ctl = useRef<any>(null); const { camera } = useThree(); const fly = useRef<{ pos: THREE.Vector3; look: THREE.Vector3; until: number } | null>(null); const idle = useRef(0);
-  useEffect(() => on('fly', (d: { pos: P; look: P; ms?: number }) => { fly.current = { pos: new THREE.Vector3(...d.pos), look: new THREE.Vector3(...d.look), until: performance.now() + (d.ms || 2200) }; }), []);
+  const [view, setView] = useState<View>('drone'); const u = useRef(0); const resume = useRef(true);
+  useEffect(() => on('fly', (d: { pos: P; look: P; ms?: number }) => { fly.current = { pos: new THREE.Vector3(...d.pos), look: new THREE.Vector3(...d.look), until: performance.now() + (d.ms || 2200) }; idle.current = -2; resume.current = true; }), []);
+  useEffect(() => on('view', (v: View) => { setView(v); idle.current = 9; resume.current = true; }), []);
+  // cruise route: a loop along the street grid, keeping to the right-hand lane
+  const route = useMemo<P[]>(() => { const x0 = b.kx0 * PITCH, x1 = (b.kx1 + 1) * PITCH, z0 = b.kz0 * PITCH, z1 = PITCH, l = 1.25;
+    return [[x0 + l, 0, z1 - l], [x0 + l, 0, z0 + l], [0 - l, 0, z0 + l], [0 - l, 0, 0 - l], [x1 - l, 0, 0 - l], [x1 - l, 0, z1 - l], [x0 + l, 0, z1 - l]]; }, [b.kx0, b.kx1, b.kz0]);
+  const L = useMemo(() => { let s = 0; for (let i = 1; i < route.length; i++) s += Math.hypot(route[i][0] - route[i - 1][0], route[i][2] - route[i - 1][2]); return s; }, [route]);
+  const a = useMemo<P>(() => [0, 0, 0], []), c = useMemo<P>(() => [0, 0, 0], []); const want = useMemo(() => new THREE.Vector3(), []), look = useMemo(() => new THREE.Vector3(), []); const dir = useMemo(() => new THREE.Vector2(), []);
+  const smooth = useRef(new THREE.Vector2(0, -1));
   useFrame((_, dt) => {
-    const c = ctl.current; if (!c) return;
-    if (fly.current) { const k = 1 - Math.pow(0.0025, dt); camera.position.lerp(fly.current.pos, k); c.target.lerp(fly.current.look, k); if (performance.now() > fly.current.until) fly.current = null; }
-    idle.current += dt; c.autoRotate = !paused && !fly.current && idle.current > 2.5; c.update();
+    const k0 = ctl.current; if (!k0) return; dt = Math.min(dt, 0.1);
+    if (fly.current) { const k = 1 - Math.pow(0.0025, dt); camera.position.lerp(fly.current.pos, k); k0.target.lerp(fly.current.look, k); if (performance.now() > fly.current.until) fly.current = null; }
+    idle.current += dt;
+    if (!paused && !fly.current && idle.current > 3.5) {
+      if (resume.current) { // join the route at the point nearest to where we're looking
+        let best = 0, bd = 1e9; for (let i = 0; i < 200; i++) { samplePath(route, i / 200, a); const d = (a[0] - k0.target.x) ** 2 + (a[2] - k0.target.z) ** 2; if (d < bd) { bd = d; best = i / 200; } } u.current = best; resume.current = false; }
+      const street = view === 'street'; u.current = (u.current + (dt * (street ? 2.2 : 3.4)) / L) % 1;
+      samplePath(route, u.current, a); samplePath(route, (u.current + 6 / L) % 1, c); dir.set(c[0] - a[0], c[2] - a[2]).normalize(); smooth.current.lerp(dir, Math.min(1, dt * 0.9)).normalize(); const f = smooth.current;
+      if (street) { want.set(a[0] - f.x * 4.5 - f.y * 1.6, 1.25, a[2] - f.y * 4.5 + f.x * 1.6); look.set(a[0] + f.x * 10, 1.5, a[2] + f.y * 10); }
+      else { want.set(a[0] - f.x * 22 - f.y * 7, 12.5, a[2] - f.y * 22 + f.x * 7); look.set(a[0] + f.x * 8, 2.5, a[2] + f.y * 8); }
+      const k = 1 - Math.pow(0.12, dt); camera.position.lerp(want, k); k0.target.lerp(look, k);
+    } else if (idle.current <= 3.5) resume.current = true;
+    k0.autoRotate = false; k0.update();
   });
-  return <OrbitControls ref={ctl} makeDefault enableDamping dampingFactor={0.08} autoRotateSpeed={0.35} minDistance={6} maxDistance={240} maxPolarAngle={1.38} target={[0, 3, 6]} onStart={() => { idle.current = 0; fly.current = null; }} />;
+  const street = view === 'street';
+  return <OrbitControls ref={ctl} makeDefault enableDamping dampingFactor={0.08} minDistance={street ? 1.5 : 4} maxDistance={240} maxPolarAngle={street ? 1.56 : 1.45} target={[0, 3, 6]} onStart={() => { idle.current = -6; fly.current = null; }} />;
+}
+
+/* Ink & Brass loading screen (textures, HDRI, people and car models stream in lazily). */
+function Loading({ ready }: { ready: number }) {
+  const { active, progress } = useProgress(); const [gone, setGone] = useState(false); const pct = Math.round(ready < 1 ? ready * 30 : 30 + progress * 0.7);
+  const done = ready >= 1 && !active && progress >= 100; useEffect(() => { if (!done) { setGone(false); return; } const t = setTimeout(() => setGone(true), 700); return () => clearTimeout(t); }, [done]);
+  if (gone) return null;
+  return <div className={`city-loading ${done ? 'city-loading-out' : ''}`} data-testid="city-loading"><div className="city-loading-inner">
+    <p className="city-loading-eyebrow">HollowCo City</p><p className="city-loading-title">Raising the streets</p>
+    <div className="city-loading-bar"><span style={{ width: `${pct}%` }} /></div>
+    <p className="city-loading-meta">{ready < 1 ? 'Laying asphalt & brick' : progress < 100 ? 'Bringing in the people and traffic' : 'Lights on'} · {pct}%</p>
+  </div></div>;
 }
 
 export type SceneProps = { shops: CityShop[]; sites: Site[]; focus?: string | null; pulses: Record<string, number>; bankHot: number; paused: boolean; hour: number; quality: Quality; hl: string | null;
   onShop: (s: CityShop) => void; onBank: () => void; onBeacon: () => void; onGuard: () => void; onDistrict: (d: string) => void };
 export default function CityScene(p: SceneProps) {
+  const [ready, setReady] = useState(0); useEffect(() => { preloadImages((d, n) => setReady(d / n)).then(() => setReady(1)); }, []);
+  return <>{ready >= 1 && <World {...p} />}<Loading ready={ready} /></>;
+}
+function World(p: SceneProps) {
   const Q = QUALITY[p.quality];
   const b = useMemo(() => bounds(p.shops), [p.shops]);
+  const ob = useMemo(() => ({ ...b, kx0: b.kx0 - 2, kx1: b.kx1 + 2, kz0: b.kz0 - 2 }), [b]);
+  const fill = useMemo(() => fillerLots(b, ob, p.shops, isPark), [b, ob, p.shops]);
+  const filled = useMemo(() => new Set(fill.map((f) => f.key)), [fill]);
+  const peds = p.quality === 'low' ? 18 : p.quality === 'med' ? 36 : 56; const cars = p.quality === 'low' ? 16 : p.quality === 'med' ? 30 : 44;
   const guards = useMemo<[number, number][]>(() => [[b.kx0 * PITCH - 4, b.kz0 * PITCH - 4], [(b.kx1 + 1) * PITCH + 4, b.kz0 * PITCH - 4], [b.kx0 * PITCH - 4, SHORE - 2], [(b.kx1 + 1) * PITCH + 4, SHORE - 2]], [b]);
   const night = 1 - THREE.MathUtils.smoothstep(Math.sin(((p.hour - 6) / 12) * Math.PI), -0.12, 0.3);
-  return <Canvas shadows={Q.shadows > 0 ? 'soft' : false} dpr={[1, Q.dpr]} gl={{ antialias: !Q.bloom, powerPreference: 'high-performance' }} camera={{ position: [70, 55, 95], fov: 42, near: 0.5, far: 900 }}
-    onCreated={({ gl }) => { gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = 1.0; }} data-testid="city-canvas">
+  return <Canvas shadows={Q.shadows > 0 ? 'soft' : false} dpr={[1, Q.dpr]} gl={{ antialias: !Q.bloom, powerPreference: 'high-performance' }} camera={{ position: [38, 20, 62], fov: 50, near: 0.3, far: 700 }}
+    onCreated={({ gl }) => { gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = 0.95; }} data-testid="city-canvas">
     <Daylight hour={p.hour} q={p.quality} />
-    {Q.env && <Environment frames={1} resolution={128} background={false}>
-      <Lightformer form="rect" intensity={night > 0.5 ? 0.6 : 2.2} color={night > 0.5 ? '#5a6cff' : '#ffffff'} scale={[60, 20, 1]} position={[0, 30, -60]} />
-      <Lightformer form="rect" intensity={night > 0.5 ? 0.4 : 1.4} color={night > 0.5 ? '#D2A066' : '#cfe1ff'} scale={[60, 12, 1]} position={[-60, 10, 0]} rotation-y={Math.PI / 2} />
-      <Lightformer form="ring" intensity={night > 0.5 ? 1.2 : 3} color={night > 0.5 ? '#B8975A' : '#fff6e8'} scale={14} position={[40, 40, 40]} />
-      <mesh scale={200}><sphereGeometry /><meshBasicMaterial color={night > 0.5 ? '#0f0d0a' : '#8fb0d6'} side={THREE.BackSide} /></mesh>
-    </Environment>}
-    <Ground b={b} shops={p.shops} /><Water b={b} /><Lamps b={b} /><Trees b={b} shops={p.shops} density={Q.trees} />
-    <Traffic b={b} count={Q.cars} /><People b={b} count={Q.peds} shops={p.shops} />
+    {Q.env && <Environment files={HDRI} background={false} environmentIntensity={0.18 + (1 - night) * 0.75} />}
+    <Ground b={ob} shops={p.shops} /><Water b={ob} /><Lamps b={ob} /><Trees b={ob} shops={p.shops} density={Q.trees} filled={filled} />
+    <FillerCity items={fill} /><StreetProps b={ob} />
+    <Suspense fallback={null}><Cars b={ob} count={cars} /><Pedestrians b={b} count={peds} shops={p.shops} /></Suspense>
     <Beacon onPick={p.onBeacon} /><Bank onPick={p.onBank} hot={p.bankHot} /><Guards onPick={p.onGuard} at={guards} /><Dock />
     <Buildings shops={p.shops} detail={Q.detail} focus={p.focus} pulses={p.pulses} onPick={p.onShop} quiet={p.paused} hl={p.hl} />
     {p.sites.map((s) => <ConstructionSite key={s.shopId} s={s} />)}
     <DistrictLabels shops={p.shops} hl={p.hl} onPick={p.onDistrict} />
     <Packets />
-    <Rig paused={p.paused} />
-    {Q.bloom && <EffectComposer multisampling={Q.ms}><Bloom mipmapBlur intensity={0.25 + night * 0.35} luminanceThreshold={0.95 - night * 0.1} luminanceSmoothing={0.2} radius={0.7} /><Vignette offset={0.3} darkness={0.55 + night * 0.2} /></EffectComposer>}
+    <Rig paused={p.paused} b={b} />
+    {Q.bloom && <EffectComposer multisampling={Q.ms} enableNormalPass={false}>
+      {p.quality === 'high' ? <N8AO halfRes aoRadius={2.2} intensity={2.2} distanceFalloff={1} quality="performance" /> : <></>}
+      <Bloom mipmapBlur intensity={0.2 + night * 0.45} luminanceThreshold={0.92 - night * 0.12} luminanceSmoothing={0.2} radius={0.7} />
+      <HueSaturation saturation={-0.12} /><BrightnessContrast contrast={0.08} />
+      <Vignette offset={0.28} darkness={0.6 + night * 0.2} /></EffectComposer>}
   </Canvas>;
 }
