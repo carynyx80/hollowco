@@ -10,7 +10,7 @@ import { env } from './env.js';
 import { aiMode } from './ai.js';
 import { printfulMode } from './printful.js';
 import { createOrder, createMultiOrder, captureOrder, getOrder } from './paypal.js';
-import { createShop, fulfil, id, jailbreak, ledger, ledgerView, refreshPayouts, syncPayouts, startPayoutPoller } from './core.js';
+import { createShop, fulfil, id, jailbreak, ledger, ledgerView, splitTotals, refreshPayouts, syncPayouts, startPayoutPoller } from './core.js';
 import { toolkitToolNames, TOOLKIT_ACTIONS } from './agent.js';
 import { LIMITS } from './guardrails.js';
 import { checkShopQuota, takeAction, isDemo, SHOP_LIMITS } from './limits.js';
@@ -54,10 +54,10 @@ app.get('/me/dashboard', wrap(async (q: any, r: any) => {
   const events = v.events.filter((e: any) => e.shopId && ids.has(e.shopId)).slice(0, 100);
   const mine = new Set(v.events.filter((e: any) => e.orderId && ids.has(e.shopId)).map((e: any) => e.orderId));
   const orders = v.orders.filter((o: any) => mine.has(o.orderId));
-  const totals = orders.reduce((t: any, o: any) => ({ revenue: t.revenue + o.revenue, supplierCost: t.supplierCost + o.supplierCost, payouts: t.payouts + o.payouts, profit: t.profit + o.profit, orders: t.orders + 1 }), { revenue: 0, supplierCost: 0, payouts: 0, profit: 0, orders: 0 });
+  const { totals, simulatedTotals } = splitTotals(orders);
   const payouts = events.filter((e: any) => e.kind === 'payout' || (e.kind === 'rejected' && e.orderId));
   r.json({ user: auth.publicUser(u), shops: shops.map((s) => ({ id: s.id, name: s.name, tagline: s.tagline, logo: s.logo, colors: s.colors, createdAt: s.createdAt, products: s.products.filter((p: any) => !p.comingSoon).length,
-    revenue: orders.filter((o: any) => o.shop === s.name).reduce((a: number, o: any) => a + o.revenue, 0) })), totals, orders, payouts, events, jobs: [...jobs.entries()].filter(([, j]: any) => j.ownerId === u.id && j.status === 'running').map(([id, j]: any) => ({ id, log: j.log })) });
+    revenue: orders.filter((o: any) => o.shop === s.name && !o.test && !o.sim).reduce((a: number, o: any) => a + o.revenue, 0) })), totals, simulatedTotals, orders, payouts, events, jobs: [...jobs.entries()].filter(([, j]: any) => j.ownerId === u.id && j.status === 'running').map(([id, j]: any) => ({ id, log: j.log })) });
 }));
 // Per-account cart: auth required, keyed only by the session's user id.
 const noStore = (r: any) => r.set('Cache-Control', 'private, no-store');
@@ -219,15 +219,16 @@ let statsCache: { at: number; body: any } | null = null;
 app.get('/stats', wrap(async (_q: any, r: any) => {
   if (!statsCache || Date.now() - statsCache.at > 5000) {
     const [shops, rows] = await Promise.all([db.list('shops', 100000).then((x) => hidden.publicRows(x.map((r) => ({ ...r, data: { ...r.data, shopId: r.id } })))), db.list('ledger', 100000).then(hidden.publicRows)]);
-    const L = rows.map((x) => x.data); const real = (k: string) => L.filter((e) => e.kind === k && !e.sim);
+    const L = rows.map((x) => x.data); const v = await hidden.publicLedger(await ledgerView()); const fake = new Set(v.orders.filter((o: any) => o.test || o.sim).map((o: any) => o.orderId));
+    const real = (k: string) => L.filter((e) => e.kind === k && !e.sim && !e.test && !fake.has(e.orderId));
     const pay = real('payout'); const st = (e: any) => e.status || String(e.detail || '').split(' ')[2];
     const tools = L.filter((e) => e.kind === 'agent_tool'); const byTool: Record<string, number> = {};
     for (const t of tools) byTool[t.tool] = (byTool[t.tool] || 0) + 1;
     const round = (n: number) => Math.round(n * 100) / 100;
     statsCache = { at: Date.now(), body: {
       storesBuilt: shops.length, products: shops.reduce((n, s) => n + (s.data.products || []).filter((p: any) => !p.comingSoon).length, 0),
-      orders: real('revenue').length, simulatedOrders: L.filter((e) => e.kind === 'revenue' && e.sim).length,
-      sandboxRevenue: round(real('revenue').reduce((a, e) => a + Number(e.amount || 0), 0)),
+      orders: v.totals.orders, simulatedOrders: v.simulatedTotals.orders,
+      sandboxRevenue: v.totals.revenue, totals: v.totals, simulatedTotals: v.simulatedTotals,
       payoutsSent: pay.length, payoutsSentAmount: round(pay.reduce((a, e) => a + Number(e.amount || 0), 0)),
       payoutsSucceeded: pay.filter((e) => st(e) === 'SUCCESS').length, payoutsByStatus: pay.reduce((m: any, e) => (m[st(e)] = (m[st(e)] || 0) + 1, m), {}),
       guardrailBlocks: L.filter((e) => e.kind === 'rejected').length + tools.filter((t) => t.decision === 'blocked' && !t.jailbreak).length,
@@ -285,12 +286,12 @@ async function cityView() {
   const names = new Map<string, string>();
   for (const id of new Set(shops.map((r) => r.data.ownerId).filter(Boolean))) names.set(id, displayName(await db.get('users', id)));
   const rev = new Map<string, { r: number; n: number }>();
-  for (const o of v.orders) { const k = o.shop; const x = rev.get(k) || { r: 0, n: 0 }; x.r += o.revenue; x.n++; rev.set(k, x); }
+  for (const o of v.orders) { if (o.test || o.sim) continue; const k = o.shop; const x = rev.get(k) || { r: 0, n: 0 }; x.r += o.revenue; x.n++; rev.set(k, x); }
   const out = shops.filter((r) => plotOf.has(r.id)).map(({ id, data: s }) => { const live = (s.products || []).filter((p: any) => !p.comingSoon);
     return { id, name: s.name, tagline: s.tagline, logo: s.logo, colors: s.colors, owner: names.get(s.ownerId) || 'HollowCo', ownerId: s.ownerId, createdAt: s.createdAt, plot: plotOf.get(id), revenue: Math.round((rev.get(s.name)?.r || 0) * 100) / 100, orders: rev.get(s.name)?.n || 0,
       kinds: [...new Set(live.map((p: any) => p.kind))], products: live.length, minPrice: live.length ? Math.min(...live.map((p: any) => p.price)) : 0 }; })
     .sort((a, b) => a.plot.idx - b.plot.idx);
-  const body = { shops: out, districts: Object.entries(DISTRICTS).map(([id, d]) => ({ id, label: d.label, seed: d.seed })), totals: v.totals };
+  const body = { shops: out, districts: Object.entries(DISTRICTS).map(([id, d]) => ({ id, label: d.label, seed: d.seed })), totals: v.totals, simulatedTotals: v.simulatedTotals };
   cityCache = { at: Date.now(), body }; return body;
 }
 app.get('/city', wrap(async (_q: any, r: any) => {

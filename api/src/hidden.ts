@@ -4,6 +4,7 @@
 // table (written by POST /admin/hidden, guarded by ADMIN_SECRET), and throwaway test+…@example.com owners.
 import * as db from './db.js';
 import { env } from './env.js';
+import { splitTotals } from './core.js';
 
 const DEFAULT_HIDDEN = [
   'shop_2cc5e2b30267', 'shop_a1045913ac7e', 'shop_417da43283f6', // "Nurse…" limit-test shops (u_e77e737325315042)
@@ -62,8 +63,7 @@ export async function publicLedger(v: any) {
   const events = (v.events || []).filter((e: any) => !rowHidden(e, hid, hn));
   const badOrders = new Set((v.events || []).filter((e: any) => e.orderId && rowHidden(e, hid, hn)).map((e: any) => e.orderId));
   const orders = (v.orders || []).filter((o: any) => !badOrders.has(o.orderId));
-  const totals = orders.reduce((s: any, o: any) => ({ revenue: s.revenue + o.revenue, supplierCost: s.supplierCost + o.supplierCost, payouts: s.payouts + o.payouts, profit: s.profit + o.profit }), { revenue: 0, supplierCost: 0, payouts: 0, profit: 0 });
-  return { ...v, events, orders, totals };
+  return { ...v, events, orders, ...splitTotals(orders) };
 }
 export async function publicRows<T extends { data: any }>(rows: T[]): Promise<T[]> {
   const hid = await hiddenSet(); if (!hid.size) return rows; const hn = await hiddenNames(hid);

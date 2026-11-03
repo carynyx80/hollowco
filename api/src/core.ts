@@ -182,8 +182,7 @@ export async function ledgerView() {
     byOrder.set(r.orderId, o);
   }
   const orders = [...byOrder.values()].map((o) => ({ ...o, profit: Math.round((o.revenue - o.supplierCost - o.payouts) * 100) / 100 }));
-  const t = orders.reduce((s, o) => ({ revenue: s.revenue + o.revenue, supplierCost: s.supplierCost + o.supplierCost, payouts: s.payouts + o.payouts, profit: s.profit + o.profit }), { revenue: 0, supplierCost: 0, payouts: 0, profit: 0 });
-  return { totals: t, orders, events: rows, limits: LIMITS };
+  return { ...splitTotals(orders), orders, events: rows, limits: LIMITS };
 }
 
 // Reconcile PayPal Payouts that were PENDING when created. A denied/failed/returned payout is reversed on the ledger.
@@ -229,4 +228,11 @@ export async function syncPayouts(force = false) {
 export function startPayoutPoller(ms = 60_000) {
   const tick = () => syncPayouts().then((x) => x.length && console.log('payout sync', JSON.stringify(x))).catch((e) => console.error('payout sync', e.message));
   setTimeout(tick, 5000); setInterval(tick, ms);
+}
+
+/** One source of truth: headline totals count only real PayPal-sandbox orders. Test and simulated orders are reported separately. */
+export function splitTotals(orders: any[]) {
+  const sum = (xs: any[]) => { const t = xs.reduce((s, o) => ({ revenue: s.revenue + o.revenue, supplierCost: s.supplierCost + o.supplierCost, payouts: s.payouts + o.payouts, profit: s.profit + o.profit }), { revenue: 0, supplierCost: 0, payouts: 0, profit: 0 });
+    const r = (n: number) => Math.round(n * 100) / 100; return { revenue: r(t.revenue), supplierCost: r(t.supplierCost), payouts: r(t.payouts), profit: r(t.profit), orders: xs.length }; };
+  return { totals: sum(orders.filter((o) => !o.test && !o.sim)), simulatedTotals: sum(orders.filter((o) => o.test || o.sim)) };
 }
