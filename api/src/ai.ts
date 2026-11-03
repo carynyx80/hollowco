@@ -80,7 +80,8 @@ function mockSvg(seed: string, pal: string[], label: string) {
 }
 const WORDS = ['Ember', 'Fable', 'North', 'Quill', 'Orbit', 'Tidal', 'Mosaic', 'Lumen', 'Kettle', 'Harbor', 'Sprout', 'Atlas'];
 const PALS = [['#1F3A5F', '#F2A541', '#FDF6EC'], ['#2B2B2B', '#FF8A70', '#FBF8F2'], ['#0F5132', '#C9F27B', '#F4FFF0'], ['#4B1D52', '#F15BB5', '#FFF5FB'], ['#283618', '#DDA15E', '#FEFAE0']];
-export type Kind = 'ebook' | 'tshirt' | 'mug';
+export type Kind = 'ebook' | 'tshirt' | 'mug' | 'comingsoon';
+const KINDS = ['ebook', 'tshirt', 'mug', 'comingsoon'];
 export type Brand = { name: string; tagline: string; colors: string[]; style?: string; audience?: string; tone?: string; notes?: string[];
   products: { title: string; kind: Kind; price: number; description: string; topic: string; imagePrompt?: string }[] };
 // ---- Requirements extraction: the user's brief is the source of truth ----
@@ -90,25 +91,26 @@ const REQ_SCHEMA = { type: 'object', additionalProperties: false, required: ['na
   name: nul(STR), niche: nul(STR), audience: nul(STR), tone: nul(STR), tagline: nul(STR), style: nul(STR),
   colors: { type: 'array', items: STR, description: 'colours the user named, as words or hex' },
   productCount: nul(NUM), productTypes: { type: 'array', items: { type: 'string', enum: ['ebook', 'tshirt', 'mug'] } },
-  products: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['title', 'kind', 'price', 'details'], properties: { title: nul(STR), kind: nul({ type: 'string', enum: ['ebook', 'tshirt', 'mug'] }), price: nul(NUM), details: nul(STR) } } },
-  unsupported: { type: 'array', items: STR, description: 'things the user asked for that cannot be sold here (only ebook, tshirt, mug exist) and how they were mapped' },
+  products: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['title', 'kind', 'price', 'details'], properties: { title: nul(STR), kind: nul({ type: 'string', enum: KINDS }), price: nul(NUM), details: nul(STR) } } },
+  unsupported: { type: 'array', items: STR, description: 'titles of products the user asked for that are not ebook/tshirt/mug (they become coming-soon items)' },
   otherRequirements: { type: 'array', items: STR } } };
 const BRAND_SCHEMA = { type: 'object', additionalProperties: false, required: ['name', 'tagline', 'colors', 'style', 'audience', 'tone', 'products'], properties: {
   name: STR, tagline: STR, colors: { type: 'array', items: STR, description: '[primaryHex, accentHex, backgroundHex] as #RRGGBB' }, style: STR, audience: STR, tone: STR,
   products: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['title', 'kind', 'price', 'description', 'topic', 'imagePrompt'], properties: {
-    title: STR, kind: { type: 'string', enum: ['ebook', 'tshirt', 'mug'] }, price: NUM, description: STR, topic: STR, imagePrompt: { type: 'string', description: 'art direction for the product image/cover, in the user\'s described style and colours' } } } } } };
+    title: STR, kind: { type: 'string', enum: KINDS }, price: NUM, description: STR, topic: STR, imagePrompt: { type: 'string', description: 'art direction for the product image/cover, in the user\'s described style and colours' } } } } } };
 export type Reqs = { name: string | null; niche: string | null; audience: string | null; tone: string | null; tagline: string | null; style: string | null; colors: string[]; productCount: number | null; productTypes: Kind[];
   products: { title: string | null; kind: Kind | null; price: number | null; details: string | null }[]; unsupported: string[]; otherRequirements: string[] };
 const EXTRACT_SYS = `You extract EXPLICIT requirements from a store brief written by a shop owner. Only record what the user actually said or unambiguously implied; use null / [] for anything unspecified. Never invent.
 - name: exact store name if given (keep spelling/casing). tagline: exact if given.
-- products: one entry per product the user described, in order. Keep exact product names. price: the number the user gave (USD) or null. kind must be one of ebook | tshirt | mug (book/guide/e-book/pdf => ebook; shirt/tee/top/hoodie => tshirt; mug/cup => mug).
+- products: one entry per product the user described, in order. Keep exact product names. price: the number the user gave (USD) or null. kind must be one of ebook | tshirt | mug | comingsoon (book/guide/e-book/pdf => ebook; t-shirt/tee/shirt => tshirt; mug/cup => mug). ANY other product type (watch, hoodie, shoes, candle, poster, jewellery, etc.) => comingsoon; never map it to ebook/tshirt/mug. Keep the user's name and description.
 - productCount: total number of products if the user stated or listed them (e.g. "three mugs and an ebook" => 4), else null.
-- If the user asks for a product type that is not ebook/tshirt/mug, map it to the closest kind and describe the mapping in "unsupported".
+- For every comingsoon product, add its title to "unsupported". productTypes lists only ebook/tshirt/mug types the user asked for in general terms.
 - colors/style: the visual style words and colours the user named (e.g. "black and gold", "minimal", "retro").`;
 const PLAN_SYS = `You are the AI founder of a zero-employee company on HollowCo. You build EXACTLY the store the owner asked for.
 The owner's REQUIREMENTS (JSON) are binding and override your own taste:
-- Use the exact store name, product titles, prices, product kinds, product count, colours, style, audience, tone and tagline when given. Do not rename, add, drop, merge or reorder specified products.
-- Only invent what is unspecified (null/empty). If no product count/list is given, create 4 products (2 ebook, 1 tshirt, 1 mug) fitting the niche. Max 6 products.
+- Use the exact store name, product titles, prices, product kinds, product count, colours, style, audience, tone and tagline when given. Do not rename, add, drop, merge or reorder specified products. If the owner listed products, build ONLY those products — never add extras.
+- Products of kind comingsoon are types we cannot sell yet: keep the owner's title/description, price 0, and still write an imagePrompt showing that product.
+- Only invent products if the owner gave no product list at all: then create 3 products (ebook/tshirt/mug mix) fitting the niche, or exactly the count the owner stated. Max 6 products.
 - colors: 3 hex codes [primary, accent, background] that realise the owner's colours/style (e.g. black and gold => #0B0B0B, #D4AF37, #F7F1E1).
 - imagePrompt per product: concrete art direction in the owner's style and colours, depicting that specific product's theme.
 - Prices in USD. Tagline <= 60 chars. Descriptions <= 280 chars and faithful to any details the owner gave.`;
@@ -119,6 +121,7 @@ export function brandMismatches(b: Brand, q: Reqs): string[] {
   if (q.name && norm(b.name) !== norm(q.name)) m.push(`store name must be exactly "${q.name}" (got "${b.name}")`);
   if (q.tagline && norm(b.tagline) !== norm(q.tagline)) m.push(`tagline must be exactly "${q.tagline}"`);
   const want = q.productCount ?? (q.products.length || null);
+  if (!want && b.products.length > 3) m.push(`owner gave no product list: create at most 3 products (got ${b.products.length})`);
   if (want && b.products.length !== Math.min(6, want)) m.push(`must have exactly ${Math.min(6, want)} products (got ${b.products.length})`);
   q.products.forEach((rp, i) => {
     const got = rp.title ? b.products.find((p) => norm(p.title) === norm(rp.title)) : b.products[i];
@@ -141,6 +144,7 @@ function enforce(b: Brand, q: Reqs): Brand {
   });
   const want = q.productCount ?? (q.products.length || null);
   if (want && b.products.length > want) b.products = b.products.slice(0, want);
+  if (!want && b.products.length > 3) b.products = b.products.slice(0, 3);
   return b;
 }
 export async function extractRequirements(idea: string): Promise<Reqs> {
@@ -161,7 +165,7 @@ export async function founderBrand(idea: string, log: (s: string) => void = () =
         mm = brandMismatches(b, q);
         if (mm.length) b = enforce(b, q);
       } else log('Founder agent: plan matches your brief');
-      b.notes = q.unsupported.slice(0, 5);
+      b.notes = [];
       if (b?.name && Array.isArray(b.products) && b.products.length) return b;
     } catch (e) { console.warn('founderBrand failed, using mock:', (e as Error).message); }
   }
@@ -173,7 +177,6 @@ export async function founderBrand(idea: string, log: (s: string) => void = () =
     name, tagline: `${topic}, done by nobody, done well.`, colors: PALS[b[1] % PALS.length],
     products: [
       { title: `The ${kw[0]} Starter Guide`, kind: 'ebook', price: 7 + (b[2] % 6), description: `A practical, instantly-delivered guide to ${topic.toLowerCase()}.`, topic },
-      { title: `${kw[0]} in 30 Days`, kind: 'ebook', price: 12 + (b[3] % 8), description: `A day-by-day playbook for ${topic.toLowerCase()}.`, topic },
       { title: `${name} Tee`, kind: 'tshirt', price: 29 + (b[4] % 4), description: 'Soft cotton tee, printed on demand.', topic },
       { title: `${name} Mug`, kind: 'mug', price: 22 + (b[5] % 4), description: '11oz ceramic mug, printed on demand.', topic },
     ],

@@ -19,13 +19,19 @@ export async function createShop(idea: string, log: (s: string) => void = () => 
   const shopId = id('shop');
   log('Founder agent: drafting brand');
   const b = await ai.founderBrand(idea, log);
-  const notices: string[] = [...(b.notes || [])];
+  const notices: string[] = [];
   log(`Founder agent: brand "${b.name}" ready, briefing team`);
   const colors = (b.colors || []).filter((c) => /^#[0-9a-f]{6}$/i.test(c)).slice(0, 3);
   while (colors.length < 3) colors.push(['#2B2B2B', '#FF8A70', '#FBF8F2'][colors.length]);
-  await onPlan?.({ shopId, name: String(b.name).slice(0, 40), kinds: (b.products || []).slice(0, 6).map((p: any) => ['ebook', 'tshirt', 'mug'].includes(p.kind) ? p.kind : 'ebook'), color: colors[1], text: [idea, b.name, b.tagline, ...(b.products || []).map((p: any) => p.name)].join(' ') });
+  await onPlan?.({ shopId, name: String(b.name).slice(0, 40), kinds: (b.products || []).slice(0, 6).filter((p: any) => p.kind !== 'comingsoon').map((p: any) => ['ebook', 'tshirt', 'mug'].includes(p.kind) ? p.kind : 'ebook'), color: colors[1], text: [idea, b.name, b.tagline, ...(b.products || []).map((p: any) => p.name)].join(' ') });
   const logoP = ai.image(`Minimal flat vector logo symbol for "${b.name}", ${b.tagline}. Style: ${b.style || 'minimal'}. Colors ${colors.join(', ')}. No text.`, shopId + 'logo', colors).then(saveAsset);
   const products: any[] = await Promise.all((b.products || []).slice(0, 6).map(async (p: any) => {
+    if (p.kind === 'comingsoon') {
+      const pid = id('p');
+      log(`Designer agent: imagining "${p.title}" (coming soon)`);
+      const img = await ai.image(`Product photo of "${p.title}" by brand "${b.name}": ${p.imagePrompt || p.description || ''}. Style: ${b.style || 'clean, modern'}. Colours ${colors.join(', ')}.`, pid, colors);
+      return { id: pid, title: String(p.title).slice(0, 80), kind: 'comingsoon', digital: false, price: 0, comingSoon: true, description: String(p.description || '').slice(0, 300), image: await saveAsset(img) };
+    }
     const kind = ['ebook', 'tshirt', 'mug'].includes(p.kind) ? p.kind : 'ebook';
     const verdict = checkPrice(p.price);
     let price = Number(p.price);
@@ -50,13 +56,14 @@ export async function createShop(idea: string, log: (s: string) => void = () => 
     }
     return prod;
   }));
-  for (const n of notices) log('Accountant: ' + n);
+  const soon = products.filter((p) => p.comingSoon).map((p) => p.title);
+  if (soon.length) { const n = `Coming soon (we can't sell this product type yet, so it's shown with an image and no price): ${soon.map((t) => `"${t}"`).join(', ')}.`; notices.push(n); log('Founder agent: ' + n); }
+  for (const n of notices.filter((n) => !n.startsWith('Coming soon'))) log('Accountant: ' + n);
   log('Designer agent: logo');
   const logo = await logoP;
-  products.push({ id: id('p'), title: `${b.name} Watch`, kind: 'watch', digital: false, price: 0, comingSoon: true, description: 'Coming soon.' });
   const shop = { id: shopId, idea, name: String(b.name).slice(0, 40), tagline: String(b.tagline).slice(0, 80), colors, logo, products, notices, ownerId, aiMode: ai.aiMode(), createdAt: new Date().toISOString() };
   await db.put('shops', shopId, shop);
-  await ledger('shop_created', { shopId, shop: shop.name, agent: 'founder', detail: `${products.length - 1} products, AI=${shop.aiMode}` });
+  await ledger('shop_created', { shopId, shop: shop.name, agent: 'founder', detail: `${products.length} products, AI=${shop.aiMode}` });
   return shop;
 }
 async function paidToday() {

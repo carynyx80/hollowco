@@ -30,7 +30,9 @@ async function shopQuota(u: any) {
   const t = (s: any) => Date.parse(s.createdAt) || 0;
   return checkShopQuota(all.filter((s) => s.ownerId === u.id).map(t), all.map(t), isDemo(u));
 }
-const pub = (s: any) => s && ({ ...s, products: s.products.map(({ content, ...p }: any) => ({ ...p, preview: content ? content.slice(0, 400) : undefined })) });
+// Legacy auto-added '<Name> Watch' placeholders are hidden everywhere.
+const legacyWatch = (p: any) => p.comingSoon && p.kind === 'watch' && !p.image;
+const pub = (s: any) => s && ({ ...s, products: s.products.filter((p: any) => !legacyWatch(p)).map(({ content, ...p }: any) => ({ ...p, preview: content ? content.slice(0, 400) : undefined })) });
 
 app.get('/', (_q, r) => r.json({ name: 'HollowCo API', ok: true }));
 app.get('/health', (_q, r) => r.json({ ok: true, db: db.dbMode, ai: aiMode(), supplier: printfulMode(), paypalEnv: env('PAYPAL_ENV', 'sandbox'), paypalClientId: env('PAYPAL_CLIENT_ID'), limits: LIMITS }));
@@ -54,7 +56,7 @@ app.get('/me/dashboard', wrap(async (q: any, r: any) => {
   r.json({ user: auth.publicUser(u), shops: shops.map((s) => ({ id: s.id, name: s.name, tagline: s.tagline, logo: s.logo, colors: s.colors, createdAt: s.createdAt, products: s.products.filter((p: any) => !p.comingSoon).length,
     revenue: orders.filter((o: any) => o.shop === s.name).reduce((a: number, o: any) => a + o.revenue, 0) })), totals, orders, payouts, events, jobs: [...jobs.entries()].filter(([, j]: any) => j.ownerId === u.id && j.status === 'running').map(([id, j]: any) => ({ id, log: j.log })) });
 }));
-const CATS: Record<string, string> = { ebook: 'E-books', tshirt: 'T-shirts', mug: 'Mugs' };
+const CATS: Record<string, string> = { ebook: 'E-books', tshirt: 'T-shirts', mug: 'Mugs', comingsoon: 'Coming soon' };
 app.get('/marketplace', wrap(async (q: any, r: any) => {
   const term = String(q.query.q || '').toLowerCase().slice(0, 100), cat = String(q.query.category || '');
   const off = Math.max(0, Number(q.query.offset) || 0), lim = Math.min(48, Math.max(1, Number(q.query.limit) || 24));
@@ -65,7 +67,7 @@ app.get('/marketplace', wrap(async (q: any, r: any) => {
     if (term && !`${p.title} ${p.description} ${s.name}`.toLowerCase().includes(term)) continue;
     all.push({ id: p.id, shopId: s.id, shopName: s.name, shopLogo: s.logo, accent: s.colors?.[1], title: p.title, price: p.price, kind: p.kind, category: CATS[p.kind] || p.kind, digital: p.digital, image: p.image, description: p.description });
   }
-  r.json({ items: all.slice(off, off + lim), total: all.length, nextOffset: off + lim < all.length ? off + lim : null, categories: Object.entries(CATS).map(([id, label]) => ({ id, label })) });
+  r.json({ items: all.slice(off, off + lim), total: all.length, nextOffset: off + lim < all.length ? off + lim : null, categories: Object.entries(CATS).filter(([id]) => id !== 'comingsoon').map(([id, label]) => ({ id, label })) });
 }));
 app.get('/products/:shopId/:pid', wrap(async (q: any, r: any) => {
   const s = pub(await db.get('shops', q.params.shopId)); const p = s?.products.find((x: any) => x.id === q.params.pid);

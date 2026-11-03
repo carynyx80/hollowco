@@ -14,19 +14,20 @@ const ago = (s: string) => { const m = Math.round((Date.now() - new Date(s).getT
 const KIND: Record<string, string> = { shop_created: 'Opened shop', revenue: 'Sale', supplier_cost: 'Supplier order', payout: 'Agent payout', rejected: 'Guardrail blocked', capture_failed: 'Capture failed', payout_reversed: 'Payout reversed' };
 const cityEmit = (type: string, detail: any) => { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(type, { detail })); };
 export function DashboardView({ embedded = false }: { embedded?: boolean }) {
-  const [d, setD] = useState<any>(null); const [job, setJob] = useState<{ log: string[] } | null>(null);
+  const [built, setBuiltS] = useState<{ shopId: string; notices: string[] } | null>(() => { try { return JSON.parse(sessionStorage.getItem('hc:built') || 'null'); } catch { return null; } });
+  const setBuilt = (v: any) => { setBuiltS(v); try { v ? sessionStorage.setItem('hc:built', JSON.stringify(v)) : sessionStorage.removeItem('hc:built'); } catch {} }; const [d, setD] = useState<any>(null); const [job, setJob] = useState<{ log: string[] } | null>(null);
   const riseV = useRise();
   const toast = useToast(); const router = useRouter();
   const load = useCallback(() => api('/me/dashboard').then(setD).catch((e) => { if (e.status === 401) { if (embedded) cityEmit('city:need-auth', {}); else router.replace('/signin?next=/dashboard'); } }), [router]);
   useEffect(() => { load(); const t = setInterval(load, 5000); return () => clearInterval(t); }, [load]);
   async function build(idea: string) {
-    setJob({ log: ['Founder agent: reading your idea'] }); cityEmit('city:build', { active: true, log: 'Founder agent: reading your idea', idea });
+    setBuilt(null); setJob({ log: ['Founder agent: reading your idea'] }); cityEmit('city:build', { active: true, log: 'Founder agent: reading your idea', idea });
     try {
       const { id } = await api('/shops/jobs', { method: 'POST', body: JSON.stringify({ idea }) });
       for (;;) {
         await new Promise((r) => setTimeout(r, 1500));
         const j = await api(`/shops/jobs/${id}`); setJob({ log: j.log?.length ? j.log : ['Founder agent: reading your idea'] }); cityEmit('city:build', { active: true, log: j.log?.[j.log.length - 1] || 'Founder agent: reading your idea' });
-        if (j.status === 'done') { toast('Your new shop is open', 'ok'); for (const n of j.notices || []) toast(n, 'err'); setJob(null); cityEmit('city:build', { active: false, shopId: j.shopId }); await load(); if (!embedded) router.push(`/s/${j.shopId}`); return; }
+        if (j.status === 'done') { toast('Your new shop is open', 'ok'); for (const n of j.notices || []) toast(n, 'err'); setJob(null); setBuilt({ shopId: j.shopId, notices: j.notices || [] }); cityEmit('city:build', { active: false, shopId: j.shopId, stay: true }); await load(); return; }
         if (j.status === 'error') throw new Error(j.error || 'Build failed');
       }
     } catch (e: any) { toast(e.message, 'err'); setJob(null); cityEmit('city:build', { active: false }); }
@@ -63,6 +64,8 @@ export function DashboardView({ embedded = false }: { embedded?: boolean }) {
       </div>
       <div className="card p-6 flex flex-col">
         <p className="font-medium">Instruct your founder</p><p className="text-sm text-char/55 mb-4">Describe a business — by voice or text. It’ll be live in about a minute.</p>
+        {built && <div className="mb-4 rounded-xl border border-lime/40 bg-lime/10 p-4" data-testid="build-success"><p className="font-medium">✓ Your shop is built and open.</p>{built.notices.map((n, i) => <p key={i} className="mt-1 text-xs text-char/65">{n}</p>)}<a href={`/s/${built.shopId}`} className="btn-primary mt-3 inline-flex" data-testid="visit-building">Visit your building</a></div>}
+        <label htmlFor="build-prompt" className="block text-sm font-medium mb-1.5">Describe your store</label>
         <Composer onSubmit={build} busy={!!job} />
         {job && <ol className="mt-4 space-y-1.5 text-sm" data-testid="job-log">{job.log.map((l, i) => <li key={i} className={`flex gap-2 ${i === job.log.length - 1 ? 'text-char font-medium' : 'text-char/50'}`}><span>{i === job.log.length - 1 ? <span className="inline-block h-2 w-2 rounded-full bg-coral animate-pulse" /> : '✓'}</span>{l}</li>)}</ol>}
         {quota && <p data-testid="shop-quota" className="mt-3 text-xs opacity-70">{quota.blocked ? quota.blocked : `${quota.used} of ${quota.limit} shops built in the last 24 hours`}</p>}

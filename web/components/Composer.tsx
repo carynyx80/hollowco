@@ -12,7 +12,7 @@ export function Composer({ onSubmit, busy, placeholder }: { onSubmit: (t: string
   }
   const go = () => { if (text.trim().length >= 3 && !busy) { onSubmit(text.trim()); } };
   return <div className="rounded-lg border border-white/10 bg-black/30 focus-within:border-coral/70 focus-within:ring-4 focus-within:ring-coral/15 transition">
-    <textarea value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) go(); }} rows={6} maxLength={4000} disabled={busy}
+    <textarea id="build-prompt" aria-label="Describe your store" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) go(); }} rows={6} maxLength={4000} disabled={busy}
       placeholder={placeholder || 'Describe your store in as much detail as you like — name, products, prices, colours, audience, tone… e.g. “A store called Lagos Night Coffee selling a Midnight Brew mug for $24 and an e-book The Lagos Coffee Guide for $9.99, black and gold style”'} className="w-full resize-y bg-transparent p-4 text-[15px] outline-none placeholder:text-char/35" data-testid="composer" />
     <div className="flex items-center gap-2 px-3 pb-3">
       <button type="button" onClick={talk} disabled={!SR || busy} title={SR ? 'Speak your idea' : 'Voice input is not supported in this browser'}

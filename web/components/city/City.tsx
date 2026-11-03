@@ -105,7 +105,7 @@ export default function City({ lowPower = false, deep }: { lowPower?: boolean; d
   useEffect(() => { const p = sp.get('panel'); if (p === 'signin' || p === 'signup') setPanel({ k: p }); if (p === 'hq') openHq(); // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sp]);
   useEffect(() => {
-    const onBuild = (e: any) => { const d = e.detail; if (d.active) { setBuilding((b) => { if (!b) { setPanel(null); } return { log: d.log, at: b?.at || Date.now() }; }); } else { setBuilding(null); if (d.shopId) loadShops().then(() => { const s = shopsRef.current.find((x) => x.id === d.shopId); if (s) flyShop(s); }); } };
+    const onBuild = (e: any) => { const d = e.detail; if (d.active) { setBuilding((b) => { if (!b) { setPanel(null); } return { log: d.log, at: b?.at || Date.now() }; }); } else { setBuilding(null); if (d.shopId && d.stay) { loadShops().catch(() => {}); setPanel({ k: 'hq' }); } else if (d.shopId) loadShops().then(() => { const s = shopsRef.current.find((x) => x.id === d.shopId); if (s) flyShop(s); }); } };
     const need = () => setPanel({ k: 'signin' });
     window.addEventListener('city:build', onBuild); window.addEventListener('city:need-auth', need);
     return () => { window.removeEventListener('city:build', onBuild); window.removeEventListener('city:need-auth', need); };
@@ -204,7 +204,7 @@ function ShopPanel({ id, onProduct }: { id: string; onProduct: (pid: string) => 
   if (!s) return <div className="p-6 space-y-3"><div className="shimmer h-20" /><div className="grid grid-cols-2 gap-3">{[0, 1, 2, 3].map((i) => <div key={i} className="shimmer aspect-square" />)}</div></div>;
   if (s.error) return <p className="p-6">This building is closed.</p>;
   return <div className="p-6"><div className="flex items-center gap-4 pr-10"><img src={s.logo} alt="" className="h-14 w-14 rounded-xl object-cover" /><div><p className="eyebrow !text-[10px]">Shop · walk in</p><h2 className="font-display text-3xl leading-tight">{s.name}</h2><p className="text-sm text-char/55">{s.tagline}</p></div></div>
-    <div className="mt-5 grid grid-cols-2 gap-3" data-testid="shop-panel-products">{(s.products || []).map((p: any) => <button key={p.id} onClick={() => onProduct(p.id)} className="card lift overflow-hidden text-left"><img src={p.image} alt={p.title} className="aspect-square w-full object-cover" /><div className="p-3"><p className="text-sm font-medium line-clamp-2">{p.title}</p><p className="mt-1 text-sm font-semibold text-coral-600">{usd(p.price)}</p></div></button>)}</div>
+    <div className="mt-5 grid grid-cols-2 gap-3" data-testid="shop-panel-products">{(s.products || []).filter((p: any) => !(p.comingSoon && !p.image)).map((p: any) => <button key={p.id} onClick={() => onProduct(p.id)} className="card lift overflow-hidden text-left"><img src={p.image} alt={p.title} className="aspect-square w-full object-cover" /><div className="p-3"><p className="text-sm font-medium line-clamp-2">{p.title}</p>{p.comingSoon ? <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-char/60" data-testid="coming-soon">Coming soon</p> : <p className="mt-1 text-sm font-semibold text-coral-600">{usd(p.price)}</p>}</div></button>)}</div>
     <div className="mt-4 flex gap-3 text-xs"><Link href={`/office/${id}`} className="underline text-char/60">Step inside (Hollow Office)</Link></div></div>;
 }
 function ProductPanel({ shopId, pid, onBack }: { shopId: string; pid: string; onBack: () => void }) {
@@ -214,10 +214,10 @@ function ProductPanel({ shopId, pid, onBack }: { shopId: string; pid: string; on
   if (!d) return <div className="p-6 space-y-3"><div className="shimmer aspect-video" /><div className="shimmer h-8 w-2/3" /><div className="shimmer h-28" /></div>;
   const p = d.product;
   return <div className="p-6"><button onClick={onBack} className="text-xs text-char/55 hover:text-char">← {d.shop.name}</button>
-    <div className="mt-3 flex gap-4"><img src={p.image} alt={p.title} className="h-32 w-32 rounded-xl object-cover" /><div><span className="chip">{p.category}</span><h2 className="mt-2 text-xl font-semibold">{p.title}</h2><p className="text-2xl font-semibold text-coral-600">{usd(p.price)}</p></div></div>
+    <div className="mt-3 flex gap-4"><img src={p.image} alt={p.title} className="h-32 w-32 rounded-xl object-cover" /><div><span className="chip">{p.category}</span><h2 className="mt-2 text-xl font-semibold">{p.title}</h2>{p.comingSoon ? <p className="text-xl font-semibold uppercase tracking-wider text-char/60" data-testid="coming-soon">Coming soon</p> : <p className="text-2xl font-semibold text-coral-600">{usd(p.price)}</p>}</div></div>
     <p className="mt-4 text-sm text-char/65 line-clamp-4">{p.description}</p>
-    <div className="mt-5">{order ? <OrderResult order={order} /> : <PayButton shopId={shopId} productId={p.id} onDone={done} onError={(m) => toast(m, 'err')} />}</div>
-    <p className="mt-2 text-[11px] text-char/45">PayPal sandbox — sandbox account or test card (card form: set Country/Region to United States, use a US billing address, then “Pay now as guest”). Every real capture lights up the city.</p></div>;
+    {p.comingSoon ? <p className="mt-5 rounded-xl border border-white/[.08] px-4 py-3 text-sm text-char/70">Coming soon — this product isn’t available to buy yet.</p> : <><div className="mt-5">{order ? <OrderResult order={order} /> : <PayButton shopId={shopId} productId={p.id} onDone={done} onError={(m) => toast(m, 'err')} />}</div>
+    <p className="mt-2 text-[11px] text-char/45">PayPal sandbox — sandbox account or test card (card form: set Country/Region to United States, use a US billing address, then “Pay now as guest”). Every real capture lights up the city.</p></>}</div>;
 }
 function JailPanel({ busy, onSend }: { busy: boolean; onSend: (m: string) => void }) {
   const [m, setM] = useState(ATTACK);
