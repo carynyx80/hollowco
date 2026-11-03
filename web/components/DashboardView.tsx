@@ -52,7 +52,7 @@ export function DashboardView({ embedded = false }: { embedded?: boolean }) {
     <motion.section variants={riseV} className="grid lg:grid-cols-[1fr_1.35fr] gap-5 items-stretch">
       <div className="card p-6 flex flex-col gap-5" data-testid="founder">
         <div className="flex items-center gap-4"><Ring size={60} pulse /><div><p className="text-lg font-medium">Your AI founder</p>
-          <p className="text-xs text-char/60 flex items-center gap-1.5 mt-0.5"><span className={`h-1.5 w-1.5 rounded-full ${status === 'working' ? 'bg-coral animate-pulse' : 'bg-emerald-400'}`} />{status === 'working' ? 'building a company…' : 'online · ready for instructions'}</p></div></div>
+          <p className="text-xs text-char/60 flex items-center gap-1.5 mt-0.5"><span className={`h-1.5 w-1.5 rounded-full ${status === 'working' ? 'bg-coral animate-pulse' : 'bg-lime'}`} />{status === 'working' ? 'building a company…' : 'online · ready for instructions'}</p></div></div>
         <div className="grid grid-cols-3 gap-2.5 text-center">
           {[['Companies', d?.shops?.length], ['Orders', t?.orders], ['Profit', t && usd(t.profit)]].map(([k, v]) => <div key={k as string} className="rounded-xl bg-black/25 border border-white/[.06] p-3"><p className="text-lg font-semibold tabular-nums">{v ?? '–'}</p><p className="text-[11px] text-char/50">{k}</p></div>)}
         </div>
@@ -86,18 +86,18 @@ export function DashboardView({ embedded = false }: { embedded?: boolean }) {
       <div className="card p-5"><h2 className="font-medium mb-3">Sales</h2>
         {!d ? <div className="skeleton h-24" /> : d.orders.length === 0 ? <p className="text-sm text-char/50 py-6 text-center">No sales yet — share a product link from the marketplace.</p>
           : <table className="w-full text-sm"><thead><tr className="text-left text-xs text-char/45"><th className="pb-2 font-normal">Shop</th><th className="font-normal">When</th><th className="font-normal text-right">Revenue</th><th className="font-normal text-right">Profit</th></tr></thead>
-            <tbody>{d.orders.slice(0, 8).map((o: any) => <tr key={o.orderId} className="border-t border-line"><td className="py-2">{o.shop}{o.sim ? <span className="ml-1.5 text-[10px] rounded-full px-1.5 py-0.5 bg-cyan/10 text-cyan">simulated</span> : o.test && <span className="ml-1 text-[10px] text-char/40">test</span>}</td><td className="text-char/50">{ago(o.at)}</td><td className="text-right tabular-nums">{usd(o.revenue)}</td><td className={`text-right tabular-nums font-medium ${o.profit < 0 ? 'text-red-400' : 'text-emerald-400'}`}>{usd(o.profit)}</td></tr>)}</tbody></table>}
+            <tbody>{d.orders.slice(0, 8).map((o: any) => <tr key={o.orderId} className="border-t border-line"><td className="py-2">{o.shop}{o.sim ? <span className="ml-1.5 text-[10px] rounded-full px-1.5 py-0.5 bg-cyan/10 text-cyan">simulated</span> : o.test && <span className="ml-1 text-[10px] text-char/40">test</span>}</td><td className="text-char/50">{ago(o.at)}</td><td className="text-right tabular-nums">{usd(o.revenue)}</td><td className={`text-right tabular-nums font-medium ${o.profit < 0 ? 'text-red-400' : 'text-lime'}`}>{usd(o.profit)}</td></tr>)}</tbody></table>}
       </div>
       <div className="card p-5"><h2 className="font-medium mb-3">Agent payouts</h2>
         {!d ? <div className="skeleton h-24" /> : d.payouts.length === 0 ? <p className="text-sm text-char/50 py-6 text-center">Payouts appear here after your first sale.</p>
           : <ul className="space-y-2 text-sm">{d.payouts.slice(0, 8).map((p: any, i: number) => <li key={i} className="flex items-center gap-3 border-t border-line pt-2 first:border-0 first:pt-0">
-            <span className={`h-2 w-2 rounded-full ${p.kind === 'payout' ? 'bg-emerald-500' : 'bg-red-500'}`} /><span className="flex-1">{p.kind === 'payout' ? `${p.agent} agent` : 'Blocked proposal'} <span className="text-char/45">· {p.shop}</span></span><span className="tabular-nums">{p.kind === 'payout' ? usd(p.amount) : ''}</span></li>)}</ul>}
+            <span className={`h-2 w-2 rounded-full ${p.kind === 'payout' ? 'bg-lime' : 'bg-red-500'}`} /><span className="flex-1">{p.kind === 'payout' ? `${p.agent} agent` : 'Blocked proposal'} <span className="text-char/45">· {p.shop}</span></span><span className="tabular-nums">{p.kind === 'payout' ? usd(p.amount) : ''}</span></li>)}</ul>}
       </div>
     </motion.section>
     <motion.section variants={riseV} className="card p-5"><div className="flex items-center justify-between mb-3"><h2 className="font-semibold">Agent activity</h2><Link href="/ledger" className="text-xs text-char/55">Full public ledger →</Link></div>
       {!d ? <div className="skeleton h-32" /> : d.events.length === 0 ? <p className="text-sm text-char/50 py-6 text-center">Your agents haven’t done anything yet.</p>
         : <ul className="divide-y divide-line text-sm" data-testid="activity">{d.events.slice(0, 15).map((e: any, i: number) => <li key={i} className="py-2.5 flex gap-3 items-baseline">
-          <span className={`text-[11px] font-medium rounded-full px-2 py-0.5 shrink-0 ${e.kind === 'rejected' ? 'bg-red-400/10 text-red-300' : e.kind === 'revenue' ? 'bg-emerald-400/10 text-emerald-300' : 'bg-white/[.06]'}`}>{KIND[e.kind] || e.kind}</span>
+          <span className={`text-[11px] font-medium rounded-full px-2 py-0.5 shrink-0 ${e.kind === 'rejected' ? 'bg-red-400/10 text-red-300' : e.kind === 'revenue' ? 'bg-lime/10 text-lime' : 'bg-white/[.06]'}`}>{KIND[e.kind] || e.kind}</span>
           <span className="flex-1 min-w-0 truncate text-char/70">{e.shop}{e.amount != null && ` · ${usd(e.amount)}`}{e.reasons ? ` — ${e.reasons.join('; ')}` : e.detail ? ` — ${e.detail}` : ''}</span><span className="text-xs text-char/40 shrink-0">{ago(e.at)}</span></li>)}</ul>}
     </motion.section>
   </motion.div>;

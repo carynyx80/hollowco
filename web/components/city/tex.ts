@@ -58,7 +58,7 @@ export function signTex(id: string, name: string, owner: string, accent: string,
   const c = document.createElement('canvas'); c.width = 1024; c.height = 320; const g = c.getContext('2d')!;
   const draw = (img?: HTMLImageElement) => {
     g.clearRect(0, 0, 1024, 320); const r = 36;
-    g.fillStyle = '#0b0b14'; g.beginPath(); g.roundRect(8, 8, 1008, 304, r); g.fill();
+    g.fillStyle = '#0d0c0a'; g.beginPath(); g.roundRect(8, 8, 1008, 304, r); g.fill();
     g.lineWidth = 10; g.strokeStyle = accent; g.shadowColor = accent; g.shadowBlur = 24; g.beginPath(); g.roundRect(14, 14, 996, 292, r - 6); g.stroke(); g.shadowBlur = 0;
     if (img) { g.save(); g.beginPath(); g.roundRect(40, 40, 240, 240, 28); g.clip(); g.drawImage(img, 40, 40, 240, 240); g.restore(); } else { g.fillStyle = accent; g.globalAlpha = 0.25; g.beginPath(); g.roundRect(40, 40, 240, 240, 28); g.fill(); g.globalAlpha = 1; }
     let fs = 96; g.font = `700 ${fs}px Inter, system-ui, sans-serif`; while (g.measureText(name).width > 680 && fs > 40) { fs -= 4; g.font = `700 ${fs}px Inter, system-ui, sans-serif`; }

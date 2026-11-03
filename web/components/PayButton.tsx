@@ -41,9 +41,9 @@ export function PayButton({ shopId, productId, onDone, onError }: { shopId: stri
 }
 export function Receipt({ order }: { order: any }) {
   const ok = order.status === 'COMPLETED';
-  return <div className={`card overflow-hidden ${ok ? 'border-emerald-400/25' : 'border-red-400/25'}`} data-testid="receipt">
-    <div className={`px-6 py-5 flex items-center gap-4 ${ok ? 'bg-emerald-400/[.07]' : 'bg-red-500/[.07]'}`}>
-      <span className={`grid h-11 w-11 place-items-center rounded-full text-lg ${ok ? 'bg-emerald-400 text-ink' : 'bg-red-400 text-ink'}`}>{ok ? '✓' : '!'}</span>
+  return <div className={`card overflow-hidden ${ok ? 'border-lime/25' : 'border-red-400/25'}`} data-testid="receipt">
+    <div className={`px-6 py-5 flex items-center gap-4 ${ok ? 'bg-lime/[.07]' : 'bg-red-500/[.07]'}`}>
+      <span className={`grid h-11 w-11 place-items-center rounded-full text-lg ${ok ? 'bg-lime text-ink' : 'bg-red-400 text-ink'}`}>{ok ? '✓' : '!'}</span>
       <div className="min-w-0"><p className="font-display text-2xl">{ok ? 'Payment complete' : order.status === 'APPROVED' || order.status === 'CREATED' ? 'Payment pending' : 'Payment failed'}</p>
         <p className="text-xs text-char/55">{order.simulated ? 'SIMULATED order — no money moved' : `PayPal sandbox · ${order.paymentSource || 'paypal'}`}{order.payer?.email ? ` · ${order.payer.email}` : ''}</p></div>
       <span className="ml-auto text-2xl font-semibold tabular-nums">{usd(order.total)}</span>
