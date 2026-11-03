@@ -341,7 +341,7 @@ function decisionsFrom(v: any) {
     const reasons = ev.filter((e: any) => e.orderId === o.orderId && e.kind === 'payout').map((e: any) => `${e.agent} $${f(e.amount)}${e.reason ? ` — “${String(e.reason).slice(0, 90)}”` : ''}`);
     const blocked = ev.filter((e: any) => e.orderId === o.orderId && e.kind === 'rejected').map((e: any) => (e.reasons || []).join('; ')).filter(Boolean);
     const d: any = live.get(o.orderId); const margin = o.revenue - o.fees - o.supplierCost;
-    return { at: o.at, shop: o.shop, live: !!d, detail: d?.detail || `Revenue $${f(o.revenue)} − PayPal fee $${f(o.fees)} − supplier $${f(o.supplierCost)} = margin $${f(margin)}. Staff budget cap ${LIMITS.maxPayoutPctOfRevenue * 100}% of margin. Paid staff $${f(o.payouts)}; company keeps $${f(o.profit)} (${Math.round((o.profit / o.revenue) * 100)}% net).`, payouts: reasons, blocked };
+    return { at: o.at, shopId: o.shopId, shop: o.shop, refunded: o.refunds || 0, live: !!d, detail: d?.detail || `Revenue $${f(o.revenue)} − PayPal fee $${f(o.fees)} − supplier $${f(o.supplierCost)} = margin $${f(margin)}. Staff budget cap ${LIMITS.maxPayoutPctOfRevenue * 100}% of margin. Paid staff $${f(o.payouts)}; company keeps $${f(o.profit)} (${Math.round((o.profit / o.revenue) * 100)}% net).`, payouts: reasons, blocked };
   });
 }
 let econCache: { at: number; body: any } | null = null; let feesBackfilled = false;
@@ -349,9 +349,11 @@ app.get('/economics', wrap(async (_q: any, r: any) => {
   if (!feesBackfilled) { feesBackfilled = true; await backfillFees().catch((e) => console.error('fees', e.message)); }
   if (!econCache || Date.now() - econCache.at > 10000) {
     const v = await hidden.publicLedger(await ledgerView());
-    const stores = storeEconomics(v.orders); const t = v.totals;
+    const names = new Map((await db.list('shops', 5000)).map((x: any) => [x.data.id, x.data.name]));
+    const named = (x: any) => ({ ...x, shop: x.shop || names.get(x.shopId) || x.shop });
+    const stores = storeEconomics(v.orders).map(named); const t = v.totals;
     econCache = { at: Date.now(), body: { source: 'ledger (real PayPal sandbox captures only; simulated and test orders excluded)', totals: { ...t, margin: t.revenue ? Math.round((t.profit / t.revenue) * 1000) / 10 : 0, aov: t.orders ? Math.round((t.revenue / t.orders) * 100) / 100 : 0 }, stores: stores.slice(0, 20),
-      decisions: decisionsFrom(v) } };
+      decisions: decisionsFrom(v).map(named) } };
   }
   r.setHeader('Cache-Control', 'no-store'); r.json(econCache.body);
 }));

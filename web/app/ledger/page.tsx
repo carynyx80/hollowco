@@ -26,7 +26,7 @@ function OrderCards({ rows, empty }: { rows: any[]; empty: string }) {
     <div className="mt-1 flex justify-between text-xs text-char/60"><span>{when(o.at)}</span><span>fee {money(o.fees)} · supplier {money(o.supplierCost)} · staff {money(o.payouts)} · <b className={o.profit >= 0 ? 'text-[#4F7A47]' : 'text-[#A6452F]'}>profit {money(o.profit)}</b></span></div></li>)}</ul>;
 }
 export default function Ledger() {
-  const [d, setD] = useState<any>(null); const mobile = useMobile(); const [showSim, setShowSim] = useState(false);
+  const [d, setD] = useState<any>(null); const mobile = useMobile(); const [mShow, setMShow] = useState(15); const [showSim, setShowSim] = useState(false);
   const load = useCallback(() => api('/ledger').then(setD).catch(() => {}), []);
   useEffect(() => { load(); const t = setInterval(load, 5000); return () => clearInterval(t); }, [load]);
   const t = d?.totals; const st = d?.simulatedTotals;
@@ -46,9 +46,9 @@ export default function Ledger() {
       <AgentProof />
       <section><h2 className="font-semibold mb-2">Event log (incl. blocked proposals and PayPal Agent Toolkit calls)</h2>
         <label className="text-xs text-char/60 flex items-center gap-2 mb-2"><input type="checkbox" checked={showSim} onChange={(e) => setShowSim(e.target.checked)} /> Include test / simulated rows</label>
-        {mobile ? (d ? <ul className="space-y-2">{[...events].sort((a: any, b: any) => String(b.at).localeCompare(String(a.at))).slice(0, 80).map((e: any, i: number) => <li key={i} className="rounded-md border border-black/[.08] bg-white p-3 text-xs">
+        {mobile ? (d ? <><ul className="space-y-2">{[...events].sort((a: any, b: any) => String(b.at).localeCompare(String(a.at))).slice(0, mShow).map((e: any, i: number) => <li key={i} className="rounded-md border border-black/[.08] bg-white p-3 text-xs">
           <div className="flex justify-between gap-2"><span className={`font-mono uppercase ${e.kind === 'rejected' ? 'text-[#A6452F]' : e.kind === 'agent_tool' ? 'text-brass' : 'text-char/70'}`}>{e.kind}{(e.sim || e.test) && ' · sim'}</span><span className="text-char/60">{when(e.at)}</span></div>
-          <div className="mt-1"><b>{e.shop}</b>{e.amount != null && <span className="tabular-nums"> {money(e.amount)}</span>}</div><div className="text-char/60 break-words">{detail(e)}</div></li>)}</ul> : <Skel h={300} />)
+          <div className="mt-1"><b>{e.shop}</b>{e.amount != null && <span className="tabular-nums"> {money(e.amount)}</span>}</div><div className="text-char/60 break-words">{detail(e)}</div></li>)}</ul>{events.length > mShow && <button className="btn w-full h-11 mt-3 hover:bg-black/[.04]" onClick={() => setMShow((n) => n + 20)}>Show 20 more entries ({events.length - mShow} left)</button>}</> : <Skel h={300} />)
           : grid(events, [
           { field: 'at', headerName: 'Time', sort: 'desc', width: 150, valueFormatter: time }, { field: 'kind', width: 130, cellStyle: (p: any) => (p.value === 'rejected' ? { color: '#A6452F', fontWeight: 700 } : p.value === 'agent_tool' ? { color: '#8C6F3C', fontWeight: 700 } : null) },
           { field: 'shop', width: 200, tooltipField: 'shop' }, { field: 'agent', width: 100 }, { field: 'amount', valueFormatter: usd, width: 100 },
