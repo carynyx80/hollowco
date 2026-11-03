@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, usd, thumb } from '@/lib/api';
 import { Progress } from '@/components/cart/Progress';
 import { useCart, cart as gcart } from '@/lib/cart';
+import { createPortal } from 'react-dom';
 
 type Prod = { id: string; title: string; kind: string; digital: boolean; price: number; comingSoon?: boolean; description?: string; image?: string };
 type Shop = { id: string; name: string; tagline?: string; logo?: string; owner?: string; products: Prod[] };
@@ -74,7 +75,8 @@ export function Catalogue({ shopId, initialProduct, onClose }: { shopId: string;
   else body = <Progress orderId={screen.orderId} ppId={screen.ppId} onDone={onClose} />;
 
   const title = screen.k === 'product' ? 'Details' : screen.k === 'progress' ? 'Order' : null;
-  return <motion.div className="cat-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }} data-testid="catalogue">
+  if (typeof document === 'undefined') return null;
+  return createPortal(<motion.div className="cat-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }} data-testid="catalogue">
     <motion.div ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`${shop?.name || 'Shop'} catalogue`} className="cat-panel" initial={{ y: 40, scale: .97, opacity: 0 }} animate={{ y: 0, scale: 1, opacity: 1, transition: { type: 'spring', stiffness: 300, damping: 30 } }} exit={{ y: 30, opacity: 0, transition: { duration: .2 } }}>
       <header className="cat-top">
         <button className="cat-ic" onClick={back} aria-label={screen.k === 'product' ? 'Back' : 'Close catalogue'} data-testid="cat-back"><Ic d={screen.k === 'product' ? I.back : I.x} /></button>
@@ -88,7 +90,7 @@ export function Catalogue({ shopId, initialProduct, onClose }: { shopId: string;
       </nav>}
       <AnimatePresence>{toast && <motion.div className="cat-toast" role="status" initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 10, opacity: 0 }} data-testid="cat-toast"><Ic d={I.check} />{toast}</motion.div>}</AnimatePresence>
     </motion.div>
-  </motion.div>;
+  </motion.div>, document.body);
 }
 
 function Qty({ v, set, min = 1 }: { v: number; set: (n: number) => void; min?: number }) {

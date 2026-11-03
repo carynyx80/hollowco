@@ -136,7 +136,7 @@ h1.font-display, .font-display.text-4xl, .font-display.text-5xl { font-weight: 5
 .city-loading-meta{margin-top:12px;font-family:'Inter Tight',sans-serif;font-size:12px;color:rgba(14,13,11,.6)}
 
 /* ---- The Catalogue (cream editorial shop panel) ---- */
-.cat-overlay { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(8,7,5,.45); backdrop-filter: blur(14px) brightness(.7); -webkit-backdrop-filter: blur(14px) brightness(.7); }
+.cat-overlay { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; background: rgba(8,7,5,.45); backdrop-filter: blur(14px) brightness(.7); -webkit-backdrop-filter: blur(14px) brightness(.7); }
 .cat-panel { --cream:#F9F8F5; --plate:#ECEAE3; --ink:#0E0D0B; --brass:#B8975A; --brassd:#8C6F3C; --mute:#8A857B; position: relative; width: 410px; height: min(860px, calc(100vh - 2.5rem)); background: var(--cream); color: var(--ink); border-radius: 40px; overflow: hidden; box-shadow: 0 40px 90px rgba(0,0,0,.55), 0 0 0 8px #16140f, 0 0 0 9px #3a352b; font-family: var(--font-ui), sans-serif; color-scheme: light; outline: none; display: flex; flex-direction: column; }
 @media (max-width: 640px) { .cat-panel { width: 100vw; height: 100dvh; border-radius: 0; box-shadow: none; } }
 .cat-panel svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
@@ -236,7 +236,7 @@ h1.font-display, .font-display.text-4xl, .font-display.text-5xl { font-weight: 5
 .cat-entry-btn { flex-shrink: 0; height: 44px; padding: 0 18px; border-radius: 22px; background: #0E0D0B; color: #F9F8F5; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; transition: transform .15s; } .cat-entry-btn:hover { transform: translateY(-1px); }
 
 /* ---- Global cart ---- */
-.hc-cart-overlay { z-index: 70; --cream:#F9F8F5; --plate:#ECEAE3; --ink:#0E0D0B; --brass:#B8975A; --brassd:#8C6F3C; --mute:#8A857B; font-family: var(--font-ui), sans-serif; color: #0E0D0B; color-scheme: light; }
+.hc-cart-overlay { z-index: 90; --cream:#F9F8F5; --plate:#ECEAE3; --ink:#0E0D0B; --brass:#B8975A; --brassd:#8C6F3C; --mute:#8A857B; font-family: var(--font-ui), sans-serif; color: #0E0D0B; color-scheme: light; }
 .hc-cartbtn { position: relative; display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 999px; background: #ECEAE3; color: #0E0D0B; border: 1px solid rgba(14,13,11,.08); transition: background .2s, transform .2s; }
 .hc-cartbtn:hover { background: #E2DFD6; } .hc-cartbtn:active { transform: scale(.96); }
 .hc-cartbtn svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
