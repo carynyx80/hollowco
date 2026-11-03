@@ -78,7 +78,7 @@ app.post('/shops/jobs', wrap(async (q: any, r: any) => {
   const jid = 'job_' + Math.random().toString(36).slice(2, 12); const j: any = { status: 'running', log: [], started: Date.now(), ownerId: owner.id }; jobs.set(jid, j);
   j.owner = displayName(owner);
   createShop(q.body.idea, (s) => { j.log.push(s); console.log(s); }, owner.id, async (p) => { j.plan = { shopId: p.shopId, name: p.name, plot: await assignPlot(p.shopId, p.kinds, p.color, p.text) }; })
-    .then((s: any) => { j.status = 'done'; j.shopId = s.id; cityCache = null; }).catch((e: any) => { j.status = 'error'; j.error = e.message; if (j.plan) releasePlot(j.plan.shopId).catch(() => {}); });
+    .then((s: any) => { j.status = 'done'; j.shopId = s.id; j.notices = s.notices || []; cityCache = null; }).catch((e: any) => { j.status = 'error'; j.error = e.message; if (j.plan) releasePlot(j.plan.shopId).catch(() => {}); });
   setTimeout(() => jobs.delete(jid), 3600_000); r.json({ id: jid });
 }));
 app.get('/shops/jobs/:id', (q: any, r: any) => { const j = jobs.get(q.params.id); j ? r.json({ ...j, elapsedMs: Date.now() - j.started }) : r.status(404).json({ error: 'not found' }); });

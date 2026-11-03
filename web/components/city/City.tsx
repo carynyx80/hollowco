@@ -163,7 +163,6 @@ export default function City({ lowPower = false, deep }: { lowPower?: boolean; d
         <button onClick={() => setPanel({ k: 'jail' })} className="btn-ghost h-10 text-sm" data-testid="city-jail">🔓 Jailbreak</button>
         {user ? <button onClick={openHq} className="btn-coral h-10 text-sm" data-testid="city-hq">★ Fly into my HQ</button> : <button onClick={() => setPanel({ k: 'signin' })} className="btn-coral h-10 text-sm" data-testid="city-signin">Sign in</button>}
         <button onClick={() => { setSound((s) => !s); if (!sound) blip(660); }} className="btn-ghost h-10 w-10 !px-0 text-sm" aria-label={sound ? 'Mute' : 'Sound on'} title="Ambient sound">{sound ? '🔊' : '🔈'}</button>
-        <Link href="/classic" className="btn-ghost h-10 text-xs" data-testid="list-view">☰ List view</Link>
       </div>
     </motion.div>
     <AnimatePresence>{hint && !panel && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-full bg-black/40 px-4 py-1.5 text-xs text-char/70 backdrop-blur md:top-8">Every building is a store an AI built · click one to walk in and shop · drag to orbit, scroll to zoom</motion.p>}</AnimatePresence>
@@ -193,7 +192,7 @@ export default function City({ lowPower = false, deep }: { lowPower?: boolean; d
       {panel.k === 'shop' && <ShopPanel id={panel.id} onProduct={(pid) => setPanel({ k: 'product', shopId: panel.id, pid })} />}
       {panel.k === 'product' && <ProductPanel shopId={panel.shopId} pid={panel.pid} onBack={() => setPanel({ k: 'shop', id: panel.shopId })} />}
       {panel.k === 'jail' && <JailPanel busy={busy === 'jail'} onSend={jailbreak} />}
-      {panel.k === 'about' && <div className="p-7"><p className="eyebrow">The beacon</p><h2 className="font-display text-4xl mt-1">A city with <span className="italic text-iris">nobody</span> in it.</h2><p className="mt-3 text-sm text-char/65 leading-relaxed">Every building is a real company opened by an AI founder from one sentence. Its founder, writer and designer walk the block. Gold light is a real PayPal capture, green is an agent payout, orange is a Printful cost heading for the dock. When an AI tries to break the rules, the guard towers fire — code, not the model, decides what money moves.</p><div className="mt-5 flex gap-2">{user ? <button onClick={openHq} className="btn-primary">Fly into my HQ</button> : <button onClick={() => setPanel({ k: 'signup' })} className="btn-primary">Found a company — free</button>}<Link href="/classic" className="btn-ghost">List view</Link></div></div>}
+      {panel.k === 'about' && <div className="p-7"><p className="eyebrow">The beacon</p><h2 className="font-display text-4xl mt-1">A city with <span className="italic text-iris">nobody</span> in it.</h2><p className="mt-3 text-sm text-char/65 leading-relaxed">Every building is a real company opened by an AI founder from one sentence. Its founder, writer and designer walk the block. Gold light is a real PayPal capture, green is an agent payout, orange is a Printful cost heading for the dock. When an AI tries to break the rules, the guard towers fire — code, not the model, decides what money moves.</p><div className="mt-5 flex gap-2">{user ? <button onClick={openHq} className="btn-primary">Fly into my HQ</button> : <button onClick={() => setPanel({ k: 'signup' })} className="btn-primary">Found a company — free</button>}</div></div>}
     </motion.aside>}</AnimatePresence>
   </div>;
 }
@@ -204,7 +203,7 @@ function ShopPanel({ id, onProduct }: { id: string; onProduct: (pid: string) => 
   if (s.error) return <p className="p-6">This building is closed.</p>;
   return <div className="p-6"><div className="flex items-center gap-4 pr-10"><img src={s.logo} alt="" className="h-14 w-14 rounded-xl object-cover" /><div><p className="eyebrow !text-[10px]">Shop · walk in</p><h2 className="font-display text-3xl leading-tight">{s.name}</h2><p className="text-sm text-char/55">{s.tagline}</p></div></div>
     <div className="mt-5 grid grid-cols-2 gap-3" data-testid="shop-panel-products">{(s.products || []).map((p: any) => <button key={p.id} onClick={() => onProduct(p.id)} className="card lift overflow-hidden text-left"><img src={p.image} alt={p.title} className="aspect-square w-full object-cover" /><div className="p-3"><p className="text-sm font-medium line-clamp-2">{p.title}</p><p className="mt-1 text-sm font-semibold text-iris">{usd(p.price)}</p></div></button>)}</div>
-    <div className="mt-4 flex gap-3 text-xs"><Link href={`/shop/${id}`} className="underline text-char/60">Open classic shop page</Link><Link href={`/office/${id}`} className="underline text-char/60">Step inside (Hollow Office)</Link></div></div>;
+    <div className="mt-4 flex gap-3 text-xs"><Link href={`/office/${id}`} className="underline text-char/60">Step inside (Hollow Office)</Link></div></div>;
 }
 function ProductPanel({ shopId, pid, onBack }: { shopId: string; pid: string; onBack: () => void }) {
   const [d, setD] = useState<any>(null); const [order, setOrder] = useState<any>(null); const router = useRouter(); const toast = useToast();

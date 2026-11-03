@@ -1,4 +1,4 @@
 'use client';
 import { CityGate } from '@/components/city/CityGate';
-import { ClassicMarketplace } from '@/components/classic/ClassicMarketplace';
-export default function Home() { return <CityGate fallback={<ClassicMarketplace />} />; }
+// The marketplace IS the city.
+export default function Home() { return <CityGate />; }

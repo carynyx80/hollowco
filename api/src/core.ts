@@ -14,16 +14,17 @@ async function saveAsset(img: { mime: string; data: Buffer; provider: string }) 
   const aid = id('a'); await db.put('assets', aid, { mime: img.mime, b64: img.data.toString('base64'), provider: img.provider }); return `${publicBase()}/assets/${aid}`;
 }
 export async function createShop(idea: string, log: (s: string) => void = () => {}, ownerId?: string, onPlan?: (p: { shopId: string; name: string; kinds: string[]; color: string; text?: string }) => Promise<any> | void) {
-  idea = String(idea || '').slice(0, 500).trim();
+  idea = String(idea || '').slice(0, 4000).trim();
   if (idea.length < 3) throw new Error('Tell the founder a business idea first.');
   const shopId = id('shop');
   log('Founder agent: drafting brand');
-  const b = await ai.founderBrand(idea);
+  const b = await ai.founderBrand(idea, log);
+  const notices: string[] = [...(b.notes || [])];
   log(`Founder agent: brand "${b.name}" ready, briefing team`);
   const colors = (b.colors || []).filter((c) => /^#[0-9a-f]{6}$/i.test(c)).slice(0, 3);
   while (colors.length < 3) colors.push(['#2B2B2B', '#FF8A70', '#FBF8F2'][colors.length]);
   await onPlan?.({ shopId, name: String(b.name).slice(0, 40), kinds: (b.products || []).slice(0, 6).map((p: any) => ['ebook', 'tshirt', 'mug'].includes(p.kind) ? p.kind : 'ebook'), color: colors[1], text: [idea, b.name, b.tagline, ...(b.products || []).map((p: any) => p.name)].join(' ') });
-  const logoP = ai.image(`Minimal flat vector logo symbol for "${b.name}", ${b.tagline}. Colors ${colors.join(', ')}. No text.`, shopId + 'logo', colors).then(saveAsset);
+  const logoP = ai.image(`Minimal flat vector logo symbol for "${b.name}", ${b.tagline}. Style: ${b.style || 'minimal'}. Colors ${colors.join(', ')}. No text.`, shopId + 'logo', colors).then(saveAsset);
   const products: any[] = await Promise.all((b.products || []).slice(0, 6).map(async (p: any) => {
     const kind = ['ebook', 'tshirt', 'mug'].includes(p.kind) ? p.kind : 'ebook';
     const verdict = checkPrice(p.price);
@@ -31,26 +32,29 @@ export async function createShop(idea: string, log: (s: string) => void = () => 
     if (!verdict.ok) {
       await ledger('rejected', { shopId, shop: b.name, agent: 'founder', proposal: { type: 'price', product: p.title, price: p.price }, reasons: verdict.reasons });
       price = Math.min(LIMITS.maxPrice, Math.max(LIMITS.minPrice, Number.isFinite(price) ? price : 10));
+      notices.push(`"${p.title}": $${p.price} is outside the $${LIMITS.minPrice}–$${LIMITS.maxPrice} price guardrail, so it was set to $${price}.`);
     }
+    if (floorPrice(kind, price) > price) notices.push(`"${p.title}": ${kind}s must be at least $${floorPrice(kind, price)} to cover Printful print cost, so $${price} was raised to $${floorPrice(kind, price)}.`);
     const pid = id('p');
     const prod: any = { id: pid, title: String(p.title).slice(0, 80), kind, digital: kind === 'ebook', price: Math.round(floorPrice(kind, price) * 100) / 100, description: String(p.description || '').slice(0, 300) };
     if (kind === 'ebook') {
       log(`Writer agent: writing "${prod.title}" + designing cover`);
-      const [content, img] = await Promise.all([ai.writerBook(prod.title, p.topic || idea, b.name), ai.image(`Book cover for "${prod.title}"`, pid, colors)]);
+      const [content, img] = await Promise.all([ai.writerBook(prod.title, p.topic || idea, b.name), ai.image(`Book cover for "${prod.title}" by ${b.name}. ${p.imagePrompt || ''} Style: ${b.style || 'clean, modern'}. Colours ${colors.join(', ')}.`, pid, colors)]);
       prod.content = content; prod.image = await saveAsset(img);
       log(`Writer agent: finished "${prod.title}"`);
     } else {
       log(`Designer agent: designing ${kind}`);
-      prod.design = await saveAsset(await ai.image(`Print-ready ${kind} graphic for brand "${b.name}": ${b.tagline}. Transparent-friendly, bold, no small text.`, pid, colors));
+      prod.design = await saveAsset(await ai.image(`Print-ready ${kind} graphic for "${prod.title}" by brand "${b.name}": ${p.imagePrompt || b.tagline}. Style: ${b.style || 'bold'}. Colours ${colors.join(', ')}. Transparent-friendly, bold, no small text.`, pid, colors));
       prod.image = prod.design;
       log(`Designer agent: ${kind} done`);
     }
     return prod;
   }));
+  for (const n of notices) log('Accountant: ' + n);
   log('Designer agent: logo');
   const logo = await logoP;
   products.push({ id: id('p'), title: `${b.name} Watch`, kind: 'watch', digital: false, price: 0, comingSoon: true, description: 'Coming soon.' });
-  const shop = { id: shopId, idea, name: String(b.name).slice(0, 40), tagline: String(b.tagline).slice(0, 80), colors, logo, products, ownerId, aiMode: ai.aiMode(), createdAt: new Date().toISOString() };
+  const shop = { id: shopId, idea, name: String(b.name).slice(0, 40), tagline: String(b.tagline).slice(0, 80), colors, logo, products, notices, ownerId, aiMode: ai.aiMode(), createdAt: new Date().toISOString() };
   await db.put('shops', shopId, shop);
   await ledger('shop_created', { shopId, shop: shop.name, agent: 'founder', detail: `${products.length - 1} products, AI=${shop.aiMode}` });
   return shop;

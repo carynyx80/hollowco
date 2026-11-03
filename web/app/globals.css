@@ -105,3 +105,9 @@ html.city-mode footer { display: none; }
 .city-seg{display:flex;align-items:center;gap:2px;padding:3px;border-radius:10px;background:rgba(14,16,24,.55);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.1);font-size:11px;text-transform:capitalize}
 .city-seg button{padding:3px 8px;border-radius:7px;color:rgba(255,255,255,.65)}.city-seg button.on{background:rgba(255,255,255,.16);color:#fff}
 .city-district{pointer-events:auto;padding:6px 14px;border-radius:999px;background:rgba(10,12,20,.6);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);color:#fff;font-weight:600;font-size:14px;white-space:nowrap}
+
+/* Founder HQ — dashboard rendered as a room above the city */
+.sim-hq { position: relative; min-height: calc(100vh - 4rem); background: radial-gradient(1200px 600px at 70% -10%, rgba(201,193,255,.14), transparent 60%), radial-gradient(900px 500px at 0% 110%, rgba(255,138,112,.10), transparent 60%), #05050b; overflow: hidden; }
+.sim-hq-sky { position: absolute; inset: auto 0 0 0; height: 220px; pointer-events: none; opacity: .5;
+  background: linear-gradient(to top, #05050b 0, transparent 100%), repeating-linear-gradient(90deg, rgba(201,193,255,.10) 0 38px, transparent 38px 54px, rgba(255,184,107,.07) 54px 80px, transparent 80px 104px);
+  mask-image: linear-gradient(to top, #000 40%, transparent); clip-path: polygon(0 60%,4% 60%,4% 30%,9% 30%,9% 55%,14% 55%,14% 12%,19% 12%,19% 50%,25% 50%,25% 35%,31% 35%,31% 62%,37% 62%,37% 20%,42% 20%,42% 48%,49% 48%,49% 8%,54% 8%,54% 52%,60% 52%,60% 28%,66% 28%,66% 58%,72% 58%,72% 18%,77% 18%,77% 45%,83% 45%,83% 32%,89% 32%,89% 56%,95% 56%,95% 25%,100% 25%,100% 100%,0 100%); }
