@@ -5,11 +5,13 @@ import { useEffect, useState } from 'react';
 import { REPLAY_SHOP } from '@/lib/replay';
 export { REPLAY_SHOP };
 const KEY = 'hollowco-hero-v1';
+/** True when the first-visit hero will cover the city (so the 3D bundle can wait). */
+export const heroWillShow = () => { const q = new URLSearchParams(location.search); return q.has('hero') || (!q.has('panel') && !localStorage.getItem(KEY)); };
 export function Hero() {
   const [show, setShow] = useState<boolean | null>(null);
   useEffect(() => { const q = new URLSearchParams(location.search); setShow(q.has('hero') || (!q.has('panel') && !localStorage.getItem(KEY))); }, []);
   useEffect(() => { if (!show) return; const k = (e: KeyboardEvent) => e.key === 'Escape' && close(); addEventListener('keydown', k); return () => removeEventListener('keydown', k); }, [show]);
-  const close = () => { localStorage.setItem(KEY, '1'); setShow(false); };
+  const close = () => { localStorage.setItem(KEY, '1'); setShow(false); window.dispatchEvent(new Event('hero:close')); };
   if (!show) return null;
   return <div className="hero-veil" data-testid="hero" role="dialog" aria-modal="true" aria-labelledby="hero-h">
     <div className="hero-card">

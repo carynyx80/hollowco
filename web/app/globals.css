@@ -270,3 +270,5 @@ h1.font-display, .font-display.text-4xl, .font-display.text-5xl { font-weight: 5
 @keyframes hero-in{from{opacity:0}to{opacity:1}}
 .city-root canvas{touch-action:none}
 @media (max-width:480px){.cat-entry{flex-wrap:wrap}.cat-entry .k{letter-spacing:.12em}.cat-entry-btn{width:100%;justify-content:center}}
+
+.city-poster { background: #ECEAE3 url('/city-poster.svg') center bottom / cover no-repeat; }
