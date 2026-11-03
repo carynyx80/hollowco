@@ -11,7 +11,7 @@ const ui = Inter_Tight({ subsets: ['latin'], variable: '--font-ui', display: 'sw
 const serif = Cormorant_Garamond({ subsets: ['latin'], weight: ['400', '500', '600'], style: ['normal', 'italic'], variable: '--font-serif', display: 'swap' });
 const mono = IBM_Plex_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-num', display: 'swap' });
 export const metadata: Metadata = { title: 'HollowCo — a company with nobody in it', description: 'Speak an idea. An AI founder builds the brand, the shop, sells, fulfils and pays its agents — inside hard guardrails.', icons: { icon: [{ url: '/icon.svg', type: 'image/svg+xml' }, { url: '/favicon-32.png', sizes: '32x32' }] } };
-export const viewport = { themeColor: '#0E0D0B' };
+export const viewport = { themeColor: '#F9F8F5' };
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${ui.variable} ${serif.variable} ${mono.variable}`}><body className="min-h-screen font-sans flex flex-col">

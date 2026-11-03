@@ -78,11 +78,11 @@ export function CompanyFloor({ events, jobLog, height = 440, onSimulate, simBusy
   }, []);
   const now = Date.now();
   return <div className="card overflow-hidden" data-testid="company-floor">
-    <div className="flex flex-wrap items-center gap-3 px-5 py-3.5 border-b border-white/[.06]">
+    <div className="flex flex-wrap items-center gap-3 px-5 py-3.5 border-b border-black/[.08]">
       <span className="relative flex h-2 w-2"><span className={`absolute inset-0 rounded-full ${mode === 'live' ? 'bg-lime' : 'bg-cyan'} dot-ping`} /><span className={`relative h-2 w-2 rounded-full ${mode === 'live' ? 'bg-lime' : 'bg-cyan'}`} /></span>
       <p className="font-medium text-sm">{title}</p>
       <span className={`text-[10px] font-semibold uppercase tracking-[.16em] rounded-full px-2 py-0.5 border ${mode === 'live' ? 'text-lime border-lime/30 bg-lime/10' : 'text-cyan border-cyan/30 bg-cyan/10'}`} data-testid="floor-mode">{mode === 'live' ? 'Live events' : 'Ambient simulation'}</span>
-      {onSimulate && <button onClick={onSimulate} disabled={simBusy} className="btn-ghost h-8 px-3.5 text-xs ml-auto" data-testid="simulate">{simBusy ? 'Customer is shopping…' : 'Simulate a customer'}<span className="text-[9px] uppercase tracking-wider text-char/40">simulated</span></button>}
+      {onSimulate && <button onClick={onSimulate} disabled={simBusy} className="btn-ghost h-8 px-3.5 text-xs ml-auto" data-testid="simulate">{simBusy ? 'Customer is shopping…' : 'Simulate a customer'}<span className="text-[9px] uppercase tracking-wider text-char/55">simulated</span></button>}
     </div>
     <div className="grid lg:grid-cols-[1fr_260px]">
       <div className="relative" style={{ height }}>
@@ -91,22 +91,22 @@ export function CompanyFloor({ events, jobLog, height = 440, onSimulate, simBusy
         </svg>
         {(Object.keys(NODES) as NodeId[]).map((id) => { const nd = NODES[id]; const on = (active[id] || 0) > now - 1600;
           return <div key={id} className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center" style={{ left: `${nd.x}%`, top: `${nd.y}%` }}>
-            <AnimatePresence>{thought[id] && <motion.div key={thought[id]} initial={{ opacity: 0, y: 6, scale: .9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4 }} className="absolute bottom-full mb-2 whitespace-nowrap rounded-lg border border-white/10 bg-[#15130F]/90 backdrop-blur px-2.5 py-1 text-[11px] text-char/80 shadow-lg">{thought[id]}</motion.div>}</AnimatePresence>
+            <AnimatePresence>{thought[id] && <motion.div key={thought[id]} initial={{ opacity: 0, y: 6, scale: .9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4 }} className="absolute bottom-full mb-2 whitespace-nowrap rounded-lg border border-black/[.08] bg-[#15130F]/90 backdrop-blur px-2.5 py-1 text-[11px] text-char/80 shadow-lg">{thought[id]}</motion.div>}</AnimatePresence>
             <motion.div animate={{ scale: on ? 1.08 : 1, boxShadow: on ? `0 0 0 6px ${nd.hue}22, 0 0 40px ${nd.hue}66` : `0 0 0 0px ${nd.hue}00, 0 0 18px ${nd.hue}22` }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}
               className={`grid place-items-center rounded-full border bg-[#15130F] ${id === 'founder' ? 'h-[72px] w-[72px] text-3xl' : 'h-14 w-14 text-xl'}`} style={{ borderColor: nd.hue + '80', color: nd.hue }}>{nd.icon}</motion.div>
-            <p className="mt-2 text-xs font-medium">{nd.name}</p><p className="text-[10px] text-char/40 hidden sm:block">{nd.role}</p>
+            <p className="mt-2 text-xs font-medium">{nd.name}</p><p className="text-[10px] text-char/55 hidden sm:block">{nd.role}</p>
           </div>; })}
         {msgs.map((m) => { const a = NODES[m.from], b = NODES[m.to];
           return <motion.div key={m.id} initial={{ left: `${a.x}%`, top: `${a.y}%`, opacity: 0, scale: .7 }} animate={{ left: `${b.x}%`, top: `${b.y}%`, opacity: [0, 1, 1, 0], scale: 1 }} transition={{ duration: 1.7, ease: [0.4, 0, 0.2, 1] }}
             className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none z-10 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-medium text-ink shadow-lg" style={{ background: COLOR[m.kind], boxShadow: `0 0 24px ${COLOR[m.kind]}99` }}>{m.label}</motion.div>; })}
       </div>
-      <div className="border-t lg:border-t-0 lg:border-l border-white/[.06] p-4">
-        <p className="text-[10px] uppercase tracking-[.16em] text-char/40 mb-3">Message stream</p>
+      <div className="border-t lg:border-t-0 lg:border-l border-black/[.08] p-4">
+        <p className="text-[10px] uppercase tracking-[.16em] text-char/55 mb-3">Message stream</p>
         <ul className="space-y-2 text-xs font-mono" data-testid="floor-feed"><AnimatePresence initial={false}>
           {feed.map((m) => <motion.li key={m.id} layout initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="flex gap-2 items-start">
             <span className="mt-1 h-1.5 w-1.5 rounded-full shrink-0" style={{ background: COLOR[m.kind] }} />
-            <span className="min-w-0"><span className="text-char/45">{NODES[m.from].name} → {NODES[m.to].name}</span><br /><span className="text-char/85">{m.label}</span>{!m.live && <span className="text-char/30"> · ambient</span>}</span></motion.li>)}
-        </AnimatePresence>{feed.length === 0 && <li className="text-char/35">Waiting for the first message…</li>}</ul>
+            <span className="min-w-0"><span className="text-char/55">{NODES[m.from].name} → {NODES[m.to].name}</span><br /><span className="text-char/85">{m.label}</span>{!m.live && <span className="text-char/55"> · ambient</span>}</span></motion.li>)}
+        </AnimatePresence>{feed.length === 0 && <li className="text-char/55">Waiting for the first message…</li>}</ul>
       </div>
     </div>
   </div>;

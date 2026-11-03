@@ -13,11 +13,11 @@ export function Nav() {
   const links = [['/', 'Marketplace'], ['/office', 'Office'], ['/ledger', 'Public ledger'], ...(user ? [['/dashboard', 'Dashboard']] : [])];
   async function out() { const req = api('/auth/signout', { method: 'POST' }).catch(() => {}); await req; setUser(null); router.push('/'); router.refresh(); toast('Signed out', 'ok'); }
   return (
-    <header className="sticky top-0 z-40 border-b border-white/[.06] bg-cream/60 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 border-b border-black/[.08] bg-cream/60 backdrop-blur-xl">
       <nav className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-5">
         <Link href="/"><Wordmark /></Link>
         <div className="hidden md:flex gap-1 text-sm">
-          {links.map(([h, l]) => <Link key={h} href={h} className={`rounded-full px-3 py-1.5 transition ${(h === '/' ? path === '/' : path.startsWith(h)) ? 'bg-white/[.07] text-white font-medium' : 'text-char/60 hover:text-char'}`}>{l}</Link>)}
+          {links.map(([h, l]) => <Link key={h} href={h} className={`rounded-full px-3 py-1.5 transition ${(h === '/' ? path === '/' : path.startsWith(h)) ? 'bg-black/[.04] text-char font-medium' : 'text-char/60 hover:text-char'}`}>{l}</Link>)}
         </div>
         <div className="ml-auto flex items-center gap-2 md:order-none"><CartButton /></div>
         <div className="hidden md:flex items-center gap-2">
@@ -25,7 +25,7 @@ export function Nav() {
             <span className="text-xs text-char/50 mr-2">by {user.displayName || user.name}</span>
             <button onClick={out} className="btn-ghost h-9">Sign out</button>
           </> : <>
-            <Link href={path === '/' ? '/?panel=signin' : '/signin'} className="btn h-9 hover:bg-white/[.06]">Sign in</Link>
+            <Link href={path === '/' ? '/?panel=signin' : '/signin'} className="btn h-9 hover:bg-black/[.04]">Sign in</Link>
             <Link href={path === '/' ? '/?panel=signup' : '/signup'} className="btn-primary h-9">Get started</Link>
           </>}
         </div>

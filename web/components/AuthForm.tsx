@@ -21,18 +21,18 @@ export function AuthForm({ mode, embedded, onDone, onSwitch }: { mode: 'signin' 
     } catch (e: any) { setErr(e.message); setBusy(false); if (!reduce) shake.start({ x: [0, -12, 10, -7, 5, -2, 0], transition: { duration: 0.45 } }); }
   }
   return <div className={embedded ? 'w-full' : 'relative isolate overflow-hidden min-h-[calc(100vh-4rem)] grid place-items-center px-5 py-16'}>
-    {!embedded && <div aria-hidden className="absolute inset-0 -z-10 bg-[#0E0D0B]">
+    {!embedded && <div aria-hidden className="absolute inset-0 -z-10 bg-cream">
       <div className="aurora absolute left-[10%] top-[8%] h-[46vmax] w-[46vmax] rounded-full bg-iris/25 blur-[90px]" />
       <div className="aurora absolute right-[-6%] bottom-[-10%] h-[40vmax] w-[40vmax] rounded-full bg-cyan/15 blur-[90px]" style={{ animationDelay: '-6s', animationDuration: '20s' }} />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,.06),transparent_60%)]" />
     </div>}
     <motion.div animate={shake} className="w-full max-w-md"><motion.div initial={reduce ? { opacity: 0 } : { opacity: 0, y: 30, scale: .97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: .7, ease: [0.22, 1, 0.36, 1] }}
-      className="rounded-lg border border-white/[.12] bg-white/[.06] backdrop-blur-2xl p-8 shadow-[inset_0_1px_0_rgba(255,255,255,.12),0_40px_120px_-30px_rgba(184,151,90,.45)]" data-testid="auth-card">
+      className="rounded-lg border border-black/[.08] bg-black/[.04] backdrop-blur-2xl p-8 shadow-[inset_0_1px_0_rgba(255,255,255,.12),0_40px_120px_-30px_rgba(184,151,90,.45)]" data-testid="auth-card">
       <span className={busy ? 'inline-block ring-spin' : 'inline-block'} data-testid="auth-ring"><Ring size={40} pulse={!busy} /></span>
       <h1 className="mt-5 text-2xl font-semibold tracking-tight">{up ? 'Create your account' : 'Welcome back'}</h1>
       <p className="mt-1 text-sm text-char/55">{up ? 'Get an AI founder that builds and runs shops for you.' : 'Sign in to talk to your AI founder.'}</p>
       <form onSubmit={submit} className="mt-6 space-y-4">
-        {up && <div><label className="label" htmlFor="name">Display name <span className="text-char/45">(shown on your buildings)</span></label><input id="name" className="input field-glow" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ada Okafor" autoComplete="name" maxLength={40} /></div>}
+        {up && <div><label className="label" htmlFor="name">Display name <span className="text-char/55">(shown on your buildings)</span></label><input id="name" className="input field-glow" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ada Okafor" autoComplete="name" maxLength={40} /></div>}
         <div><label className="label" htmlFor="email">Email</label><input id="email" type="email" required className="input field-glow" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" /></div>
         <div><label className="label" htmlFor="password">Password</label><input id="password" type="password" required minLength={up ? 8 : 1} className="input field-glow" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={up ? 'At least 8 characters' : '••••••••'} autoComplete={up ? 'new-password' : 'current-password'} /></div>
         {err && <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="text-sm text-red-400 bg-red-500/10 rounded-xl px-3 py-2" role="alert">{err}</motion.p>}

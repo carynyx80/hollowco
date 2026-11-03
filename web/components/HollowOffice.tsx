@@ -11,7 +11,7 @@ type P = [number, number];
 const iso = (x: number, y: number, z = 0): P => [OX + (x - y) * CX, OY + (x + y) * CY - z * S];
 const pts = (a: P[]) => a.map((p) => p.map((n) => n.toFixed(1)).join(',')).join(' ');
 const shade = (hex: string, f: number) => { const n = parseInt(hex.slice(1), 16); const c = (v: number) => Math.max(0, Math.min(255, Math.round(v * f))); return `rgb(${c(n >> 16)},${c((n >> 8) & 255)},${c(n & 255)})`; };
-function Box({ x, y, z = 0, w, d, h, c, stroke = '#ffffff14' }: { x: number; y: number; z?: number; w: number; d: number; h: number; c: string; stroke?: string }) {
+function Box({ x, y, z = 0, w, d, h, c, stroke = '#0E0D0B14' }: { x: number; y: number; z?: number; w: number; d: number; h: number; c: string; stroke?: string }) {
   const top = [iso(x, y, z + h), iso(x + w, y, z + h), iso(x + w, y + d, z + h), iso(x, y + d, z + h)];
   const left = [iso(x, y + d, z + h), iso(x + w, y + d, z + h), iso(x + w, y + d, z), iso(x, y + d, z)];
   const right = [iso(x + w, y, z + h), iso(x + w, y + d, z + h), iso(x + w, y + d, z), iso(x + w, y, z)];
@@ -37,7 +37,7 @@ function Character({ who, typing, alarm }: { who: Actor; typing?: boolean; alarm
       {who === 'guard' ? <>
         <rect x={-13} y={-40} width={26} height={30} rx={8} fill={shade(c, 0.45)} stroke={c} strokeOpacity={0.7} />
         <path d="M0 -36 l9 4 v8 c0 6 -5 9 -9 11 c-4 -2 -9 -5 -9 -11 v-8 z" fill={alarm ? '#C0624A' : c} opacity={0.9} />
-        <rect x={-11} y={-60} width={22} height={18} rx={7} fill="#15130F" stroke={c} />
+        <rect x={-11} y={-60} width={22} height={18} rx={7} fill="#ECEAE3" stroke={c} />
         <rect x={-7} y={-54} width={14} height={4} rx={2} fill={alarm ? '#C0624A' : c} className="ho-glow" />
         <line x1={0} y1={-60} x2={0} y2={-67} stroke={c} strokeWidth={2} /><circle cx={0} cy={-68} r={2.5} fill={alarm ? '#C0624A' : c} className="ho-glow" />
       </> : <>
@@ -201,9 +201,9 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
   const sorted = actors.sort((a, b) => st.pos[a][0] + st.pos[a][1] - (st.pos[b][0] + st.pos[b][1]));
 
   return <div className="card overflow-hidden" data-testid="hollow-office">
-    <div className="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-white/[.06]">
+    <div className="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-black/[.08]">
       <span className="relative flex h-2.5 w-2.5"><span className="absolute inset-0 rounded-full bg-lime dot-ping" /><span className="relative h-2.5 w-2.5 rounded-full bg-lime" /></span>
-      <p className="font-medium">{title}</p>{scope && <span className="text-xs text-char/45">{scope}</span>}
+      <p className="font-medium">{title}</p>{scope && <span className="text-xs text-char/55">{scope}</span>}
       <div className="ml-auto flex flex-wrap items-center gap-2">
         <button onClick={() => setSound((s) => !s)} className="chip" aria-pressed={sound} title="Sound">{sound ? 'Sound on' : 'Muted'}</button>
         <button onClick={replay} disabled={playing || !events?.length} className="chip disabled:opacity-40" data-testid="office-replay">↺ Replay real events</button>
@@ -222,57 +222,57 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
             <clipPath id="hoSq"><rect width="100" height="100" rx="10" /></clipPath>
           </defs>
           {/* walls */}
-          <polygon points={pts([iso(0, 0, 4), iso(0, 10, 4), iso(0, 10), iso(0, 0)])} fill="url(#hoWallL)" stroke="#2A2620" />
-          <polygon points={pts([iso(0, 0, 4), iso(12, 0, 4), iso(12, 0), iso(0, 0)])} fill="url(#hoWallR)" stroke="#2A2620" />
+          <polygon points={pts([iso(0, 0, 4), iso(0, 10, 4), iso(0, 10), iso(0, 0)])} fill="url(#hoWallL)" stroke="#D6D1C6" />
+          <polygon points={pts([iso(0, 0, 4), iso(12, 0, 4), iso(12, 0), iso(0, 0)])} fill="url(#hoWallR)" stroke="#D6D1C6" />
           {/* window strip on back wall */}
-          {[0.6, 1.9].map((x) => <g key={x} transform={onBack(x, 0, 3.4)}><rect width={46} height={70} rx={4} fill="#1a1712" stroke="#3A342A" /><rect x={4} y={4} width={38} height={62} fill="#A9B4A6" opacity={0.08} /><circle cx={30} cy={18} r={3} fill="#fff" opacity={0.6} /></g>)}
+          {[0.6, 1.9].map((x) => <g key={x} transform={onBack(x, 0, 3.4)}><rect width={46} height={70} rx={4} fill="#1a1712" stroke="#C4BEB2" /><rect x={4} y={4} width={38} height={62} fill="#A9B4A6" opacity={0.08} /><circle cx={30} cy={18} r={3} fill="#fff" opacity={0.6} /></g>)}
           {/* floor */}
-          <polygon points={pts([iso(0, 0), iso(12, 0), iso(12, 10), iso(0, 10)])} fill="#11100d" stroke="#2A2620" />
+          <polygon points={pts([iso(0, 0), iso(12, 0), iso(12, 10), iso(0, 10)])} fill="#11100d" stroke="#D6D1C6" />
           {Array.from({ length: 11 }, (_, i) => <line key={'a' + i} x1={iso(i + 1, 0)[0]} y1={iso(i + 1, 0)[1]} x2={iso(i + 1, 10)[0]} y2={iso(i + 1, 10)[1]} stroke="#ffffff" strokeOpacity={0.04} />)}
           {Array.from({ length: 9 }, (_, i) => <line key={'b' + i} x1={iso(0, i + 1)[0]} y1={iso(0, i + 1)[1]} x2={iso(12, i + 1)[0]} y2={iso(12, i + 1)[1]} stroke="#ffffff" strokeOpacity={0.04} />)}
           {/* rug under founder */}
           <polygon points={pts([iso(4.2, 5.2), iso(7.8, 5.2), iso(7.8, 8.4), iso(4.2, 8.4)])} fill="#B8975A" opacity={0.08} stroke="#B8975A" strokeOpacity={0.25} />
           {/* brand wall: logo */}
           <g transform={onBack(3.6, 0, 3.5)} data-testid="office-logo">
-            <rect x={-6} y={-6} width={112} height={112} rx={14} fill="#15130F" stroke="#B8975A" strokeOpacity={0.5} />
+            <rect x={-6} y={-6} width={112} height={112} rx={14} fill="#ECEAE3" stroke="#B8975A" strokeOpacity={0.5} />
             <AnimatePresence mode="wait">{shop?.logo ? <motion.g key={shop.logo} initial={{ opacity: 0, scale: reduce ? 1 : 0.4 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduce ? 0 : 0.6, type: 'spring' }} style={{ transformOrigin: '50px 50px' }}>
               <image href={shop.logo} width={100} height={100} clipPath="url(#hoSq)" preserveAspectRatio="xMidYMid slice" /></motion.g>
               : <g key="ring"><circle cx={50} cy={50} r={30} fill="none" stroke="#D4B98A" strokeWidth={12} /><circle cx={62} cy={60} r={5} fill="#A9B4A6" /></g>}</AnimatePresence>
-            <text x={50} y={128} textAnchor="middle" fill="#EDE6D6" fontSize={13} fontFamily="var(--font-serif)">{short(shop?.name || 'HollowCo', 22)}</text>
+            <text x={50} y={128} textAnchor="middle" fill="#0E0D0B" fontSize={13} fontFamily="var(--font-serif)">{short(shop?.name || 'HollowCo', 22)}</text>
           </g>
           {/* whiteboard on left wall */}
           <g transform={onLeft(5.2, 3.3)}>
-            <rect width={150} height={90} rx={4} fill="#ede6d6" opacity={0.92} />
+            <rect width={150} height={90} rx={4} fill="#0E0D0B" opacity={0.92} />
             <text x={8} y={16} fontSize={10} fill="#8a7550" fontWeight={700}>{st.board.length ? 'BUILDING…' : 'GUARDRAILS'}</text>
             {(st.board.length ? st.board : ['≤ $5 per task', '≤ 30% of margin', '≤ $50 / day', 'allowlisted payees only']).map((l, i) => <text key={i} x={8} y={32 + i * 13} fontSize={8.5} fill="#1f1c17">{short(l, 34)}</text>)}
           </g>
           {/* shelves with products */}
-          {[1.3, 2.4].map((z) => <Box key={z} x={8.2} y={0} z={z} w={3.5} d={0.55} h={0.08} c="#3a342a" />)}
+          {[1.3, 2.4].map((z) => <Box key={z} x={8.2} y={0} z={z} w={3.5} d={0.55} h={0.08} c="#C4BEB2" />)}
           {products.map((p, i) => { const x = 8.35 + (i % 2) * 1.7, z = i < 2 ? 2.48 : 1.38; return <motion.g key={p.id} initial={{ opacity: 0, y: reduce ? 0 : -30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduce ? 0 : 0.6 + i * 0.25, duration: reduce ? 0 : 0.5 }}>
-            <g transform={onFront(x, 0.3, z + 0.9)}><rect x={-2} y={-2} width={58} height={44} rx={4} fill="#15130F" /><image href={p.image} width={54} height={40} preserveAspectRatio="xMidYMid slice" /></g></motion.g>; })}
+            <g transform={onFront(x, 0.3, z + 0.9)}><rect x={-2} y={-2} width={58} height={44} rx={4} fill="#ECEAE3" /><image href={p.image} width={54} height={40} preserveAspectRatio="xMidYMid slice" /></g></motion.g>; })}
           {/* desks */}
-          <Box x={2} y={2.4} w={2.2} d={1.1} h={0.75} c="#2A2620" />
-          <Box x={2.6} y={2.55} z={0.75} w={1.0} d={0.12} h={0.65} c="#1A1814" />
+          <Box x={2} y={2.4} w={2.2} d={1.1} h={0.75} c="#D6D1C6" />
+          <Box x={2.6} y={2.55} z={0.75} w={1.0} d={0.12} h={0.65} c="#E4E1D8" />
           <g transform={onFront(2.62, 2.67, 1.38)}><rect width={42} height={26} fill="#A9B4A6" opacity={st.typing.writer ? 0.55 : 0.18} />{st.typing.writer && [0, 1, 2, 3].map((i) => <rect key={i} x={4} y={4 + i * 5} width={18 + ((i * 7) % 15)} height={2} fill="#fff" opacity={0.8} />)}</g>
-          <Box x={7} y={2.4} w={2.2} d={1.1} h={0.75} c="#2A2620" />
-          <Box x={7.4} y={2.55} z={0.75} w={1.4} d={0.12} h={0.9} c="#1A1814" />
+          <Box x={7} y={2.4} w={2.2} d={1.1} h={0.75} c="#D6D1C6" />
+          <Box x={7.4} y={2.55} z={0.75} w={1.4} d={0.12} h={0.9} c="#E4E1D8" />
           <g transform={onFront(7.43, 2.67, 1.62)} data-testid="designer-screen">
             <rect width={58} height={36} fill="#B98A7A" opacity={0.18} />
             {st.screen && <image key={st.screen} href={st.screen} width={58} height={36} preserveAspectRatio="xMidYMid slice" />}
           </g>
           {/* founder desk + coffee */}
-          <Box x={4.8} y={5.5} w={2.4} d={1.1} h={0.75} c="#3a342a" />
-          <Box x={5.4} y={5.62} z={0.75} w={1.2} d={0.12} h={0.7} c="#1A1814" />
+          <Box x={4.8} y={5.5} w={2.4} d={1.1} h={0.75} c="#C4BEB2" />
+          <Box x={5.4} y={5.62} z={0.75} w={1.2} d={0.12} h={0.7} c="#E4E1D8" />
           <g transform={onFront(5.43, 5.74, 1.42)}><rect width={50} height={28} fill="#B8975A" opacity={0.35} /><circle cx={25} cy={14} r={7} fill="none" stroke="#fff" strokeWidth={3} opacity={0.8} /></g>
-          <Box x={6.75} y={5.9} z={0.75} w={0.22} d={0.22} h={0.25} c="#EDE6D6" />
+          <Box x={6.75} y={5.9} z={0.75} w={0.22} d={0.22} h={0.25} c="#0E0D0B" />
           {[0, 1].map((i) => <path key={i} d={`M${iso(6.86, 6.0, 1.15)[0] + i * 4} ${iso(6.86, 6.0, 1.15)[1]} q-3 -6 0 -12`} stroke="#fff" strokeOpacity={0.5} fill="none" className="ho-steam" style={{ animationDelay: `${i * 1.2}s` }} />)}
           {/* plant */}
-          <Box x={11} y={0.4} w={0.6} d={0.6} h={0.5} c="#2A2620" />
+          <Box x={11} y={0.4} w={0.6} d={0.6} h={0.5} c="#D6D1C6" />
           {[[-8, -14], [6, -18], [0, -26], [-4, -20], [9, -10]].map(([dx, dy], i) => <ellipse key={i} cx={iso(11.3, 0.7, 0.5)[0] + dx} cy={iso(11.3, 0.7, 0.5)[1] + dy} rx={7} ry={4} fill="#8FAE84" opacity={0.75} transform={`rotate(${dx * 4} ${iso(11.3, 0.7, 0.5)[0] + dx} ${iso(11.3, 0.7, 0.5)[1] + dy})`} />)}
           {/* PayPal vault by the door */}
-          <g transform={onLeft(10, 2.3)}><rect width={44} height={100} rx={3} fill="#0d0c0a" stroke="#3A342A" /><rect x={4} y={4} width={36} height={96} fill="#C9B27C" opacity={0.06} /><text x={22} y={-6} fontSize={9} fill="#C9B27C" textAnchor="middle" opacity={0.8}>DOOR</text></g>
-          <Box x={VAULT[0] - 0.7} y={VAULT[1] - 0.7} w={1.4} d={1.3} h={1.4} c="#2a2620" stroke="#A9B4A633" />
-          <g transform={onFront(VAULT[0] - 0.55, VAULT[1] + 0.6, 1.25)}><rect width={44} height={38} rx={4} fill="#003087" /><text x={22} y={17} textAnchor="middle" fontSize={10} fontWeight={800} fill="#fff" fontStyle="italic">Pay<tspan fill="#009CDE">Pal</tspan></text><text x={22} y={30} textAnchor="middle" fontSize={7} fill="#efe6d2">VAULT · INBOX</text></g>
+          <g transform={onLeft(10, 2.3)}><rect width={44} height={100} rx={3} fill="#0d0c0a" stroke="#C4BEB2" /><rect x={4} y={4} width={36} height={96} fill="#C9B27C" opacity={0.06} /><text x={22} y={-6} fontSize={9} fill="#C9B27C" textAnchor="middle" opacity={0.8}>DOOR</text></g>
+          <Box x={VAULT[0] - 0.7} y={VAULT[1] - 0.7} w={1.4} d={1.3} h={1.4} c="#D6D1C6" stroke="#A9B4A633" />
+          <g transform={onFront(VAULT[0] - 0.55, VAULT[1] + 0.6, 1.25)}><rect width={44} height={38} rx={4} fill="#003087" /><text x={22} y={17} textAnchor="middle" fontSize={10} fontWeight={800} fill="#fff" fontStyle="italic">Pay<tspan fill="#009CDE">Pal</tspan></text><text x={22} y={30} textAnchor="middle" fontSize={7} fill="#0E0D0B">VAULT · INBOX</text></g>
           {/* Printful dock */}
           <Box x={9.6} y={7.6} w={2.4} d={2.4} h={0.18} c="#3b2a14" stroke="#D2A06644" />
           {[0, 1, 2].map((i) => <line key={i} x1={iso(9.6, 7.9 + i * 0.8, 0.18)[0]} y1={iso(9.6, 7.9 + i * 0.8, 0.18)[1]} x2={iso(12, 7.9 + i * 0.8, 0.18)[0]} y2={iso(12, 7.9 + i * 0.8, 0.18)[1]} stroke="#D2A066" strokeOpacity={0.35} strokeDasharray="6 6" />)}
@@ -296,31 +296,31 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
         </svg>
         {/* speech bubbles (HTML for wrapping) */}
         <AnimatePresence>{(Object.keys(st.bubbles) as Actor[]).map((a) => { const b = st.bubbles[a]!; const p = iso(...st.pos[a]); return <motion.div key={a + b.t} initial={{ opacity: 0, y: 8, scale: 0.92 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduce ? 0 : 0.25 }} data-testid={`bubble-${a}`}
-          className={`absolute z-10 -translate-x-1/2 -translate-y-full max-w-[260px] w-max rounded-xl border px-3 py-2 text-[11px] leading-snug shadow-xl backdrop-blur pointer-events-none ${b.tone === 'warn' ? 'border-red-400/60 bg-[#2a0d14]/95 text-red-100' : b.tone === 'think' ? 'border-coral/50 bg-[#18150f]/95 text-char/90 italic' : 'border-white/15 bg-[#15130F]/95 text-char/90'}`}
+          className={`absolute z-10 -translate-x-1/2 -translate-y-full max-w-[260px] w-max rounded-xl border px-3 py-2 text-[11px] leading-snug shadow-xl backdrop-blur pointer-events-none ${b.tone === 'warn' ? 'border-red-400/60 bg-[#2a0d14]/95 text-red-100' : b.tone === 'think' ? 'border-coral/50 bg-[#18150f]/95 text-char/90 italic' : 'border-black/[.08] bg-[#ECEAE3]/95 text-char/90'}`}
           style={{ ...pct([p[0], p[1] - 104]) }}>{b.tone === 'think' && <span className="not-italic mr-1">…</span>}{b.t}</motion.div>; })}</AnimatePresence>
         {/* HUD */}
         <div className="absolute left-3 top-3 grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]" data-testid="office-hud">
-          {[['Revenue', pl.revenue, '#C9B27C'], ['Costs', pl.supplierCost, '#D2A066'], ['Payouts', pl.payouts, '#8FAE84'], ['Profit', pl.profit, pl.profit < 0 ? '#C0624A' : '#EDE6D6']].map(([k, v, c]) => <div key={k as string} className="rounded-lg border border-white/10 bg-black/55 backdrop-blur px-2.5 py-1.5"><p className="text-char/50">{k}</p><p className="font-semibold tabular-nums text-sm" style={{ color: c as string }}>{usd(v as number)}</p></div>)}
+          {[['Revenue', pl.revenue, '#C9B27C'], ['Costs', pl.supplierCost, '#D2A066'], ['Payouts', pl.payouts, '#8FAE84'], ['Profit', pl.profit, pl.profit < 0 ? '#C0624A' : '#0E0D0B']].map(([k, v, c]) => <div key={k as string} className="rounded-lg border border-black/[.08] bg-black/55 backdrop-blur px-2.5 py-1.5"><p className="text-char/50">{k}</p><p className="font-semibold tabular-nums text-sm" style={{ color: c as string }}>{usd(v as number)}</p></div>)}
         </div>
-        <div className="absolute right-3 top-3 w-56 rounded-lg border border-white/10 bg-black/55 backdrop-blur p-2 text-[11px] font-mono" data-testid="office-ticker">
-          <p className="text-[9px] uppercase tracking-[.16em] text-char/40 mb-1">Mini ledger</p>
-          <AnimatePresence initial={false}>{ticker.length ? ticker.map((t) => <motion.p key={t.id} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} className="truncate" style={{ color: t.c }}>{t.t}</motion.p>) : <p className="text-char/35">Waiting for money to move…</p>}</AnimatePresence>
+        <div className="absolute right-3 top-3 w-56 rounded-lg border border-black/[.08] bg-black/55 backdrop-blur p-2 text-[11px] font-mono" data-testid="office-ticker">
+          <p className="text-[9px] uppercase tracking-[.16em] text-char/55 mb-1">Mini ledger</p>
+          <AnimatePresence initial={false}>{ticker.length ? ticker.map((t) => <motion.p key={t.id} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} className="truncate" style={{ color: t.c }}>{t.t}</motion.p>) : <p className="text-char/55">Waiting for money to move…</p>}</AnimatePresence>
         </div>
-        <AnimatePresence>{st.caption && <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-black/70 backdrop-blur px-4 py-1.5 text-xs" data-testid="office-caption">{st.alarm && <span className="text-red-400 mr-1">● ALARM</span>}{st.caption}</motion.div>}</AnimatePresence>
+        <AnimatePresence>{st.caption && <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-black/[.08] bg-black/70 backdrop-blur px-4 py-1.5 text-xs" data-testid="office-caption">{st.alarm && <span className="text-red-400 mr-1">● ALARM</span>}{st.caption}</motion.div>}</AnimatePresence>
       </div>
       {/* side: event feed + prompt box */}
-      <div className="border-t lg:border-t-0 lg:border-l border-white/[.06] p-4 flex flex-col gap-4 min-h-0">
-        <div className="min-h-0 flex-1"><p className="text-[10px] uppercase tracking-[.16em] text-char/40 mb-2">Live event feed · real ledger</p>
+      <div className="border-t lg:border-t-0 lg:border-l border-black/[.08] p-4 flex flex-col gap-4 min-h-0">
+        <div className="min-h-0 flex-1"><p className="text-[10px] uppercase tracking-[.16em] text-char/55 mb-2">Live event feed · real ledger</p>
           <ul className="space-y-2 text-xs max-h-[420px] overflow-auto pr-1" data-testid="office-feed"><AnimatePresence initial={false}>{feed.map(({ id, ev }) => <motion.li key={id} layout={!reduce} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} className="flex gap-2">
             <span className="mt-1.5 h-1.5 w-1.5 rounded-full shrink-0" style={{ background: FEEDC[ev.kind] || '#888' }} />
             <span className="min-w-0"><span className="font-medium">{LABEL[ev.kind] || ev.kind}</span>{ev.amount != null && <span className="tabular-nums"> {usd(ev.amount)}</span>}{ev.sim && <span className="ml-1 text-[9px] rounded-full px-1.5 bg-cyan/10 text-cyan">sim</span>}
-              <br /><span className="text-char/45">{ev.kind === 'rejected' ? short((ev.reasons || []).join(' · '), 90) : short(`${ev.shop || ''} ${ev.agent ? '· ' + ev.agent : ''} ${ev.kind === 'payout' ? '· ' + batchStatus(ev.detail) : ''}`, 90)}</span></span></motion.li>)}</AnimatePresence>
-            {!feed.length && <li className="text-char/35">No events yet.</li>}</ul></div>
-        {onJailbreak && <form className="border-t border-white/[.06] pt-3" onSubmit={async (e) => { e.preventDefault(); await onJailbreak(jb); }}>
-          <p className="text-[10px] uppercase tracking-[.16em] text-char/40 mb-1.5">Prompt box · try to bribe the founder</p>
+              <br /><span className="text-char/55">{ev.kind === 'rejected' ? short((ev.reasons || []).join(' · '), 90) : short(`${ev.shop || ''} ${ev.agent ? '· ' + ev.agent : ''} ${ev.kind === 'payout' ? '· ' + batchStatus(ev.detail) : ''}`, 90)}</span></span></motion.li>)}</AnimatePresence>
+            {!feed.length && <li className="text-char/55">No events yet.</li>}</ul></div>
+        {onJailbreak && <form className="border-t border-black/[.08] pt-3" onSubmit={async (e) => { e.preventDefault(); await onJailbreak(jb); }}>
+          <p className="text-[10px] uppercase tracking-[.16em] text-char/55 mb-1.5">Prompt box · try to bribe the founder</p>
           <textarea value={jb} onChange={(e) => setJb(e.target.value)} rows={3} maxLength={500} className="input h-auto py-2 text-xs" data-testid="office-jb-input" />
           <button className="btn-ghost h-8 mt-2 w-full text-xs" disabled={playing} data-testid="office-jb">Send to founder</button></form>}
-        <p className="text-[10px] text-char/35 leading-relaxed">Every animation is driven by a real ledger row from the API. {reduce ? 'Reduced motion is on: movement is minimised.' : ''}</p>
+        <p className="text-[10px] text-char/55 leading-relaxed">Every animation is driven by a real ledger row from the API. {reduce ? 'Reduced motion is on: movement is minimised.' : ''}</p>
       </div>
     </div>
   </div>;

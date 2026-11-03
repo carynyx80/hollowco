@@ -30,7 +30,7 @@ export function Intro() {
   const holeTo = opening ? '110vmax' : '0vmax';
   return <motion.div aria-hidden data-testid="intro" onClick={() => (window as any).__hcSkip?.()} className="fixed inset-0 z-[100] grid place-items-center cursor-pointer"
     initial={{ ['--hole' as any]: closing ? '110vmax' : '0vmax', opacity: 1 }}
-    style={{ background: '#0E0D0B', WebkitMaskImage: 'radial-gradient(circle at 50% 50%, transparent var(--hole), #000 calc(var(--hole) + 1px))', maskImage: 'radial-gradient(circle at 50% 50%, transparent var(--hole), #000 calc(var(--hole) + 1px))', ['--hole' as any]: closing ? '110vmax' : '0vmax' }}
+    style={{ background: '#F9F8F5', WebkitMaskImage: 'radial-gradient(circle at 50% 50%, transparent var(--hole), #000 calc(var(--hole) + 1px))', maskImage: 'radial-gradient(circle at 50% 50%, transparent var(--hole), #000 calc(var(--hole) + 1px))', ['--hole' as any]: closing ? '110vmax' : '0vmax' }}
     animate={{ ['--hole' as any]: holeTo, opacity: closing ? 1 : opening && reduce ? 0 : 1 }}
     transition={{ duration: reduce ? 0.25 : opening ? 0.75 : closing ? 0.7 : 0, ease: EASE }}>
     <motion.svg width="140" height="140" viewBox="0 0 512 512" initial={false} animate={{ scale: opening ? 6 : 1, opacity: opening ? 0 : 1 }} transition={{ duration: reduce ? 0.2 : 0.75, ease: EASE }}>
