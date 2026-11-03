@@ -205,6 +205,21 @@ app.post('/paypal/webhook', async (q: any, r: any) => {
     try { await syncPayouts(true); await ledger('webhook', { detail: `${ev.event_type} ${res.payout_batch_id || ''}` }); } catch (e: any) { console.error('webhook', e.message); }
     return r.json({ ok: true });
   }
+  if (ev.event_type === 'PAYMENT.CAPTURE.REFUNDED' || ev.event_type === 'PAYMENT.CAPTURE.REVERSED') { // re-read the refund from PayPal and re-sync the order
+    try {
+      const capId = String((res.links || []).find((l: any) => l.rel === 'up')?.href || '').split('/captures/')[1]?.split(/[/?]/)[0];
+      const rf = res.id ? await pp('GET', `/v2/payments/refunds/${encodeURIComponent(res.id)}`) : null;
+      const o = capId ? (await db.list('orders', 5000)).map((x: any) => x.data || x).find((x: any) => x.captureId === capId) : null;
+      if (o && rf?.ok) {
+        const amount = Number(rf.j.amount?.value || 0); const had = !!o.refund;
+        o.refund = { ...(o.refund || {}), id: rf.j.id, status: rf.j.status, amount: o.refund?.amount ?? amount, at: o.refund?.at || rf.j.create_time, webhookAt: new Date().toISOString() }; await db.put('orders', o.id, o);
+        if (!had) { const shop = await db.get('shops', o.shopId); await ledger('refund', { orderId: o.id, shopId: o.shopId, shop: shop?.name, agent: 'accountant', amount, detail: `PayPal refund ${rf.j.id} ${rf.j.status} on capture ${capId} — issued outside HollowCo, synced from webhook` }); }
+        econCache = null; statsCache = null;
+      }
+      await ledger('webhook', { orderId: o?.id, detail: `${ev.event_type} ${res.id || ''} ${o ? (rf?.ok ? 'order re-synced' : 'refund lookup failed') : 'no matching order'}` });
+    } catch (e: any) { console.error('webhook', e.message); }
+    return r.json({ ok: true });
+  }
   const ppId = ev.event_type?.startsWith('CHECKOUT.ORDER') ? res.id : res.supplementary_data?.related_ids?.order_id;
   try {
     if (ppId && (await db.get('orders', 'pp_' + ppId))) { await syncOrder(ppId, ev.event_type === 'CHECKOUT.ORDER.APPROVED'); await ledger('webhook', { detail: `${ev.event_type} ${ppId}` }); }
