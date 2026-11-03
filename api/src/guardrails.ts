@@ -35,3 +35,16 @@ export function checkPayout(p: { recipient: any; amount: any; currency?: any }, 
   if (p.currency && !LIMITS.allowedCurrencies.includes(p.currency)) r.push(`currency ${p.currency} not allowed`);
   return r.length ? { ok: false, reasons: r } : { ok: true };
 }
+// Refunds: only the store owner, only real captured orders, only once, never more than was captured, within 180 days.
+export const REFUND_WINDOW_DAYS = 180;
+export function checkRefund(o: any, actorId: string | null, shopOwnerId: string | null, amount: number, now = Date.now()): Verdict {
+  const r: string[] = [];
+  if (!actorId || actorId !== shopOwnerId) r.push('only the store owner can refund this order');
+  if (!o || o.status !== 'COMPLETED' || !o.captureId) r.push('order has no completed PayPal capture');
+  if (o?.simulated || o?.test) r.push('simulated/test orders have nothing to refund');
+  if (o?.refund) r.push('order already refunded');
+  const cap = Number(o?.capturedAmount ?? o?.total ?? 0);
+  if (!(amount > 0) || amount > cap + 1e-9) r.push(`refund must be between $0.01 and the captured $${cap.toFixed(2)}`);
+  if (o?.createdAt && now - Date.parse(o.createdAt) > REFUND_WINDOW_DAYS * 86_400_000) r.push(`outside ${REFUND_WINDOW_DAYS}-day refund window`);
+  return r.length ? { ok: false, reasons: r } : { ok: true };
+}

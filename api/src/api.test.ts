@@ -63,5 +63,14 @@ await t('per-store P&L subtracts PayPal fees, supplier cost and payouts; exclude
   assert.equal(e.length, 1); assert.equal(e[0].orders, 1); assert.equal(e[0].fees, 1.37); assert.equal(e[0].margin, 45.4);
 });
 await t('splitTotals carries fees', () => assert.equal(splitTotals([{ revenue: 10, fees: 0.79, supplierCost: 0, payouts: 0, profit: 9.21 }]).totals.fees, 0.79));
+console.log('refund guardrails');
+const { checkRefund } = await import('./guardrails.js');
+const done = { status: 'COMPLETED', captureId: 'C1', capturedAmount: 20, createdAt: new Date().toISOString() };
+await t('owner can refund a completed capture', () => assert.equal(checkRefund(done, 'u1', 'u1', 20).ok, true));
+await t('non-owner refund is rejected', () => assert.equal(checkRefund(done, 'u2', 'u1', 5).ok, false));
+await t('over-refund, double refund, simulated and stale orders are rejected', () => {
+  assert.equal(checkRefund(done, 'u1', 'u1', 20.01).ok, false); assert.equal(checkRefund({ ...done, refund: { id: 'R' } }, 'u1', 'u1', 1).ok, false);
+  assert.equal(checkRefund({ ...done, simulated: true }, 'u1', 'u1', 1).ok, false); assert.equal(checkRefund({ ...done, createdAt: '2020-01-01' }, 'u1', 'u1', 1).ok, false);
+});
 console.log(`api tests: ${n} passed`);
 process.exit(0);

@@ -7,7 +7,7 @@ import { REPLAY_SHOP } from '@/lib/replay';
 const m = (n: any) => `$${Number(n || 0).toFixed(2)}`;
 const when = (v: string) => new Date(v).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 export default function Impact() {
-  const [d, setD] = useState<any>(null); const [err, setErr] = useState('');
+  const [d, setD] = useState<any>(null); const [err, setErr] = useState(''); const [all, setAll] = useState(false);
   useEffect(() => { api('/economics').then(setD).catch((e) => setErr(e.message || 'Could not load')); }, []);
   const t = d?.totals;
   return <div className="mx-auto max-w-6xl px-5 py-12 space-y-16">
@@ -37,10 +37,11 @@ export default function Impact() {
 
     {d?.decisions?.length > 0 && <section aria-labelledby="dm"><p className="eyebrow">Founder decisions</p><h2 id="dm" className="font-display text-3xl mt-1">The founder shows its working</h2>
       <p className="text-sm text-char/60 mt-2 max-w-2xl">After every sale the founder writes a memo: margin after PayPal fees and supplier cost, the staff budget the guardrail allows, what it paid, and what the company keeps. Code enforces the caps; the memo is on the public ledger.</p>
-      <ul className="mt-5 space-y-2">{d.decisions.map((x: any, i: number) => <li key={i} className="card p-4 text-sm"><div className="flex justify-between text-xs text-char/55"><span className="font-medium text-char">{x.shop}</span><span>{when(x.at)}</span></div><p className="mt-1 font-mono text-[12px] text-char/75">{x.detail}</p>
+      <ul className="mt-5 space-y-2" id="memos">{d.decisions.slice(0, all ? 8 : 3).map((x: any, i: number) => <li key={i} className="card p-4 text-sm"><div className="flex justify-between text-xs text-char/55"><span className="font-medium text-char">{x.shop}</span><span>{when(x.at)}</span></div><p className="mt-1 font-mono text-[12px] text-char/75">{x.detail}</p>
         {x.payouts?.length > 0 && <ul className="mt-2 text-xs text-char/65 space-y-0.5">{x.payouts.map((p: string, j: number) => <li key={j}>↳ paid {p}</li>)}</ul>}
         {x.blocked?.length > 0 && <p className="mt-1 text-xs text-[#A6452F]">Guardrail adjusted: {x.blocked.join(' · ').slice(0, 220)}</p>}
-        {!x.live && <p className="mt-1 text-[10px] uppercase tracking-[.14em] text-char/40">Recomputed from this order’s ledger rows</p>}</li>)}</ul></section>}
+        {!x.live && <p className="mt-1 text-[10px] uppercase tracking-[.14em] text-char/40">Recomputed from this order’s ledger rows</p>}</li>)}</ul>
+      {d.decisions.length > 3 && <button className="btn h-9 mt-3 hover:bg-black/[.04]" aria-expanded={all} aria-controls="memos" onClick={() => setAll(!all)}>{all ? 'Show fewer' : `Show ${d.decisions.length - 3} more memos`}</button>}</section>}
 
     <section aria-labelledby="why" className="grid md:grid-cols-3 gap-4"><h2 id="why" className="sr-only">Why this can work in the real world</h2>
       {[['Works where PayPal works', 'PayPal checkout and Payouts operate across 200+ markets, so a seller in Lagos or Manila can take card payments from buyers abroad without building a payments stack.'], ['Digital first, no inventory', 'E-books and guides are written on demand and delivered instantly as PDF — zero stock, near-100% gross margin before fees. Print-on-demand covers physical goods with no upfront cost.'], ['Guardrails before autonomy', 'The AI only proposes. Prices, payout recipients, per-task and daily caps, and a 30%-of-margin staff budget are checked in code, and every blocked attempt is logged.']].map(([h, b]) =>

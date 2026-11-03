@@ -131,6 +131,10 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
     say(worker, digital ? 'Packaging the e-book PDF…' : 'Sending print file to Printful…', 'say'); await wait(1800);
     for (const e of sc.evs.filter((x) => x.kind === 'supplier_cost')) { const id = uid.current++; patch(() => ({ box: { id, from: [8.4, 5.2], to: DOCK } })); beep(330, 0.25, 'triangle'); await wait(1600); tick(`−${usd(e.amount!)} Printful ${e.sim ? 'simulated' : 'draft'}`, '#9A6A2E'); }
     say(worker, null); patch(() => ({ typing: {} }));
+    { const memo = sc.evs.find((x) => x.kind === 'decision'); const sum = (k: string) => sc.evs.filter((x) => x.kind === k).reduce((a, x) => a + Number(x.amount || 0), 0);
+      const r0 = sum('revenue'), f0 = sum('paypal_fee'), s0 = sum('supplier_cost'), m0 = Math.max(0, r0 - f0 - s0);
+      const text = memo?.detail ? String(memo.detail).replace(/ Paid .*$/, '') : `Margin ${usd(r0)} − fee ${usd(f0)} − supplier ${usd(s0)} = ${usd(m0)}. Staff budget ≤ 30% (${usd(m0 * 0.3)}).`;
+      patch(() => ({ caption: 'Founder decision memo' })); say('founder', `Decision → ${short(text, 170)}`, 'think'); tick(`memo · margin ${usd(m0)} · staff cap ${usd(m0 * 0.3)}`, '#B8975A'); await wait(3400); }
     for (const e of sc.evs.filter((x) => x.kind === 'rejected')) { say('guard', `${short((e.reasons || []).join(' · '), 110)}`, 'warn'); beep(220, 0.3, 'square'); await wait(2000); say('guard', null); }
     for (const e of sc.evs.filter((x) => x.kind === 'agent_tool' && x.via === 'toolkit')) { say('founder', `PayPal Agent Toolkit → ${e.tool}${e.decision === 'blocked' ? ' (blocked)' : ' ✓'}`, 'think'); beep(760); tick(`Agent Toolkit · ${e.tool} ${e.decision === 'blocked' ? 'blocked' : 'ok'}`, '#B8975A'); await wait(1600); }
     say('founder', null);

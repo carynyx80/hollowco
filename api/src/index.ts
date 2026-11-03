@@ -12,7 +12,7 @@ import { printfulMode } from './printful.js';
 import { createOrder, createMultiOrder, captureOrder, getOrder, pp } from './paypal.js';
 import { founderOp, createShop, fulfil, id, jailbreak, ledger, ledgerView, splitTotals, refreshPayouts, syncPayouts, startPayoutPoller, storeEconomics, backfillFees } from './core.js';
 import { toolkitToolNames, TOOLKIT_ACTIONS } from './agent.js';
-import { LIMITS } from './guardrails.js';
+import { LIMITS, checkRefund } from './guardrails.js';
 import { checkShopQuota, takeAction, isDemo, SHOP_LIMITS, ACTION_LIMITS } from './limits.js';
 import { usageSnapshot, aiBudget, aiBudgetCheck, buildScope, BUILD_TOKEN_CAP } from './ai.js';
 // Per-IP daily build limit (accounts are limited separately by shopQuota) + refuse when the site-wide AI budget is spent.
@@ -258,6 +258,18 @@ app.post('/simulate/order', wrap(async (q: any, r: any) => {
   const items = [{ productId: p.id, name: p.title, price: p.price, qty: 1, digital: p.digital, sku: p.id }];
   await db.put('orders', orderId, { id: orderId, shopId: shop.id, items, total: p.price, status: 'COMPLETED', simulated: true, test: true, payer: { name: 'Simulated Customer', email: 'simulated@hollowco.app' }, paymentSource: 'simulated', createdAt: new Date().toISOString() });
   r.json(await orderView(await fulfil(orderId)));
+}));
+// Guarded refund (PayPal Payments v2 POST /captures/{id}/refund). Owner-only, once, ≤ captured amount; ledgered either way.
+app.post('/orders/:id/refund', wrap(async (q: any, r: any) => {
+  const u = await need(q); const o = await db.get('orders', q.params.id); const shop = o && await db.get('shops', o.shopId);
+  const amount = Math.round(Number(q.body?.amount ?? o?.capturedAmount ?? o?.total) * 100) / 100; const reason = String(q.body?.reason || 'Owner-issued refund').slice(0, 120);
+  const v = checkRefund(o, u.id, shop?.ownerId || null, amount);
+  if (!v.ok) { if (o) await ledger('rejected', { orderId: o.id, shopId: o.shopId, shop: shop?.name, agent: 'accountant', proposal: { tool: 'refund', amount }, reasons: v.reasons }); return r.status(422).json({ error: v.reasons.join('; '), reasons: v.reasons }); }
+  const rf = await pp('POST', `/v2/payments/captures/${encodeURIComponent(o.captureId)}/refund`, { amount: { currency_code: 'USD', value: amount.toFixed(2) }, note_to_payer: reason }, { 'PayPal-Request-Id': 'rf_' + o.id });
+  if (!rf.ok) return r.status(502).json({ error: 'PayPal refused the refund: ' + (rf.j.details?.[0]?.issue || rf.j.message || rf.status) });
+  o.refund = { id: rf.j.id, status: rf.j.status, amount, at: new Date().toISOString() }; await db.put('orders', o.id, o);
+  await ledger('refund', { orderId: o.id, shopId: o.shopId, shop: shop?.name, agent: 'accountant', amount, detail: `PayPal refund ${rf.j.id} ${rf.j.status} on capture ${o.captureId} — ${reason}` });
+  econCache = null; statsCache = null; r.json({ ok: true, refund: o.refund });
 }));
 app.get('/orders/:id', wrap(async (q: any, r: any) => { const o = await db.get('orders', q.params.id); (o?.items || o?.checkout) ? r.json(await orderView(o)) : r.status(404).json({ error: 'not found' }); }));
 app.get('/download/:orderId/:file', wrap(async (q: any, r: any) => {

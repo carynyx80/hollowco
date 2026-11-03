@@ -273,6 +273,6 @@ h1.font-display, .font-display.text-4xl, .font-display.text-5xl { font-weight: 5
 
 .city-poster { background: #0E0D0B url('/city-capture.jpg') center / cover no-repeat; }
 
-html.hero-open .city-glass,html.hero-open [data-testid=city-dock],html.hero-open [data-testid=world-settings]{visibility:hidden}
+html.hero-open .city-glass,html.hero-open [data-testid=city-dock],html.hero-open [data-testid=world-settings],html.hero-open .city-district,html.hero-open .city-chip,html.hero-open .city-seg,html.hero-open .city-announce,html.hero-open .city-tag,html.hero-open .city-bubble{visibility:hidden}
 
 :where(a,button,input,select,textarea,[tabindex]):focus-visible{outline:2px solid #B8975A;outline-offset:2px;border-radius:4px}

@@ -236,13 +236,14 @@ export async function ledgerView() {
     if (r.kind === 'revenue') { o.revenue += r.amount; o.test = !!r.test; o.sim = !!r.sim; o.at = r.at; }
     if (r.kind === 'supplier_cost') o.supplierCost += r.amount;
     if (r.kind === 'paypal_fee') o.fees += r.amount;
+    if (r.kind === 'refund') o.refunds = (o.refunds || 0) + r.amount;
     if (!o.shopId && r.shopId) o.shopId = r.shopId;
     if (r.kind === 'payout') o.payouts += r.amount;
     if (r.kind === 'payout_reversed') o.payouts -= r.amount;
     if (r.kind === 'rejected') o.rejected++;
     byOrder.set(r.orderId, o);
   }
-  const orders = [...byOrder.values()].map((o) => ({ ...o, profit: Math.round((o.revenue - o.fees - o.supplierCost - o.payouts) * 100) / 100 }));
+  const orders = [...byOrder.values()].map((o) => ({ ...o, profit: Math.round((o.revenue - (o.refunds || 0) - o.fees - o.supplierCost - o.payouts) * 100) / 100 }));
   return { ...splitTotals(orders), orders, events: rows, limits: LIMITS };
 }
 
@@ -293,8 +294,8 @@ export function startPayoutPoller(ms = 60_000) {
 
 /** One source of truth: headline totals count only real PayPal-sandbox orders. Test and simulated orders are reported separately. */
 export function splitTotals(orders: any[]) {
-  const sum = (xs: any[]) => { const t = xs.reduce((s, o) => ({ revenue: s.revenue + o.revenue, fees: s.fees + (o.fees || 0), supplierCost: s.supplierCost + o.supplierCost, payouts: s.payouts + o.payouts, profit: s.profit + o.profit }), { revenue: 0, fees: 0, supplierCost: 0, payouts: 0, profit: 0 });
-    const r = (n: number) => Math.round(n * 100) / 100; return { revenue: r(t.revenue), fees: r(t.fees), supplierCost: r(t.supplierCost), payouts: r(t.payouts), profit: r(t.profit), orders: xs.length }; };
+  const sum = (xs: any[]) => { const t = xs.reduce((s, o) => ({ revenue: s.revenue + o.revenue, fees: s.fees + (o.fees || 0), refunds: s.refunds + (o.refunds || 0), supplierCost: s.supplierCost + o.supplierCost, payouts: s.payouts + o.payouts, profit: s.profit + o.profit }), { revenue: 0, fees: 0, refunds: 0, supplierCost: 0, payouts: 0, profit: 0 });
+    const r = (n: number) => Math.round(n * 100) / 100; return { revenue: r(t.revenue), fees: r(t.fees), refunds: r(t.refunds), supplierCost: r(t.supplierCost), payouts: r(t.payouts), profit: r(t.profit), orders: xs.length }; };
   return { totals: sum(orders.filter((o) => !o.test && !o.sim)), simulatedTotals: sum(orders.filter((o) => o.test || o.sim)) };
 }
 
