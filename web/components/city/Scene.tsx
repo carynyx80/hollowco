@@ -205,7 +205,7 @@ function Loading({ ready }: { ready: number }) {
   </div></div>;
 }
 
-export type SceneProps = { shops: CityShop[]; sites: Site[]; focus?: string | null; pulses: Record<string, number>; bankHot: number; paused: boolean; hour: number; quality: Quality; hl: string | null;
+export type SceneProps = { shops: CityShop[]; sites: Site[]; focus?: string | null; pulses: Record<string, number>; bankHot: number; paused: boolean; frozen?: boolean; hour: number; quality: Quality; hl: string | null;
   onShop: (s: CityShop) => void; onBank: () => void; onBeacon: () => void; onGuard: () => void; onDistrict: (d: string) => void };
 export default function CityScene(p: SceneProps) {
   const [ready, setReady] = useState(0); useEffect(() => { preloadImages((d, n) => setReady(d / n)).then(() => setReady(1)); }, []);
@@ -220,7 +220,7 @@ function World(p: SceneProps) {
   const peds = p.quality === 'low' ? 18 : p.quality === 'med' ? 36 : 56; const cars = p.quality === 'low' ? 16 : p.quality === 'med' ? 30 : 44;
   const guards = useMemo<[number, number][]>(() => [[b.kx0 * PITCH - 4, b.kz0 * PITCH - 4], [(b.kx1 + 1) * PITCH + 4, b.kz0 * PITCH - 4], [b.kx0 * PITCH - 4, SHORE - 2], [(b.kx1 + 1) * PITCH + 4, SHORE - 2]], [b]);
   const night = 1 - THREE.MathUtils.smoothstep(Math.sin(((p.hour - 6) / 12) * Math.PI), -0.12, 0.3);
-  return <Canvas shadows={Q.shadows > 0 ? 'soft' : false} dpr={[1, Q.dpr]} gl={{ antialias: !Q.bloom, powerPreference: 'high-performance' }} camera={{ position: [38, 20, 62], fov: 50, near: 0.3, far: 700 }}
+  return <Canvas frameloop={p.frozen ? 'never' : 'always'} shadows={Q.shadows > 0 ? 'soft' : false} dpr={[1, Q.dpr]} gl={{ antialias: !Q.bloom, powerPreference: 'high-performance' }} camera={{ position: [38, 20, 62], fov: 50, near: 0.3, far: 700 }}
     onCreated={({ gl }) => { gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = 0.95; }} data-testid="city-canvas">
     <Daylight hour={p.hour} q={p.quality} />
     {Q.env && <Environment files={HDRI} background={false} environmentIntensity={0.18 + (1 - night) * 0.75} />}

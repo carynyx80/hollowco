@@ -134,7 +134,7 @@ export default function City({ lowPower = false, deep }: { lowPower?: boolean; d
   const wide = panel && ['ledger', 'hq'].includes(panel.k);
 
   return <div className="city-root" data-testid="city">
-    <div className="absolute inset-0"><Scene shops={shops} sites={sites} focus={focus} pulses={pulses} bankHot={bankHot} paused={!!panel} hour={hour} quality={lowPower ? 'low' : quality} hl={hl} onDistrict={(d) => pickDistrict(hl === d ? null : d)} onShop={(s) => openShop(s)} onBank={openBank} onBeacon={() => setPanel({ k: 'about' })} onGuard={() => setPanel({ k: 'jail' })} /></div>
+    <div className="absolute inset-0"><Scene shops={shops} sites={sites} focus={focus} pulses={pulses} bankHot={bankHot} paused={!!panel} frozen={!!cat} hour={hour} quality={lowPower ? 'low' : quality} hl={hl} onDistrict={(d) => pickDistrict(hl === d ? null : d)} onShop={(s) => openShop(s)} onBank={openBank} onBeacon={() => setPanel({ k: 'about' })} onGuard={() => setPanel({ k: 'jail' })} /></div>
 
     {/* HUD: city P&L */}
     <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: .4 }} className="city-glass absolute left-4 top-4 w-[270px] p-4 hidden md:block" data-testid="city-pnl">
