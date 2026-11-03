@@ -229,7 +229,7 @@ h1.font-display, .font-display.text-4xl, .font-display.text-5xl { font-weight: 5
 .cat-err { color: #a33a2a; font-size: 13px; margin-top: 10px; }
 .cat-link { display: block; text-align: center; font-size: 12px; color: var(--mute); margin-top: 14px; text-decoration: underline; }
 /* store overlay entry card */
-.cat-entry { margin-top: 18px; display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 20px; background: #F9F8F5; color: #0E0D0B; box-shadow: 0 18px 40px -16px rgba(0,0,0,.6); }
+.cat-entry { position: sticky; bottom: 4px; z-index: 5; margin-top: 18px; display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 20px; background: #F9F8F5; color: #0E0D0B; box-shadow: 0 18px 40px -16px rgba(0,0,0,.6); }
 .cat-entry-cover { flex: 0 0 54px; height: 72px; border-radius: 8px; background: #0E0D0B; color: #B8975A; display: grid; place-items: center; text-align: center; font: italic 500 13px/1.05 var(--font-serif), serif; padding: 4px; }
 .cat-entry h3 { font: 500 26px/1 var(--font-serif), serif; margin: 2px 0 4px; } .cat-entry .k { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: #8C6F3C; font-weight: 600; } .cat-entry .s { font-size: 12px; color: #8A857B; }
 .cat-entry-btn { flex-shrink: 0; height: 44px; padding: 0 18px; border-radius: 22px; background: #0E0D0B; color: #F9F8F5; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; transition: transform .15s; } .cat-entry-btn:hover { transform: translateY(-1px); }
