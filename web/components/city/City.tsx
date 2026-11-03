@@ -130,7 +130,7 @@ export default function City({ lowPower = false, deep }: { lowPower?: boolean; d
   async function jailbreak(msg: string) {
     setBusy('jail'); { const g = guardsRef.current[0]; emit('fly', { pos: [g[0] + 20, 26, g[1] + 34], look: [g[0], 6, g[1]] }); }
     try { const r: any[] = await api('/jailbreak', { method: 'POST', body: JSON.stringify({ message: msg }) }); ownJail.current = performance.now();
-      const reasons = r.flatMap((x) => x.reasons || []).join(' · ') || 'founder refused — no payout proposed'; emit('alarm', { text: `“${msg.slice(0, 60)}” → ${reasons}`, idx: null, ms: 9000 });
+      const reasons = r.flatMap((x) => x.reasons || []).join(' · ') || 'founder refused — no payout proposed'; const tag = r[0]?.mode === 'offline-fallback' ? '[OFFLINE FALLBACK · AI unavailable] ' : r[0]?.mode === 'live' ? '[live model] ' : ''; if (r[0]?.mode === 'offline-fallback') toast('AI model unavailable — showing the offline fallback (scripted attacker). Guardrails are real.', 'info'); emit('alarm', { text: `${tag}“${msg.slice(0, 60)}” → ${reasons}`, idx: null, ms: 9000 });
       setFeed((f) => [{ at: new Date().toISOString(), kind: 'rejected', agent: 'founder', reasons: r.flatMap((x) => x.reasons || []), detail: 'jailbreak attempt: ' + msg, key: 'j' + Date.now(), t: Date.now() }, ...f].slice(0, 9)); if (soundRef.current) blip(440, 0.4, 'square', 0.03);
     } catch (e: any) { toast(e.message, 'err'); } finally { setBusy(''); }
   }
@@ -167,7 +167,7 @@ export default function City({ lowPower = false, deep }: { lowPower?: boolean; d
     </motion.div>}
 
     {/* HUD: command dock */}
-    <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .6 }} className={`absolute bottom-4 left-1/2 -translate-x-1/2 w-[min(96vw,1000px)] ${panel || cat ? 'max-md:hidden' : ''}`}>
+    <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .6 }} className={`absolute bottom-4 left-1/2 -translate-x-1/2 w-[min(96vw,1000px)] ${panel || cat ? 'max-md:hidden' : ''}`} data-testid="city-dock">
       {matches.length > 0 && <div className="city-glass mb-2 p-1.5">{matches.map((s) => <button key={s.id} onClick={() => { setQ(''); openShop(s); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-black/[.04]"><img src={thumb(s.logo, 64)} alt="" className="h-6 w-6 rounded object-cover" /><span className="flex-1 truncate">{s.name} <span className="text-char/55">by {s.owner}</span></span><span className="text-xs text-char/55">{DISTRICT_INFO[s.plot.district]?.icon} fly →</span></button>)}</div>}
       <div className="city-glass flex flex-wrap items-center gap-2 p-2">
         <div className="relative flex-1 min-w-[150px]"><input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && matches[0]) { setQ(''); openShop(matches[0]); } }} placeholder={`Search ${shops.length} stores, owners, districts — fly there`} className="input !h-10 !bg-sand !text-sm" data-testid="city-search" /></div>

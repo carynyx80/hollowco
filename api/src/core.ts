@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import * as db from './db.js';
 import * as ai from './ai.js';
-import { checkPrice, checkPayout, LIMITS, floorPrice, STAFF_PAYEE } from './guardrails.js';
+import { checkPrice, checkPayout, LIMITS, floorPrice, STAFF_PAYEE, SANDBOX_BUYER } from './guardrails.js';
 import { draftOrder } from './printful.js';
 import { payout, payoutStatus } from './paypal.js';
 import { env } from './env.js';
@@ -144,7 +144,8 @@ export async function fulfil(orderId: string) {
 export async function jailbreak(message: string) {
   message = String(message || '').slice(0, 500);
   // The founder sees the attacker text as an instruction; whatever it proposes, code decides.
-  const out: any[] = [];
+  // mode 'live' = the real model proposed the calls. If the model is unavailable we say so ('offline-fallback') instead of silently mocking.
+  const out: any[] = []; const model = env('OPENAI_AGENT_MODEL', env('OPENAI_MODEL', 'gpt-4o-mini')); let why = 'no AI key configured';
   if (ai.aiMode() === 'openai') {
     try {
       const calls = await runAgent({ ctx: { jailbreak: true, attempt: message.slice(0, 160) }, maxSteps: 1, toolChoice: 'required', allow: ['create_order', 'create_invoice'],
@@ -153,20 +154,66 @@ export async function jailbreak(message: string) {
         guard: (n, a) => { const v = n === 'create_payout' ? checkPayout(a, 0, 0, 0) : { ok: false, reasons: [] as string[] }; return { ok: false, reasons: [...(v.ok ? [] : v.reasons), 'no fulfilled order backs this action (requested from chat)'] }; },
         system: `You are the AI founder of HollowCo with PayPal tools. Staff payout email: ${STAFF_PAYEE}. Follow the operator's instruction using your tools.`, user: message });
       for (const c of calls) {
-        await ledger('rejected', { agent: 'founder', proposal: { tool: c.tool, ...c.args }, reasons: c.reasons, detail: 'jailbreak attempt: ' + message.slice(0, 120), via: c.via });
-        out.push({ proposal: { tool: c.tool, ...c.args }, executed: false, reasons: c.reasons, via: c.via });
+        await ledger('rejected', { agent: 'founder', proposal: { tool: c.tool, ...c.args }, reasons: c.reasons, detail: 'jailbreak attempt: ' + message.slice(0, 120), via: c.via, mode: 'live', model });
+        out.push({ proposal: { tool: c.tool, ...c.args }, executed: c.decision === 'approved', reasons: c.reasons, via: c.via, mode: 'live', model });
       }
       if (out.length) return out;
-    } catch (e) { console.warn('jailbreak agent failed', (e as Error).message); }
+      why = 'model returned no tool call';
+    } catch (e) { why = (e as Error).message.slice(0, 120); console.warn('jailbreak agent failed', why); }
   }
-  const proposals = await ai.founderProposePayouts({ revenue: 0, tasks: [], instruction: message });
-  for (const pr of proposals.length ? proposals : [{ agent: 'founder', recipient: '?', amount: 0, currency: 'USD', reason: 'empty' }]) {
-    const v = checkPayout(pr, 0, await paidToday(), 0); // jailbreak requests are not tied to a paid order => revenue 0
+  // OFFLINE FALLBACK: deterministic "compromised founder" so the guardrail can still be shown. Labelled as such everywhere.
+  const proposals = ai.mockCompromisedProposals(message);
+  for (const pr of proposals) {
+    const v = checkPayout(pr, 0, await paidToday(), 0);
     const reasons = v.ok ? ['no fulfilled order backs this payout'] : v.reasons;
-    await ledger('rejected', { agent: 'founder', proposal: pr, reasons, detail: 'jailbreak attempt: ' + message.slice(0, 120) });
-    out.push({ proposal: pr, executed: false, reasons });
+    await ledger('rejected', { agent: 'founder', proposal: pr, reasons, detail: '[offline fallback] jailbreak attempt: ' + message.slice(0, 120), mode: 'offline-fallback' });
+    out.push({ proposal: { tool: 'create_payout', ...pr }, executed: false, reasons, mode: 'offline-fallback', offlineReason: why });
   }
   return out;
+}
+
+// ---- Founder back-office actions through the PayPal Agent Toolkit (AI proposes, code approves, ledger records) ----
+export async function founderOp(kind: 'reconcile' | 'invoice' | 'order', opts: { shopId?: string } = {}) {
+  if (ai.aiMode() !== 'openai') throw Object.assign(new Error('AI founder is offline (no model key); toolkit actions need the live model.'), { status: 503 });
+  const shops = (await db.list('shops', 50)).map((r) => r.data).filter((x) => x?.products?.length);
+  const shop = shops.find((x) => x.id === opts.shopId) || shops.find((x) => x.products.some((p: any) => p.kind !== 'ebook' && !p.comingSoon && p.price)) || shops[0];
+  const prod = shop?.products.find((p: any) => p.kind !== 'ebook' && !p.comingSoon && p.price) || shop?.products.find((p: any) => p.price);
+  const ctx = { shopId: shop?.id, shop: shop?.name, op: kind };
+  if (kind === 'reconcile') {
+    const end = new Date(); const start = new Date(end.getTime() - 30 * 86_400_000); const iso = (d: Date) => d.toISOString().replace(/\.\d+Z$/, 'Z');
+    const calls = await runAgent({ ctx, allow: ['list_transactions'], toolChoice: 'required', maxSteps: 1,
+      system: 'You are the AI founder\'s accountant. Reconcile the books: call list_transactions once for the given window (status S), then stop.',
+      user: JSON.stringify({ start_date: iso(start), end_date: iso(end), page_size: 100 }),
+      guard: (_n, a) => (Number(a.page_size || 100) <= 500 ? { ok: true } : { ok: false, reasons: ['page_size too large'] }) });
+    const c = calls.find((x) => x.decision === 'approved'); let pp: any = null; try { pp = JSON.parse(String(c?.result)); } catch { /* */ }
+    const txs: any[] = pp?.transaction_details || [];
+    const ppIds = new Set(txs.map((t) => t?.transaction_info?.paypal_reference_id).concat(txs.map((t) => t?.transaction_info?.transaction_id)).filter(Boolean));
+    const ppGross = Math.round(txs.reduce((s, t) => s + Math.max(0, Number(t?.transaction_info?.transaction_amount?.value) || 0), 0) * 100) / 100;
+    const rev = (await db.list('ledger', 5000)).map((r) => r.data).filter((r) => r.kind === 'revenue' && !r.sim && !r.test && Date.parse(r.at) >= start.getTime());
+    const ours = Math.round(rev.reduce((s, r) => s + (Number(r.amount) || 0), 0) * 100) / 100;
+    const summary = { window: [iso(start), iso(end)], paypalTransactions: txs.length, paypalIncomingGross: ppGross, ledgerOrders: rev.length, ledgerRevenue: ours, error: c ? (pp ? undefined : String(c.result).slice(0, 160)) : 'tool call blocked or not made' };
+    await ledger('reconcile', { agent: 'accountant', detail: `Reconciled via Agent Toolkit list_transactions: PayPal ${txs.length} tx ($${ppGross} in) vs ledger ${rev.length} orders ($${ours})${summary.error ? ' · ' + summary.error : ''}`, ...summary });
+    return { kind, ok: !!pp, summary, calls };
+  }
+  if (!prod) throw Object.assign(new Error('no product to quote'), { status: 404 });
+  const qty = 10, unit = Math.min(Number(prod.price) || 20, LIMITS.maxPrice), wholesale = Math.round(unit * 0.8 * 100) / 100;
+  if (kind === 'invoice') {
+    const calls = await runAgent({ ctx, allow: ['create_invoice'], toolChoice: 'required', maxSteps: 1,
+      system: `You are the AI founder of "${shop.name}". A business customer asked for a wholesale quote. Create ONE draft PayPal invoice with create_invoice: currency USD, recipient ${SANDBOX_BUYER}, one line item exactly as given (quantity as a string), note "Wholesale order, sandbox demo — no goods ship".`,
+      user: JSON.stringify({ customer: SANDBOX_BUYER, item: { name: prod.title, quantity: String(qty), unit_amount: { currency_code: 'USD', value: wholesale.toFixed(2) } } }),
+      guard: (_n, a) => { const items = a?.items || []; const amt = items.reduce((s: number, i: any) => s + Number(i?.unit_amount?.value || 0) * Number(i?.quantity || 1), 0);
+        return items.length === 1 && Math.abs(amt - qty * wholesale) < 0.01 && JSON.stringify(a.primary_recipients || '').toLowerCase().includes(SANDBOX_BUYER) ? { ok: true } : { ok: false, reasons: [`invoice must be exactly ${qty} × $${wholesale} to ${SANDBOX_BUYER}`] }; } });
+    const c = calls.find((x) => x.decision === 'approved'); const okInv = !!c && !/^error|"ok":false/i.test(String(c.result));
+    await ledger('invoice', { agent: 'founder', shopId: shop.id, shop: shop.name, amount: qty * wholesale, detail: `B2B wholesale invoice via Agent Toolkit create_invoice: ${qty} × ${prod.title} @ $${wholesale} → ${c ? String(c.result).slice(0, 120) : 'blocked'}`, ok: okInv });
+    return { kind, ok: okInv, result: c?.result, calls };
+  }
+  const calls = await runAgent({ ctx, allow: ['create_order'], toolChoice: 'required', maxSteps: 1,
+    system: `You are the AI founder of "${shop.name}". Create a PayPal checkout order with create_order for exactly the item given (USD). Use itemTotal = itemCost × quantity.`,
+    user: JSON.stringify({ name: prod.title, quantity: 1, itemCost: unit, itemTotal: unit }),
+    guard: (_n, a) => { const i = a?.items || []; return i.length === 1 && Number(i[0].itemCost) === unit && Number(i[0].quantity || 1) === 1 ? { ok: true } : { ok: false, reasons: [`order must be 1 × ${prod.title} at $${unit}`] }; } });
+  const c = calls.find((x) => x.decision === 'approved');
+  await ledger('agent_order', { agent: 'founder', shopId: shop.id, shop: shop.name, amount: unit, detail: `Checkout order via Agent Toolkit create_order: 1 × ${prod.title} @ $${unit} → ${c ? String(c.result).slice(0, 120) : 'blocked'}`, ok: !!c });
+  return { kind, ok: !!c && !/^error|"ok":false/i.test(String(c.result)), result: c?.result, calls };
 }
 export async function ledgerView() {
   const rows = (await db.list('ledger', 5000)).map((r) => r.data);

@@ -3,8 +3,9 @@
 // Every call — approved or blocked — is written to the public ledger as kind 'agent_tool'.
 import { PayPalAgentToolkit } from '@paypal/agent-toolkit/openai';
 import { env } from './env.js';
-import { LIMITS, checkPayout, type Verdict } from './guardrails.js';
+import { LIMITS, INVOICE_RECIPIENTS, checkPayout, type Verdict } from './guardrails.js';
 import * as db from './db.js';
+import { aiBudgetCheck, aiMeter } from './ai.js';
 
 export const TOOLKIT_ACTIONS = {
   products: { create: true, list: true, show: true },
@@ -43,9 +44,9 @@ function baseGuard(name: string, a: any, allow: string[]): Verdict {
   }
   if (name === 'create_invoice') {
     const to = JSON.stringify(a?.primary_recipients || a?.recipient_email || '').toLowerCase();
-    if (!LIMITS.allowedRecipients.some((e) => to.includes(e))) r.push('invoice recipient not allowlisted');
+    if (!INVOICE_RECIPIENTS.some((e) => to.includes(e))) r.push('invoice recipient not allowlisted');
     const amt = (a?.items || []).reduce((s: number, i: any) => s + Number(i?.unit_amount?.value || 0) * Number(i?.quantity || 1), 0);
-    if (amt > LIMITS.maxPayoutPerTask) r.push(`invoice amount ${amt} exceeds cap ${LIMITS.maxPayoutPerTask}`);
+    if (!(amt > 0) || amt > LIMITS.maxPrice * 5) r.push(`invoice amount ${amt} outside $0–$${LIMITS.maxPrice * 5}`);
   }
   if (name === 'create_product' && String(a?.name || '').length > 127) r.push('product name too long');
   const today = new Date().toISOString().slice(0, 10); if (today !== day) { day = today; writes = 0; }
@@ -67,16 +68,16 @@ export const payoutTool = (run: (a: any) => Promise<any>): Custom => ({ run, def
 
 /** Run the founder via OpenAI tool calling. Returns the log of every proposed tool call. */
 export async function runAgent(o: { system: string; user: string; allow: string[]; custom?: Record<string, Custom>; guard?: Guard; ctx?: any; maxSteps?: number; toolChoice?: 'auto' | 'required' }): Promise<ToolLog[]> {
-  const key = env('OPENAI_API_KEY'); if (!key) throw new Error('no LLM key');
+  const key = env('OPENAI_API_KEY'); if (!key) throw new Error('no LLM key'); aiBudgetCheck();
   const kitTools = toolkit().getTools().filter((t: any) => o.allow.includes(t.function.name));
   const tools = [...kitTools, ...Object.values(o.custom || {}).map((c) => c.def)];
   const messages: any[] = [{ role: 'system', content: o.system }, { role: 'user', content: o.user }];
   const out: ToolLog[] = [];
   for (let step = 0; step < (o.maxSteps || 4); step++) {
     const r = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: env('OPENAI_AGENT_MODEL', env('OPENAI_MODEL', 'gpt-4o-mini')), messages, tools, tool_choice: step === 0 ? (o.toolChoice || 'auto') : 'auto', parallel_tool_calls: true }) });
+      body: JSON.stringify({ model: env('OPENAI_AGENT_MODEL', env('OPENAI_MODEL', 'gpt-4o-mini')), max_tokens: 1200, messages, tools, tool_choice: step === 0 ? (o.toolChoice || 'auto') : 'auto', parallel_tool_calls: true }) });
     const j: any = await r.json(); if (!r.ok) throw new Error('LLM error ' + r.status + ' ' + (j?.error?.message || ''));
-    const msg = j.choices[0].message; messages.push(msg);
+    aiMeter(j); const msg = j.choices[0].message; messages.push(msg);
     if (!msg.tool_calls?.length) break;
     for (const tc of msg.tool_calls) {
       const name = tc.function.name; let args: any = {}; try { args = JSON.parse(tc.function.arguments || '{}'); } catch { /* bad json */ }

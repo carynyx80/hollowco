@@ -10,11 +10,13 @@ import { env } from './env.js';
 import { aiMode } from './ai.js';
 import { printfulMode } from './printful.js';
 import { createOrder, createMultiOrder, captureOrder, getOrder } from './paypal.js';
-import { createShop, fulfil, id, jailbreak, ledger, ledgerView, splitTotals, refreshPayouts, syncPayouts, startPayoutPoller } from './core.js';
+import { founderOp, createShop, fulfil, id, jailbreak, ledger, ledgerView, splitTotals, refreshPayouts, syncPayouts, startPayoutPoller } from './core.js';
 import { toolkitToolNames, TOOLKIT_ACTIONS } from './agent.js';
 import { LIMITS } from './guardrails.js';
-import { checkShopQuota, takeAction, isDemo, SHOP_LIMITS } from './limits.js';
-import { usageSnapshot } from './ai.js';
+import { checkShopQuota, takeAction, isDemo, SHOP_LIMITS, ACTION_LIMITS } from './limits.js';
+import { usageSnapshot, aiBudget, aiBudgetCheck, buildScope, BUILD_TOKEN_CAP } from './ai.js';
+// Per-IP daily build limit (accounts are limited separately by shopQuota) + refuse when the site-wide AI budget is spent.
+const buildGate = (q: any, u: any) => { aiBudgetCheck(); takeAction('build', 'ip:' + q.ip, isDemo(u) ? 'demo' : 'anon'); };
 import * as carts from './cart.js';
 import * as hidden from './hidden.js';
 import { applyUnit } from './orderState.js';
@@ -40,7 +42,7 @@ const pub = (s: any) => s && ({ ...s, products: s.products.filter((p: any) => !l
 
 app.get('/', (_q, r) => r.json({ name: 'HollowCo API', ok: true }));
 app.get('/health', (_q, r) => r.json({ ok: true, db: db.dbMode, ai: aiMode(), supplier: printfulMode(), paypalEnv: env('PAYPAL_ENV', 'sandbox'), paypalClientId: env('PAYPAL_CLIENT_ID'), limits: LIMITS }));
-app.get('/limits', wrap(async (q: any, r: any) => { const u = await me(q); let mine: any = null; if (u) { try { mine = await shopQuota(u); } catch (e: any) { mine = { blocked: e.message }; } } r.json({ shops: SHOP_LIMITS(), mine, usage: usageSnapshot() }); }));
+app.get('/limits', wrap(async (q: any, r: any) => { const u = await me(q); let mine: any = null; if (u) { try { mine = await shopQuota(u); } catch (e: any) { mine = { blocked: e.message }; } } r.json({ shops: SHOP_LIMITS(), builds: ACTION_LIMITS.build, mine, usage: usageSnapshot(), budget: aiBudget() }); }));
 app.get('/config', (_q, r) => r.json({ paypalClientId: env('PAYPAL_CLIENT_ID'), paypalEnv: env('PAYPAL_ENV', 'sandbox'), ai: aiMode(), supplier: printfulMode() }));
 const jobs = new Map<string, { status: string; log: string[]; shopId?: string; error?: string; started: number; ownerId?: string }>();
 app.post('/auth/signup', wrap(async (q: any, r: any) => { const u = await auth.signup(q.body.email, q.body.password, q.body.name); r.cookie(auth.COOKIE, await auth.newSession(u.id), auth.cookieOpts()); r.json({ user: auth.publicUser(u) }); }));
@@ -85,15 +87,15 @@ app.get('/products/:shopId/:pid', wrap(async (q: any, r: any) => {
 }));
 app.post('/shops/jobs', wrap(async (q: any, r: any) => {
   const owner = await need(q);
-  await shopQuota(owner);
+  await shopQuota(owner); buildGate(q, owner);
   const jid = 'job_' + Math.random().toString(36).slice(2, 12); const j: any = { status: 'running', log: [], started: Date.now(), ownerId: owner.id }; jobs.set(jid, j);
   j.owner = displayName(owner);
-  createShop(q.body.idea, (s) => { j.log.push(s); console.log(s); }, owner.id, async (p) => { j.plan = { shopId: p.shopId, name: p.name, plot: await assignPlot(p.shopId, p.kinds, p.color, p.text) }; })
-    .then((s: any) => { j.status = 'done'; j.shopId = s.id; j.notices = s.notices || []; cityCache = null; }).catch((e: any) => { j.status = 'error'; j.error = e.message; if (j.plan) releasePlot(j.plan.shopId).catch(() => {}); });
+  buildScope.run({ tok: 0, cap: BUILD_TOKEN_CAP }, () => createShop(q.body.idea, (s) => { j.log.push(s); console.log(s); }, owner.id, async (p) => { j.plan = { shopId: p.shopId, name: p.name, plot: await assignPlot(p.shopId, p.kinds, p.color, p.text) }; })
+    .then((s: any) => { j.status = 'done'; j.shopId = s.id; j.notices = s.notices || []; cityCache = null; }).catch((e: any) => { j.status = 'error'; j.error = e.message; if (j.plan) releasePlot(j.plan.shopId).catch(() => {}); }));
   setTimeout(() => jobs.delete(jid), 3600_000); r.json({ id: jid });
 }));
 app.get('/shops/jobs/:id', (q: any, r: any) => { const j = jobs.get(q.params.id); j ? r.json({ ...j, elapsedMs: Date.now() - j.started }) : r.status(404).json({ error: 'not found' }); });
-app.post('/shops', wrap(async (q: any, r: any) => { const u = await need(q); await shopQuota(u); r.json(pub(await createShop(q.body.idea, (s) => console.log(s), u.id, (p) => assignPlot(p.shopId, p.kinds, p.color, p.text)))); cityCache = null; }));
+app.post('/shops', wrap(async (q: any, r: any) => { const u = await need(q); await shopQuota(u); buildGate(q, u); r.json(pub(await buildScope.run({ tok: 0, cap: BUILD_TOKEN_CAP }, () => createShop(q.body.idea, (s) => console.log(s), u.id, (p) => assignPlot(p.shopId, p.kinds, p.color, p.text))))); cityCache = null; }));
 app.get('/shops', wrap(async (_q: any, r: any) => r.json((await hidden.publicRows(await db.list('shops', 50))).map((x) => ({ id: x.id, name: x.data.name, tagline: x.data.tagline, logo: x.data.logo, colors: x.data.colors })))));
 app.get('/shops/:id', wrap(async (q: any, r: any) => { const s = await db.get('shops', q.params.id); if (!s) return r.status(404).json({ error: 'not found' }); const { ownerId, idea, notices, ...rest } = pub(s); r.json({ ...rest, owner: ownerId ? displayName(await db.get('users', ownerId).catch(() => null)) : 'HollowCo' }); }));
 app.get('/assets/:id', wrap(async (q: any, r: any) => {
@@ -300,6 +302,10 @@ app.get('/ledger', wrap(async (_q: any, r: any) => r.json(await hidden.publicLed
 const admin = (q: any) => { const k = env('ADMIN_SECRET'); if (!k || String(q.get('x-admin-secret') || '') !== k) { const e: any = new Error('not found'); e.status = 404; throw e; } };
 app.get('/admin/hidden', wrap(async (q: any, r: any) => { admin(q); r.json({ hidden: [...(await hidden.hiddenSet())] }); }));
 app.post('/admin/hidden', wrap(async (q: any, r: any) => { admin(q); const ids: string[] = [].concat(q.body?.shopIds || q.body?.shopId || []).map(String).slice(0, 200); for (const i of ids) await hidden.setHidden(i, q.body?.hidden !== false, String(q.body?.reason || '')); cityCache = null; statsCache = null; r.json({ ok: true, hidden: [...(await hidden.hiddenSet())] }); }));
+// Founder back-office through the PayPal Agent Toolkit: reconcile (list_transactions), B2B invoice (create_invoice), checkout order (create_order).
+app.post('/agent/ops/:kind', wrap(async (q: any, r: any) => { const k = q.params.kind; if (!['reconcile', 'invoice', 'order'].includes(k)) return r.status(404).json({ error: 'unknown op' });
+  const u = await me(q); takeAction('founderop', u ? 'u:' + u.id : 'ip:' + q.ip, isDemo(u) ? 'demo' : u ? 'user' : 'anon'); aiBudgetCheck();
+  const x: any = await founderOp(k, { shopId: q.body?.shopId }); r.json({ kind: x.kind, ok: x.ok, summary: x.summary, result: typeof x.result === 'string' ? x.result.slice(0, 600) : x.result, calls: (x.calls || []).map((c: any) => ({ tool: c.tool, decision: c.decision, reasons: c.reasons, via: c.via })) }); }));
 app.post('/jailbreak', wrap(async (q: any, r: any) => { const u = await me(q); takeAction('jailbreak', u ? 'u:' + u.id : 'ip:' + q.ip, isDemo(u) ? 'demo' : u ? 'user' : 'anon'); r.json(await jailbreak(q.body.message)); }));
 
 const port = Number(env('PORT', '4000'));

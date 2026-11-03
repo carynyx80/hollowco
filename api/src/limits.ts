@@ -10,6 +10,8 @@ export const SHOP_LIMITS = () => ({
 });
 export const ACTION_LIMITS: Record<string, { user: number; demo: number; anon: number; global: number }> = {
   simulate: { user: num('SIM_LIMIT_PER_USER_DAY', 30), demo: num('SIM_LIMIT_DEMO_DAY', 150), anon: num('SIM_LIMIT_PER_IP_DAY', 10), global: num('SIM_LIMIT_GLOBAL_DAY', 500) },
+  build: { user: num('BUILD_LIMIT_PER_ACCOUNT_DAY', 5), demo: num('BUILD_LIMIT_DEMO_DAY', 15), anon: num('BUILD_LIMIT_PER_IP_DAY', 5), global: num('BUILD_LIMIT_GLOBAL_DAY', 50) },
+  founderop: { user: num('OP_LIMIT_PER_USER_DAY', 15), demo: num('OP_LIMIT_DEMO_DAY', 30), anon: num('OP_LIMIT_PER_IP_DAY', 6), global: num('OP_LIMIT_GLOBAL_DAY', 150) },
   jailbreak: { user: num('JB_LIMIT_PER_USER_DAY', 20), demo: num('JB_LIMIT_DEMO_DAY', 100), anon: num('JB_LIMIT_PER_IP_DAY', 10), global: num('JB_LIMIT_GLOBAL_DAY', 300) },
 };
 export const isDemo = (u: any) => !!u && String(u.email || '').toLowerCase() === env('DEMO_EMAIL', 'demo@hollowco.app').toLowerCase();
@@ -29,7 +31,7 @@ export function takeAction(kind: string, key: string, tier: 'user' | 'demo' | 'a
   const L = ACTION_LIMITS[kind]; const lim = L[tier];
   const win = (k: string) => { const a = (hits.get(k) || []).filter((t) => now - t < DAY); hits.set(k, a); return a; };
   const g = win(kind + ':*'), u = win(kind + ':' + key);
-  const what = kind === 'simulate' ? 'simulated customers' : 'jailbreak tests';
+  const what = ({ simulate: 'simulated customers', jailbreak: 'jailbreak tests', build: 'AI store builds', founderop: 'founder PayPal actions' } as Record<string, string>)[kind] || kind;
   if (g.length >= L.global) throw new LimitError(`Today's site-wide limit for ${what} (${L.global}) is reached. Please try again tomorrow.`);
   if (u.length >= lim) throw new LimitError(`You've run ${lim} ${what} in the last 24 hours, which is the daily limit${tier === 'anon' ? ' for visitors. Sign in for more' : ''}. Try again later.`);
   g.push(now); u.push(now);

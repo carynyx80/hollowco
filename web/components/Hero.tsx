@@ -12,6 +12,8 @@ export function Hero() {
   useEffect(() => { const q = new URLSearchParams(location.search); setShow(q.has('hero') || (!q.has('panel') && !localStorage.getItem(KEY))); }, []);
   useEffect(() => { if (!show) return; const k = (e: KeyboardEvent) => e.key === 'Escape' && close(); addEventListener('keydown', k); return () => removeEventListener('keydown', k); }, [show]);
   const close = () => { localStorage.setItem(KEY, '1'); setShow(false); window.dispatchEvent(new Event('hero:close')); };
+  // While the hero is open, hide the city HUD (dock, featured stores, stats) so the first view is just the pitch over the city.
+  useEffect(() => { const c = document.documentElement.classList; if (show) c.add('hero-open'); else c.remove('hero-open'); return () => c.remove('hero-open'); }, [show]);
   if (!show) return null;
   return <div className="hero-veil" data-testid="hero" role="dialog" aria-modal="true" aria-labelledby="hero-h">
     <div className="hero-card">

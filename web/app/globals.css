@@ -252,7 +252,7 @@ h1.font-display, .font-display.text-4xl, .font-display.text-5xl { font-weight: 5
 .cat-store-h { display: flex; align-items: center; gap: 8px; margin: 14px 0 6px; font-size: 13px; color: #0E0D0B; } .cat-store-h img { width: 22px; height: 22px; border-radius: 999px; object-fit: cover; }
 
 /* ── First-visit hero ─────────────────────────────────────────── */
-.hero-veil{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:1.25rem;background:linear-gradient(180deg,rgba(14,13,11,.30),rgba(14,13,11,.62));backdrop-filter:blur(3px);animation:hero-in .45s ease-out both}
+.hero-veil{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:1.25rem;background:linear-gradient(180deg,rgba(14,13,11,.04) 0%,rgba(14,13,11,.10) 55%,rgba(14,13,11,.34) 100%);animation:hero-in .45s ease-out both}
 .hero-card{position:relative;width:min(640px,100%);background:#F9F8F5;color:#0E0D0B;border:1px solid rgba(184,151,90,.45);border-radius:22px;padding:clamp(1.5rem,4vw,2.75rem);box-shadow:0 30px 80px -20px rgba(14,13,11,.55)}
 .hero-kicker{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:.7rem;letter-spacing:.22em;text-transform:uppercase;color:#B8975A}
 .hero-h{font-family:'Cormorant Garamond',Georgia,serif;font-weight:500;font-size:clamp(1.9rem,5.4vw,3.1rem);line-height:1.06;margin:.6rem 0 1.5rem;letter-spacing:-.01em}
@@ -272,3 +272,5 @@ h1.font-display, .font-display.text-4xl, .font-display.text-5xl { font-weight: 5
 @media (max-width:480px){.cat-entry{flex-wrap:wrap}.cat-entry .k{letter-spacing:.12em}.cat-entry-btn{width:100%;justify-content:center}}
 
 .city-poster { background: #ECEAE3 url('/city-poster.svg') center bottom / cover no-repeat; }
+
+html.hero-open .city-glass,html.hero-open [data-testid=city-dock],html.hero-open [data-testid=world-settings]{visibility:hidden}

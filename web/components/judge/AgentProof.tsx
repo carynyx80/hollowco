@@ -28,12 +28,14 @@ export default function AgentProof({ compact = false }: { compact?: boolean }) {
           <button onClick={attack} disabled={busy} style={{ background: C.ink, color: C.cream, borderRadius: 8, padding: '10px 18px', fontWeight: 600 }} data-testid="trick-send">{busy ? 'Founder is thinking…' : 'Send to founder'}</button>
         </div>
         {err && <p style={{ color: C.red, fontSize: 13, marginTop: 8 }}>{err}</p>}
+        {jb?.[0] && <p style={{ ...mono, fontSize: 11, marginTop: 10, display: 'inline-block', padding: '3px 8px', borderRadius: 999, border: `1px solid ${jb[0].mode === 'live' ? C.green : C.red}`, color: jb[0].mode === 'live' ? C.green : C.red }} data-testid="trick-mode">{jb[0].mode === 'live' ? `LIVE MODEL · ${jb[0].model || 'openai'}` : `OFFLINE FALLBACK · AI unavailable${jb[0].offlineReason ? ' (' + jb[0].offlineReason + ')' : ''} · scripted attacker, real guardrails`}</p>}
         {jb?.map((r, i) => { const p = r.proposal || {}; const { tool, ...args } = p; return (
           <div key={i} style={{ marginTop: 10, fontSize: 13, borderRadius: 8, border: `1px solid ${C.red}33`, background: '#A6452F10', padding: 12 }} data-testid="trick-result">
             <div><b style={{ color: C.brass }}>AI PROPOSED</b> <span style={mono}>{tool || 'create_payout'}({JSON.stringify(args).slice(0, 160)})</span>{r.via && <span style={{ opacity: .6 }}> · via {r.via === 'toolkit' ? 'PayPal Agent Toolkit' : 'PayPal Payouts API'}</span>}</div>
             <div style={{ marginTop: 4 }}><b style={{ color: C.red }}>CODE BLOCKED</b> {(r.reasons || []).join('; ')}</div>
           </div>); })}
       </div>
+      {!compact && <FounderOps onDone={load} />}
       {!compact && <div style={{ marginTop: 20 }}>
         <p style={{ ...mono, fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: C.brass }}>Founder’s PayPal tool calls (AI proposes · code approves)</p>
         <div style={{ marginTop: 6, display: 'grid', gap: 4 }} data-testid="agent-calls">
@@ -49,4 +51,19 @@ export default function AgentProof({ compact = false }: { compact?: boolean }) {
       </div>}
     </section>
   );
+}
+
+const OPS: [string, string, string][] = [['reconcile', 'Reconcile books', 'list_transactions'], ['invoice', 'Invoice a B2B buyer', 'create_invoice'], ['order', 'Create a checkout order', 'create_order']];
+function FounderOps({ onDone }: { onDone: () => void }) {
+  const [busy, setBusy] = useState(''); const [res, setRes] = useState<any>(null); const [err, setErr] = useState('');
+  async function run(k: string) { setBusy(k); setErr(''); setRes(null); try { setRes(await api('/agent/ops/' + k, { method: 'POST', body: '{}' })); onDone(); } catch (e: any) { setErr(e.message); } finally { setBusy(''); } }
+  let detail = ''; try { const j = typeof res?.result === 'string' ? JSON.parse(res.result) : res?.result; detail = res?.summary ? `PayPal: ${res.summary.paypalTransactions} transactions ($${res.summary.paypalIncomingGross}) · Ledger: ${res.summary.ledgerOrders} orders ($${res.summary.ledgerRevenue})` : j?.id ? `PayPal ${res.kind === 'order' ? 'order' : 'invoice'} ${j.id} · ${j.status || ''}` : j?.message || String(res?.result || '').slice(0, 160); } catch { detail = String(res?.result || '').slice(0, 160); }
+  const approve = (() => { try { return (JSON.parse(res?.result || '{}').links || []).find((l: any) => /approve|payer-action/.test(l.rel))?.href; } catch { return ''; } })();
+  return <div style={{ marginTop: 20, border: `1px solid ${C.beige}`, borderRadius: 10, padding: 16, background: '#fff' }} data-testid="founder-ops">
+    <p style={{ ...mono, fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: C.brass }}>Founder back office · PayPal Agent Toolkit, live sandbox</p>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>{OPS.map(([k, t, tool]) => <button key={k} onClick={() => run(k)} disabled={!!busy} data-testid={'op-' + k} style={{ border: `1px solid ${C.ink}22`, background: C.cream, borderRadius: 8, padding: '8px 12px', fontSize: 13 }}>{busy === k ? 'Working…' : t} <span style={{ ...mono, fontSize: 11, opacity: .55 }}>{tool}</span></button>)}</div>
+    {err && <p style={{ color: C.red, fontSize: 13, marginTop: 8 }}>{err}</p>}
+    {res && <div style={{ ...mono, fontSize: 12, marginTop: 10, padding: 10, borderRadius: 8, background: res.ok ? '#4F7A4712' : '#A6452F10', border: `1px solid ${res.ok ? C.green : C.red}33` }} data-testid="op-result">
+      <b style={{ color: res.ok ? C.green : C.red }}>{res.ok ? 'APPROVED & EXECUTED' : 'NOT COMPLETED'}</b> {(res.calls || []).map((c: any) => `${c.tool}: ${c.decision}`).join(' · ')}<div style={{ marginTop: 4, opacity: .8 }}>{detail}</div>{approve && <a href={approve} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>Open PayPal approval →</a>}</div>}
+  </div>;
 }

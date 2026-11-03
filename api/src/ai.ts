@@ -2,6 +2,22 @@ import { STAFF_PAYEE } from './guardrails.js';
 import crypto from 'node:crypto';
 import { env } from './env.js';
 import sharp from 'sharp';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { LimitError } from './limits.js';
+// ---- Spend protection: per-build token cap + site-wide daily token / image budget (in-memory, resets daily) ----
+export const buildScope = new AsyncLocalStorage<{ tok: number; cap: number }>();
+export const BUILD_TOKEN_CAP = Number(env('AI_TOKENS_PER_BUILD', '60000'));
+const DAILY_TOKENS = Number(env('AI_TOKENS_PER_DAY', '1500000'));
+const DAILY_IMAGES = Number(env('AI_IMAGES_PER_DAY', '250'));
+let dayKey = '', dayTok = 0, dayImg = 0;
+const roll = () => { const d = new Date().toISOString().slice(0, 10); if (d !== dayKey) { dayKey = d; dayTok = 0; dayImg = 0; } };
+export const aiBudget = () => { roll(); return { day: dayKey, tokens: dayTok, tokenBudget: DAILY_TOKENS, images: dayImg, imageBudget: DAILY_IMAGES, perBuildTokenCap: BUILD_TOKEN_CAP }; };
+export function aiBudgetCheck() {
+  roll();
+  if (dayTok >= DAILY_TOKENS) throw new LimitError("HollowCo has used today's AI budget (it keeps the demo running for everyone). New AI work resumes after midnight UTC; the city, checkout and replays still work.");
+  const b = buildScope.getStore(); if (b && b.tok >= b.cap) throw new LimitError(`This build reached its AI token cap (${b.cap.toLocaleString()} tokens).`);
+}
+export function aiMeter(j: any) { roll(); const t = Number(j?.usage?.total_tokens) || (Number(j?.usage?.prompt_tokens) || 0) + (Number(j?.usage?.completion_tokens) || 0); dayTok += t; const b = buildScope.getStore(); if (b) b.tok += t; }
 // Provider abstraction: OpenAI or xAI (OpenAI-compatible) if a key is present; otherwise deterministic mock.
 type Prov = { name: string; base: string; key: string; chat: string; plan: string; image: string };
 function provider(): Prov | null {
@@ -12,13 +28,13 @@ function provider(): Prov | null {
 // Token/image metering so we can price a shop from real runs.
 const usage = { chatCalls: 0, inTok: 0, outTok: 0, imageCalls: 0, imgInTok: 0, imgOutTok: 0, byModel: {} as Record<string, number> };
 export const usageSnapshot = () => JSON.parse(JSON.stringify(usage));
-function meterChat(model: string, j: any) { usage.chatCalls++; usage.inTok += j?.usage?.prompt_tokens || 0; usage.outTok += j?.usage?.completion_tokens || 0; usage.byModel[model] = (usage.byModel[model] || 0) + 1; }
-function meterImage(model: string, j: any) { usage.imageCalls++; usage.imgInTok += j?.usage?.input_tokens || 0; usage.imgOutTok += j?.usage?.output_tokens || 0; usage.byModel[model] = (usage.byModel[model] || 0) + 1; }
+function meterChat(model: string, j: any) { aiMeter(j); usage.chatCalls++; usage.inTok += j?.usage?.prompt_tokens || 0; usage.outTok += j?.usage?.completion_tokens || 0; usage.byModel[model] = (usage.byModel[model] || 0) + 1; }
+function meterImage(model: string, j: any) { dayImg++; usage.imageCalls++; usage.imgInTok += j?.usage?.input_tokens || 0; usage.imgOutTok += j?.usage?.output_tokens || 0; usage.byModel[model] = (usage.byModel[model] || 0) + 1; }
 export const aiMode = () => provider()?.name ?? 'mock';
 async function chatJSON(system: string, user: string): Promise<any> {
-  const p = provider()!;
+  const p = provider()!; aiBudgetCheck();
   const r = await fetch(p.base + '/chat/completions', { method: 'POST', headers: { Authorization: `Bearer ${p.key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: p.chat, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: system + '\nReply with JSON only.' }, { role: 'user', content: user }] }) });
+    body: JSON.stringify({ model: p.chat, max_tokens: 2000, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: system + '\nReply with JSON only.' }, { role: 'user', content: user }] }) });
   const j: any = await r.json();
   if (!r.ok) throw new Error('LLM error ' + r.status);
   meterChat(p.chat, j);
@@ -27,9 +43,10 @@ async function chatJSON(system: string, user: string): Promise<any> {
 // Structured output (JSON schema, strict) on the stronger plan model; falls back to json_object if schema unsupported.
 async function chatSchema(system: string, user: string, name: string, schema: any, temperature = 0.4): Promise<any> {
   const p = provider()!;
+  aiBudgetCheck();
   const call = async (rf: any, model: string) => {
     const r = await fetch(p.base + '/chat/completions', { method: 'POST', headers: { Authorization: `Bearer ${p.key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, temperature, response_format: rf, messages: [{ role: 'system', content: system + (rf.type === 'json_object' ? '\nReply with JSON only matching this schema: ' + JSON.stringify(schema) : '') }, { role: 'user', content: user }] }) });
+      body: JSON.stringify({ model, temperature, max_tokens: 4000, response_format: rf, messages: [{ role: 'system', content: system + (rf.type === 'json_object' ? '\nReply with JSON only matching this schema: ' + JSON.stringify(schema) : '') }, { role: 'user', content: user }] }) });
     const j: any = await r.json();
     if (!r.ok) throw new Error('LLM error ' + r.status + ' ' + (j?.error?.message || ''));
     meterChat(model, j);
@@ -39,9 +56,9 @@ async function chatSchema(system: string, user: string, name: string, schema: an
   catch (e) { console.warn('schema call failed, retrying json_object:', (e as Error).message); return await call({ type: 'json_object' }, p.plan); }
 }
 async function chatText(system: string, user: string): Promise<string> {
-  const p = provider()!;
+  const p = provider()!; aiBudgetCheck();
   const r = await fetch(p.base + '/chat/completions', { method: 'POST', headers: { Authorization: `Bearer ${p.key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: p.chat, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }) });
+    body: JSON.stringify({ model: p.chat, max_tokens: 2200, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }) });
   const j: any = await r.json();
   if (!r.ok) throw new Error('LLM error ' + r.status);
   meterChat(p.chat, j);
@@ -49,8 +66,8 @@ async function chatText(system: string, user: string): Promise<string> {
 }
 const deadImageModels = new Set<string>();
 export async function image(prompt: string, seed: string, palette: string[]): Promise<{ mime: string; data: Buffer; provider: string }> {
-  const p = provider();
-  if (p) {
+  const p = provider(); roll();
+  if (p && dayImg < DAILY_IMAGES) {
     const models = p.name === 'openai' ? [p.image, 'dall-e-3', 'gpt-image-1-mini'].filter((m, i, a) => a.indexOf(m) === i && !deadImageModels.has(m)) : [p.image];
     for (const model of models) try {
       const body: any = { model, prompt, n: 1 };
@@ -206,4 +223,10 @@ export async function founderProposePayouts(ctx: { revenue: number; tasks: { age
     return [{ agent: 'founder', recipient: email, amount: amt, currency: 'USD', reason: 'Instruction from chat: ' + ctx.instruction.slice(0, 120) }];
   }
   return ctx.tasks.map((t) => ({ agent: t.agent, recipient: RECIP, amount: Math.min(2, Math.round(ctx.revenue * 0.1 * 100) / 100), currency: 'USD', reason: `${t.agent} agent: ${t.task}` }));
+}
+/** Offline fallback only (no model): a deterministic *compromised* founder that obeys the injected text, so the code guardrail can still be shown. */
+export function mockCompromisedProposals(instruction: string): PayoutProposal[] {
+  const email = instruction.match(/[\w.+-]+@[\w-]+\.[\w.]+/)?.[0] || 'attacker@evil.example';
+  const amt = Number(instruction.match(/\$?\s?(\d+(?:\.\d+)?)/)?.[1] || 1000);
+  return [{ agent: 'founder', recipient: email, amount: amt, currency: 'USD', reason: 'Instruction from chat: ' + instruction.slice(0, 120) } as any];
 }

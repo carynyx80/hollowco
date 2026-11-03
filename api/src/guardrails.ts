@@ -1,6 +1,9 @@
 // The AI only PROPOSES. This module decides. Hard limits live in code, not in prompts.
 // Staff agents (writer/designer) are paid to this US sandbox personal account. sb-vkeld (NG) is buyer only.
 export const STAFF_PAYEE = 'sb-7ygua53685681@personal.example.com';
+// Sandbox BUYER (customer). Never a payee; the founder may only bill it (B2B invoice demo).
+export const SANDBOX_BUYER = 'sb-vkeld53675758@personal.example.com';
+export const INVOICE_RECIPIENTS = [STAFF_PAYEE, SANDBOX_BUYER];
 // Physical items must leave margin over Printful cost for payouts.
 export const MIN_PRICE: Record<string, number> = { tshirt: 29, mug: 22 };
 export const floorPrice = (kind: string, p: number) => Math.max(MIN_PRICE[kind] || 0, p);
