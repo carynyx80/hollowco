@@ -44,7 +44,7 @@ export function Progress({ orderId, ppId, onDone }: { orderId: string; ppId?: st
     <div className="cat-progh"><h2>Progress</h2><span>{shown < flat.length || !o ? 'Live' : 'Complete'}</span></div>
     {groups.map((g, gi) => <div key={gi} data-testid={g.head ? 'store-progress' : undefined}>
       {g.head && <p className="cat-store-h">{g.head.logo && <img src={thumb(g.head.logo, 64)} alt="" />}<b>{g.head.name}</b></p>}
-      <ol className="cat-steps">{g.steps.map((s) => { const i = n++; const st = i < shown ? 'done' : i === shown ? 'now' : 'todo'; return <li key={i} className={st} data-testid={`step-${i}`} data-state={st}><span className="dot">{st === 'done' ? <Check /> : null}</span><div><p>{s.t}</p><small>{s.d}</small></div></li>; })}</ol></div>)}
+      <ol className="cat-steps">{g.steps.map((s) => { const i = n++; const st = i < shown ? 'done' : i === shown ? 'now' : 'todo'; return <li key={i} className={st} data-testid={`step-${i}`} data-state={st} aria-current={st === 'now' ? 'step' : undefined}><span className="dot">{st === 'done' ? <Check /> : null}</span><div><p>{s.t}<span className="sr-only"> — {st === 'done' ? 'complete' : st === 'now' ? 'in progress' : 'pending'}</span></p><small>{s.d}</small></div></li>; })}</ol></div>)}
     {o?.failure && o.status !== 'COMPLETED' && <p className="cat-err">{o.failure}</p>}
     {shown >= 2 && o?.downloads?.map((d: any) => <a key={d.pdf} className="cat-cta brass" href={'/api' + d.pdf} data-testid="cat-download">Download {d.title}</a>)}
     {o && shown >= flat.length && <button className="cat-cta ghost" onClick={onDone} data-testid="cat-done">Done</button>}

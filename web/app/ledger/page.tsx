@@ -20,10 +20,10 @@ const orderCols: any[] = [
   { field: 'profit', valueFormatter: usd, width: 110, cellStyle: (p: any) => ({ fontWeight: 700, color: p.value >= 0 ? '#4F7A47' : '#A6452F' }) },
   { field: 'rejected', headerName: 'Blocked', width: 95 }, { field: 'orderId', headerName: 'Order', width: 170 }];
 function OrderCards({ rows, empty }: { rows: any[]; empty: string }) {
-  if (!rows.length) return <p className="text-sm text-char/55 py-4">{empty}</p>;
+  if (!rows.length) return <p className="text-sm text-char/60 py-4">{empty}</p>;
   return <ul className="space-y-2">{[...rows].sort((a, b) => String(b.at).localeCompare(String(a.at))).map((o) => <li key={o.orderId} className="rounded-md border border-black/[.08] bg-white p-3 text-sm">
-    <div className="flex justify-between gap-3"><span className="font-medium">{o.shop}{tag(o) && <span className="ml-1.5 font-mono text-[10px] uppercase text-char/55">{tag(o)}</span>}</span><span className="tabular-nums font-semibold">{money(o.revenue)}</span></div>
-    <div className="mt-1 flex justify-between text-xs text-char/55"><span>{when(o.at)}</span><span>fee {money(o.fees)} · supplier {money(o.supplierCost)} · staff {money(o.payouts)} · <b className={o.profit >= 0 ? 'text-[#4F7A47]' : 'text-[#A6452F]'}>profit {money(o.profit)}</b></span></div></li>)}</ul>;
+    <div className="flex justify-between gap-3"><span className="font-medium">{o.shop}{tag(o) && <span className="ml-1.5 font-mono text-[10px] uppercase text-char/60">{tag(o)}</span>}</span><span className="tabular-nums font-semibold">{money(o.revenue)}</span></div>
+    <div className="mt-1 flex justify-between text-xs text-char/60"><span>{when(o.at)}</span><span>fee {money(o.fees)} · supplier {money(o.supplierCost)} · staff {money(o.payouts)} · <b className={o.profit >= 0 ? 'text-[#4F7A47]' : 'text-[#A6452F]'}>profit {money(o.profit)}</b></span></div></li>)}</ul>;
 }
 export default function Ledger() {
   const [d, setD] = useState<any>(null); const mobile = useMobile(); const [showSim, setShowSim] = useState(false);
@@ -35,25 +35,25 @@ export default function Ledger() {
   const grid = (rows: any[], cols: any[], h: number) => !d ? <Skel h={h} /> : <div style={{ height: h }}><AgGridReact theme={theme} rowData={rows} columnDefs={cols} overlayNoRowsTemplate="Nothing here yet." /></div>;
   return (
     <div className="mx-auto max-w-6xl px-5 py-10 space-y-8">
-      <div><p className="eyebrow">Transparency</p><h1 className="font-display text-4xl  mt-1">Live public P&amp;L</h1><p className="text-char/55 mt-2">Every cent in and out of every HollowCo company, from real PayPal sandbox orders. Refreshes every 5s.</p></div>
+      <div><p className="eyebrow">Transparency</p><h1 className="font-display text-4xl  mt-1">Live public P&amp;L</h1><p className="text-char/60 mt-2">Every cent in and out of every HollowCo company, from real PayPal sandbox orders. Refreshes every 5s.</p></div>
       {t ? <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[['Revenue', t.revenue], ['PayPal fees', t.fees], ['Supplier cost', t.supplierCost], ['Agent payouts', t.payouts], ['Profit', t.profit]].map(([k, v]) =>
-          <div key={k as string} className="card p-5"><div className="text-xs text-char/55">{k}</div><div className="text-2xl font-semibold tabular-nums mt-1">{money(v)}</div></div>)}
+          <div key={k as string} className="card p-5"><div className="text-xs text-char/60">{k}</div><div className="text-2xl font-semibold tabular-nums mt-1">{money(v)}</div></div>)}
       </div> : <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[0, 1, 2, 3].map((i) => <div key={i} className="card p-5 h-[84px] animate-pulse" />)}</div>}
-      {st && <p className="text-xs text-char/55 -mt-4" data-testid="sim-note">Totals count {t.orders} real sandbox order{t.orders === 1 ? '' : 's'} only. {st.orders} test/simulated order{st.orders === 1 ? '' : 's'} ({money(st.revenue)}, no money moved) are excluded and listed separately below.</p>}
+      {st && <p className="text-xs text-char/60 -mt-4" data-testid="sim-note">Totals count {t.orders} real sandbox order{t.orders === 1 ? '' : 's'} only. {st.orders} test/simulated order{st.orders === 1 ? '' : 's'} ({money(st.revenue)}, no money moved) are excluded and listed separately below.</p>}
       <section><h2 className="font-semibold mb-2">Profit per order</h2>
         {mobile ? (d ? <OrderCards rows={real} empty="No real orders yet." /> : <Skel h={240} />) : grid(real, orderCols, 320)}</section>
       <AgentProof />
       <section><h2 className="font-semibold mb-2">Event log (incl. blocked proposals and PayPal Agent Toolkit calls)</h2>
         <label className="text-xs text-char/60 flex items-center gap-2 mb-2"><input type="checkbox" checked={showSim} onChange={(e) => setShowSim(e.target.checked)} /> Include test / simulated rows</label>
         {mobile ? (d ? <ul className="space-y-2">{[...events].sort((a: any, b: any) => String(b.at).localeCompare(String(a.at))).slice(0, 80).map((e: any, i: number) => <li key={i} className="rounded-md border border-black/[.08] bg-white p-3 text-xs">
-          <div className="flex justify-between gap-2"><span className={`font-mono uppercase ${e.kind === 'rejected' ? 'text-[#A6452F]' : e.kind === 'agent_tool' ? 'text-brass' : 'text-char/70'}`}>{e.kind}{(e.sim || e.test) && ' · sim'}</span><span className="text-char/55">{when(e.at)}</span></div>
+          <div className="flex justify-between gap-2"><span className={`font-mono uppercase ${e.kind === 'rejected' ? 'text-[#A6452F]' : e.kind === 'agent_tool' ? 'text-brass' : 'text-char/70'}`}>{e.kind}{(e.sim || e.test) && ' · sim'}</span><span className="text-char/60">{when(e.at)}</span></div>
           <div className="mt-1"><b>{e.shop}</b>{e.amount != null && <span className="tabular-nums"> {money(e.amount)}</span>}</div><div className="text-char/60 break-words">{detail(e)}</div></li>)}</ul> : <Skel h={300} />)
           : grid(events, [
           { field: 'at', headerName: 'Time', sort: 'desc', width: 150, valueFormatter: time }, { field: 'kind', width: 130, cellStyle: (p: any) => (p.value === 'rejected' ? { color: '#A6452F', fontWeight: 700 } : p.value === 'agent_tool' ? { color: '#8C6F3C', fontWeight: 700 } : null) },
           { field: 'shop', width: 200, tooltipField: 'shop' }, { field: 'agent', width: 100 }, { field: 'amount', valueFormatter: usd, width: 100 },
           { headerName: 'Detail', flex: 1, minWidth: 300, tooltipValueGetter: (p: any) => detail(p.data), valueGetter: (p: any) => `${p.data.sim || p.data.test ? '[SIMULATED] ' : ''}${detail(p.data)}`.replace('[SIMULATED] [SIMULATED]', '[SIMULATED]') }], 420)}</section>
-      {fake.length > 0 && <section><h2 className="font-semibold mb-1">Test &amp; simulated orders <span className="text-xs font-normal text-char/55">— excluded from all totals, no money moved</span></h2>
+      {fake.length > 0 && <section><h2 className="font-semibold mb-1">Test &amp; simulated orders <span className="text-xs font-normal text-char/60">— excluded from all totals, no money moved</span></h2>
         {mobile ? <OrderCards rows={fake} empty="" /> : grid(fake, orderCols, 260)}</section>}
     </div>
   );

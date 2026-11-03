@@ -22,7 +22,7 @@ export function Nav() {
         <div className="ml-auto flex items-center gap-2 md:order-none"><CartButton /></div>
         <div className="hidden md:flex items-center gap-2">
           {loading ? <div className="skeleton h-9 w-40" /> : user ? <>
-            <span className="text-xs text-char/50 mr-2">by {user.displayName || user.name}</span>
+            <span className="text-xs text-char/60 mr-2">by {user.displayName || user.name}</span>
             <button onClick={out} className="btn-ghost h-9">Sign out</button>
           </> : <>
             <Link href={path === '/' ? '/?panel=signin' : '/signin'} className="btn h-9 hover:bg-black/[.04]">Sign in</Link>

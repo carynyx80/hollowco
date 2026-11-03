@@ -14,7 +14,7 @@ export function OfficePage({ shop }: { shop?: string }) {
   async function jailbreak(message: string) { try { await api('/jailbreak', { method: 'POST', body: JSON.stringify({ message }) }); await load(); } catch (e: any) { toast(e.message, 'err'); } }
   return <div className="mx-auto max-w-7xl px-5 py-8 space-y-4">
     <div className="flex flex-wrap items-end gap-3"><div><p className="eyebrow">Live HQ</p><h1 className="font-display text-4xl mt-1">The Hollow <span className="italic text-coral-600">Office</span></h1>
-      <p className="text-sm text-char/55 mt-1">A company with nobody in it. Every move below is a real ledger event: sales, Printful drafts, PayPal payouts and blocked jailbreaks.</p></div>
+      <p className="text-sm text-char/60 mt-1">A company with nobody in it. Every move below is a real ledger event: sales, Printful drafts, PayPal payouts and blocked jailbreaks.</p></div>
       <Link href="/" className="ml-auto text-sm text-char/60 hover:text-char">Marketplace →</Link></div>
     <HollowOffice events={ev} shopId={shop} pending={sim} onSimulate={simulate} simBusy={sim} onJailbreak={jailbreak} autoReplay={auto} scope={shop ? 'one shop · public' : 'site-wide · public · last 100 events'} />
   </div>;

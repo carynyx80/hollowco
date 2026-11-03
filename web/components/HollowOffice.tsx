@@ -211,7 +211,7 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
   return <div className="card overflow-hidden" data-testid="hollow-office">
     <div className="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-black/[.08]">
       <span className="relative flex h-2.5 w-2.5"><span className="absolute inset-0 rounded-full bg-lime dot-ping" /><span className="relative h-2.5 w-2.5 rounded-full bg-lime" /></span>
-      <p className="font-medium">{title}</p>{scope && <span className="text-xs text-char/55">{scope}</span>}
+      <p className="font-medium">{title}</p>{scope && <span className="text-xs text-char/60">{scope}</span>}
       <div className="ml-auto flex flex-wrap items-center gap-2">
         <button onClick={() => setSound((s) => !s)} className="chip" aria-pressed={sound} title="Sound">{sound ? 'Sound on' : 'Muted'}</button>
         <button onClick={replay} disabled={playing || !events?.length} className="chip disabled:opacity-40" data-testid="office-replay">↺ Replay real events</button>
@@ -308,27 +308,27 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
           style={{ ...pct([p[0], p[1] - 104]) }}>{b.tone === 'think' && <span className="not-italic mr-1">…</span>}{b.t}</motion.div>; })}</AnimatePresence>
         {/* HUD */}
         <div className="absolute left-3 top-3 grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]" data-testid="office-hud">
-          {[['Revenue', pl.revenue, '#8C6F3C'], ['Costs', pl.supplierCost, '#9A6A2E'], ['Payouts', pl.payouts, '#4F7A47'], ['Profit', pl.profit, pl.profit < 0 ? '#A6452F' : '#0E0D0B']].map(([k, v, c]) => <div key={k as string} className="rounded-lg border border-black/[.08] bg-white/85 text-char backdrop-blur px-2.5 py-1.5"><p className="text-char/50">{k}</p><p className="font-semibold tabular-nums text-sm" style={{ color: c as string }}>{usd(v as number)}</p></div>)}
+          {[['Revenue', pl.revenue, '#8C6F3C'], ['Costs', pl.supplierCost, '#9A6A2E'], ['Payouts', pl.payouts, '#4F7A47'], ['Profit', pl.profit, pl.profit < 0 ? '#A6452F' : '#0E0D0B']].map(([k, v, c]) => <div key={k as string} className="rounded-lg border border-black/[.08] bg-white/85 text-char backdrop-blur px-2.5 py-1.5"><p className="text-char/60">{k}</p><p className="font-semibold tabular-nums text-sm" style={{ color: c as string }}>{usd(v as number)}</p></div>)}
         </div>
         <div className="absolute right-3 top-3 w-56 rounded-lg border border-black/[.08] bg-white/85 text-char backdrop-blur p-2 text-[11px] font-mono" data-testid="office-ticker">
-          <p className="text-[9px] uppercase tracking-[.16em] text-char/55 mb-1">Mini ledger</p>
-          <AnimatePresence initial={false}>{ticker.length ? ticker.map((t) => <motion.p key={t.id} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} className="truncate" style={{ color: t.c }}>{t.t}</motion.p>) : <p className="text-char/55">Waiting for money to move…</p>}</AnimatePresence>
+          <p className="text-[9px] uppercase tracking-[.16em] text-char/60 mb-1">Mini ledger</p>
+          <AnimatePresence initial={false}>{ticker.length ? ticker.map((t) => <motion.p key={t.id} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} className="truncate" style={{ color: t.c }}>{t.t}</motion.p>) : <p className="text-char/60">Waiting for money to move…</p>}</AnimatePresence>
         </div>
         <AnimatePresence>{st.caption && <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-black/[.08] bg-white/90 text-char backdrop-blur px-4 py-1.5 text-xs" data-testid="office-caption">{st.alarm && <span className="text-red-400 mr-1">● ALARM</span>}{st.caption}</motion.div>}</AnimatePresence>
       </div>
       {/* side: event feed + prompt box */}
       <div className="border-t lg:border-t-0 lg:border-l border-black/[.08] p-4 flex flex-col gap-4 min-h-0">
-        <div className="min-h-0 flex-1"><p className="text-[10px] uppercase tracking-[.16em] text-char/55 mb-2">Live event feed · real ledger</p>
+        <div className="min-h-0 flex-1"><p className="text-[10px] uppercase tracking-[.16em] text-char/60 mb-2">Live event feed · real ledger</p>
           <ul className="space-y-2 text-xs max-h-[420px] overflow-auto pr-1" data-testid="office-feed"><AnimatePresence initial={false}>{feed.map(({ id, ev }) => <motion.li key={id} layout={!reduce} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} className="flex gap-2">
             <span className="mt-1.5 h-1.5 w-1.5 rounded-full shrink-0" style={{ background: FEEDC[ev.kind] || '#888' }} />
             <span className="min-w-0"><span className="font-medium">{LABEL[ev.kind] || ev.kind}</span>{ev.amount != null && <span className="tabular-nums"> {usd(ev.amount)}</span>}{ev.sim && <span className="ml-1 text-[9px] rounded-full px-1.5 bg-cyan/10 text-cyan">sim</span>}
-              <br /><span className="text-char/55">{ev.kind === 'rejected' ? short((ev.reasons || []).join(' · '), 90) : short(`${ev.shop || ''} ${ev.agent ? '· ' + ev.agent : ''} ${ev.kind === 'payout' ? '· ' + batchStatus(ev.detail) : ''}`, 90)}</span></span></motion.li>)}</AnimatePresence>
-            {!feed.length && <li className="text-char/55">No events yet.</li>}</ul></div>
+              <br /><span className="text-char/60">{ev.kind === 'rejected' ? short((ev.reasons || []).join(' · '), 90) : short(`${ev.shop || ''} ${ev.agent ? '· ' + ev.agent : ''} ${ev.kind === 'payout' ? '· ' + batchStatus(ev.detail) : ''}`, 90)}</span></span></motion.li>)}</AnimatePresence>
+            {!feed.length && <li className="text-char/60">No events yet.</li>}</ul></div>
         {onJailbreak && <form className="border-t border-black/[.08] pt-3" onSubmit={async (e) => { e.preventDefault(); await onJailbreak(jb); }}>
-          <p className="text-[10px] uppercase tracking-[.16em] text-char/55 mb-1.5">Prompt box · try to bribe the founder</p>
+          <p className="text-[10px] uppercase tracking-[.16em] text-char/60 mb-1.5">Prompt box · try to bribe the founder</p>
           <textarea value={jb} onChange={(e) => setJb(e.target.value)} rows={3} maxLength={500} className="input h-auto py-2 text-xs" data-testid="office-jb-input" />
           <button className="btn-ghost h-8 mt-2 w-full text-xs" disabled={playing} data-testid="office-jb">Send to founder</button></form>}
-        <p className="text-[10px] text-char/55 leading-relaxed">Every animation is driven by a real ledger row from the API. {reduce ? 'Reduced motion is on: movement is minimised.' : ''}</p>
+        <p className="text-[10px] text-char/60 leading-relaxed">Every animation is driven by a real ledger row from the API. {reduce ? 'Reduced motion is on: movement is minimised.' : ''}</p>
       </div>
     </div>
   </div>;
