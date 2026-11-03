@@ -46,7 +46,7 @@ function Bank({ onPick, hot }: { onPick: () => void; hot: number }) {
   const crown = useRef<THREE.Mesh>(null); const side = useMemo(() => new THREE.MeshStandardMaterial({ map: facadeMap('glass'), emissiveMap: facadeLit('glass'), emissive: '#ffd38a', color: '#e8d6a8', metalness: 0.85, roughness: 0.15, envMapIntensity: 1.6 }), []);
   useFrame(({ clock }) => { side.emissiveIntensity = 0.1 + ENV.night * 1.1; if (crown.current) { crown.current.rotation.y = clock.elapsedTime * 0.6; const k = Math.max(0, 1 - (performance.now() - hot) / 1500); (crown.current.material as any).color = glow(GOLD, 2 + k * 5); } });
   const stone = <meshStandardMaterial color="#e6dcc6" roughness={0.7} />;
-  return <group position={[BANK[0], 0.2, BANK[1]]} onClick={(e) => { e.stopPropagation(); onPick(); }} onPointerOver={() => (document.body.style.cursor = 'pointer')} onPointerOut={() => (document.body.style.cursor = '')}>
+  return <group position={[BANK[0], 0.2, BANK[1]]} onClick={(e) => { e.stopPropagation(); if (e.delta > 6) return; onPick(); }} onPointerOver={() => (document.body.style.cursor = 'pointer')} onPointerOut={() => (document.body.style.cursor = '')}>
     {[0, 1, 2].map((i) => <mesh key={i} position={[0, 0.15 + i * 0.3, 3.6 - i * 0.4]} receiveShadow><boxGeometry args={[10 - i * 0.6, 0.3, 3.2]} />{stone}</mesh>)}
     <mesh position={[0, 2.6, 0.2]} castShadow receiveShadow><boxGeometry args={[9, 4.4, 6.4]} />{stone}</mesh>
     {[-3.6, -2.2, -0.75, 0.75, 2.2, 3.6].map((x) => <mesh key={x} position={[x, 2.75, 3.8]} castShadow><cylinderGeometry args={[0.28, 0.32, 4.1, 16]} />{stone}</mesh>)}
@@ -77,7 +77,7 @@ function CartBuilding({ onPick }: { onPick: () => void }) {
   useFrame(() => { glass.emissiveIntensity = 0.25 + ENV.night * 1.2; if (signM.current) signM.current.color.setScalar(1.15 + ENV.night * 0.9); });
   const stone = <meshStandardMaterial color="#ECEAE3" roughness={0.65} />; const ink = <meshStandardMaterial color="#2a2722" roughness={0.5} metalness={0.3} />;
   const brass = <meshStandardMaterial color="#B8975A" metalness={0.85} roughness={0.25} />;
-  const pick = (e: any) => { e.stopPropagation(); onPick(); };
+  const pick = (e: any) => { e.stopPropagation(); if (e.delta > 6) return; onPick(); };
   return <group position={[CART_AT[0], 0.2, CART_AT[1]]} onClick={pick} onPointerOver={() => (document.body.style.cursor = 'pointer')} onPointerOut={() => (document.body.style.cursor = '')}>
     <mesh position={[0, 0.1, 0]} receiveShadow><boxGeometry args={[13.6, 0.2, 13.6]} /><meshStandardMaterial color="#d9d3c4" roughness={0.9} /></mesh>
     {/* plinth + two-storey arcade + glass upper floors */}
@@ -142,7 +142,7 @@ function DistrictLabels({ shops, hl, onPick }: { shops: CityShop[]; hl: string |
 function Beacon({ onPick }: { onPick: () => void }) {
   const ring = useRef<THREE.Group>(null); const dot = useRef<THREE.Mesh>(null); const beam = useRef<THREE.MeshBasicMaterial>(null);
   useFrame(({ clock }) => { const t = clock.elapsedTime; if (ring.current) ring.current.rotation.y = t * 0.35; if (dot.current) dot.current.position.y = -1.2 + Math.abs(Math.sin(t * 1.6)) * 0.5; if (beam.current) beam.current.opacity = 0.09 + Math.sin(t * 2) * 0.03; });
-  return <group onClick={(e) => { e.stopPropagation(); onPick(); }}>
+  return <group onClick={(e) => { e.stopPropagation(); if (e.delta > 6) return; onPick(); }}>
     <mesh position={[0, 7, 0]}><cylinderGeometry args={[0.45, 1.0, 14, 8]} /><meshStandardMaterial color="#17172b" metalness={0.8} roughness={0.25} emissive={IRIS} emissiveIntensity={0.08} /></mesh>
     {[2, 5, 8, 11].map((y) => <mesh key={y} position={[0, y, 0]}><torusGeometry args={[1.02 - y * 0.045, 0.04, 6, 32]} /><meshBasicMaterial color={glow(CYAN, 1.5)} toneMapped={false} /></mesh>)}
     <group ref={ring} position={[0, 18, 0]}>
@@ -165,7 +165,7 @@ function Guards({ onPick, at }: { onPick: () => void; at: [number, number][] }) 
     beams.current.forEach((b, i) => { if (!b) return; const active = a && (alarm!.idx == null || alarm!.idx === i); b.rotation.z = active ? Math.sin(t * 5 + i) * 0.55 : Math.sin(t * 0.5 + i) * 0.25; b.rotation.x = active ? Math.cos(t * 4 + i) * 0.4 : 0.2; (b.children[0] as any).material.color.set(active ? RED : CYAN); (b.children[0] as any).material.opacity = active ? 0.32 + Math.sin(t * 14) * 0.1 : 0.06; });
     lights.current.forEach((l, i) => { if (l) l.intensity = a && (alarm!.idx == null || alarm!.idx === i) ? 90 + Math.sin(t * 14) * 60 : 0; });
   });
-  return <>{at.map(([x, z], i) => <group key={i} position={[x, 0, z]} onClick={(e) => { e.stopPropagation(); onPick(); }}>
+  return <>{at.map(([x, z], i) => <group key={i} position={[x, 0, z]} onClick={(e) => { e.stopPropagation(); if (e.delta > 6) return; onPick(); }}>
     <mesh position={[0, 4, 0]}><cylinderGeometry args={[0.5, 0.9, 8, 6]} /><meshStandardMaterial color="#181826" metalness={0.7} roughness={0.3} /></mesh>
     <mesh position={[0, 8.4, 0]}><cylinderGeometry args={[1.2, 0.7, 1, 6]} /><meshStandardMaterial color="#20203a" emissive={alarm && (alarm.idx == null || alarm.idx === i) ? RED : CYAN} emissiveIntensity={1.2} /></mesh>
     <group ref={(r) => { beams.current[i] = r; }} position={[0, 9, 0]}>

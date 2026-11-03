@@ -42,6 +42,7 @@ export default function City({ lowPower = false, deep }: { lowPower?: boolean; d
   const [pulses, setPulses] = useState<Record<string, number>>({}); const [bankHot, setBankHot] = useState(0);
   const [building, setBuilding] = useState<{ log: string; at: number } | null>(null); const [sound, setSound] = useState(false); const soundRef = useRef(false); soundRef.current = sound;
   const [q, setQ] = useState(''); const [busy, setBusy] = useState(''); const [clock, setClock] = useState(lagos()); const ownJail = useRef(0); const [hint, setHint] = useState(true);
+  const [hud, setHudS] = useState(false); useEffect(() => { setHudS(localStorage.getItem('city-hud') === '1'); }, []); const setHud = (v: boolean) => { setHudS(v); localStorage.setItem('city-hud', v ? '1' : '0'); };
   const [hl, setHl] = useState<string | null>(null); const [opened, setOpened] = useState<{ id: string; name: string; owner: string; t: number } | null>(null);
   const [view, setView] = useState<'drone' | 'street'>('drone');
   const [quality, setQuality] = useState<Quality>('med'); const [timeMode, setTimeMode] = useState<'lagos' | 'day' | 'dusk' | 'night'>('lagos');
@@ -135,13 +136,14 @@ export default function City({ lowPower = false, deep }: { lowPower?: boolean; d
   }
   const matches = q.trim() ? shops.filter((s) => (s.name + ' ' + (s.tagline || '') + ' ' + s.owner + ' ' + (DISTRICT_INFO[s.plot.district]?.label || '')).toLowerCase().includes(q.trim().toLowerCase())).slice(0, 7) : [];
   const wide = panel && ['ledger', 'hq'].includes(panel.k);
+  const featured = [...shops].sort((a: any, b: any) => (b.plot.district === 'books' ? 1 : 0) - (a.plot.district === 'books' ? 1 : 0) || (b.revenue || 0) - (a.revenue || 0)).slice(0, 6);
 
   return <div className="city-root" data-testid="city">
     <div className="absolute inset-0"><Scene onDecline={() => { if (!localStorage.getItem('city-quality')) setQuality((q) => (q === 'high' ? 'med' : 'low')); }} shops={shops} sites={sites} focus={focus} pulses={pulses} bankHot={bankHot} paused={!!panel} frozen={!!cat} hour={hour} quality={lowPower ? 'low' : quality} hl={hl} onDistrict={(d) => pickDistrict(hl === d ? null : d)} onShop={(s) => openShop(s)} onCart={openCartBld} onBank={openBank} onBeacon={() => setPanel({ k: 'about' })} onGuard={() => setPanel({ k: 'jail' })} /></div>
 
     {/* HUD: city P&L */}
-    <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: .4 }} className="city-glass absolute left-4 top-4 w-[270px] p-4 hidden md:block" data-testid="city-pnl">
-      <div className="flex items-center justify-between"><p className="eyebrow !text-[10px]">City P&amp;L · live</p><span className="flex items-center gap-1.5 text-[10px] text-char/50"><span className="h-1.5 w-1.5 rounded-full bg-lime animate-pulse" />Lagos {clock.t}</span></div>
+    <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: .4 }} className={`city-glass absolute left-4 top-4 w-[270px] p-4 hidden ${hud ? 'md:block' : ''}`} data-testid="city-pnl">
+      <div className="flex items-center justify-between"><p className="eyebrow !text-[10px]">City P&amp;L · live <button onClick={() => setHud(false)} className="ml-1 underline text-char/50" data-testid="hud-hide">hide</button></p><span className="flex items-center gap-1.5 text-[10px] text-char/50"><span className="h-1.5 w-1.5 rounded-full bg-lime animate-pulse" />Lagos {clock.t}</span></div>
       <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2.5">
         {[['Revenue', tot?.revenue, '#8C6F3C'], ['Printful cost', tot?.supplierCost, '#9A6A2E'], ['Paid to AI staff', tot?.payouts, '#4F7A47'], ['Profit', tot?.profit, '#8C6F3C']].map(([k, v, c]) => <div key={k as string}><p className="text-[10px] text-char/55">{k}</p><p className="text-lg font-semibold" style={{ color: c as string }}><CountUp value={Number(v) || 0} format={(n) => usd(n)} /></p></div>)}
       </div>
@@ -149,8 +151,14 @@ export default function City({ lowPower = false, deep }: { lowPower?: boolean; d
       <div className="mt-3 space-y-1 text-[10px] text-char/55">{[['#D9B56E', 'PayPal capture · buyer → shop'], ['#8FAE84', 'payout · shop → AI staff'], ['#D2A066', 'Printful cost · shop → dock'], ['#C0624A', 'guardrail block']].map(([c, l]) => <p key={l} className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: c, boxShadow: `0 0 8px ${c}` }} />{l}</p>)}</div>
     </motion.div>
 
+    {/* Featured stores: one-tap entry, and a toggle for the full HUD */}
+    {!hud && !panel && !cat && <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: .4 }} className="city-glass absolute left-3 top-3 w-[min(250px,calc(100vw-1.5rem))] p-3 max-md:w-auto max-md:right-3" data-testid="featured-stores">
+      <div className="flex items-center justify-between"><p className="eyebrow !text-[10px]">Featured stores</p><button onClick={() => setHud(true)} className="hidden md:inline text-[10px] underline text-char/55" data-testid="hud-show">City stats</button></div>
+      <ul className="mt-2 space-y-0.5 max-md:flex max-md:space-y-0 max-md:gap-1.5 max-md:overflow-x-auto">{featured.map((s) => <li key={s.id} className="max-md:shrink-0"><button onClick={() => openShop(s)} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] hover:bg-black/[.05] max-md:bg-black/[.04]" data-testid={`feat-${s.id}`}>{s.logo && <img src={thumb(s.logo, 64)} alt="" className="h-5 w-5 rounded object-cover" />}<span className="truncate max-w-[150px]">{s.name}</span><span className="ml-auto text-[10px] text-char/45 max-md:hidden">{DISTRICT_INFO[s.plot.district]?.label}</span></button></li>)}</ul>
+    </motion.div>}
+
     {/* HUD: event feed */}
-    {!wide && <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: .5 }} className={`city-glass absolute right-4 top-4 w-[300px] p-3 hidden lg:block ${panel ? 'lg:hidden' : ''}`} data-testid="city-feed">
+    {!wide && <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: .5 }} className={`city-glass absolute right-4 top-4 w-[300px] p-3 hidden ${hud ? 'lg:block' : ''} ${panel ? 'lg:hidden' : ''}`} data-testid="city-feed">
       <p className="eyebrow !text-[10px] px-1">Ledger feed</p>
       <ul className="mt-2 space-y-1"><AnimatePresence initial={false}>{feed.map((e) => <motion.li layout key={e.key} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex gap-2 rounded-lg px-2 py-1.5 text-[11px] bg-black/[.04]">
         <span className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: COL[e.kind] || '#888', boxShadow: `0 0 8px ${COL[e.kind] || '#888'}` }} />
@@ -167,7 +175,7 @@ export default function City({ lowPower = false, deep }: { lowPower?: boolean; d
         <button onClick={openBank} className="btn-ghost h-10 text-sm" data-testid="city-bank">§ Bank</button>
         <button onClick={() => setPanel({ k: 'jail' })} className="btn-ghost h-10 text-sm" data-testid="city-jail"> Jailbreak</button>
         <CartButton className="hud" onClick={openCartBld} />{user ? <button onClick={openHq} className="btn-coral h-10 text-sm" data-testid="city-hq">Fly into my HQ</button> : <button onClick={() => setPanel({ k: 'signin' })} className="btn-coral h-10 text-sm" data-testid="city-signin">Sign in</button>}
-        <button onClick={() => { setSound((s) => !s); if (!sound) blip(660); }} className="btn-ghost h-10 w-10 !px-0 text-sm" aria-label={sound ? 'Mute' : 'Sound on'} title="Ambient sound">{sound ? 'On' : 'Off'}</button>
+        <button onClick={() => { setSound((s) => !s); if (!sound) blip(660); }} className="btn-ghost h-10 !px-3 text-sm whitespace-nowrap" aria-label={sound ? 'Mute ambient sound' : 'Turn ambient sound on'} title="Ambient sound" data-testid="city-sound">{sound ? 'Sound on' : 'Sound off'}</button>
       </div>
     </motion.div>
     <AnimatePresence>{hint && !panel && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-full bg-black/40 px-4 py-1.5 text-xs text-char/70 backdrop-blur md:top-8">Every building is a store an AI built · click one to walk in and shop · drag to orbit, scroll to zoom</motion.p>}</AnimatePresence>
@@ -182,7 +190,7 @@ export default function City({ lowPower = false, deep }: { lowPower?: boolean; d
       <button onClick={() => pickDistrict(null)} className={`city-chip ${!hl ? 'city-chip-on' : ''}`}>All districts</button>
       {Object.entries(DISTRICT_INFO).map(([k, d]) => { const n = shops.filter((s) => s.plot.district === k).length; return <button key={k} onClick={() => pickDistrict(hl === k ? null : k)} className={`city-chip ${hl === k ? 'city-chip-on' : ''}`} style={hl === k ? { borderColor: d.color, color: d.color } : undefined} data-testid={`chip-${k}`}>{d.icon} {d.label} <span className="opacity-50">{n}</span></button>; })}
     </motion.div>
-    <div className={`absolute right-4 bottom-24 hidden md:flex flex-col gap-1.5 items-end ${panel ? 'md:hidden' : ''}`} data-testid="world-settings">
+    <div className={`absolute right-4 bottom-24 hidden ${hud ? 'md:flex' : ''} flex-col gap-1.5 items-end ${panel ? 'md:hidden' : ''}`} data-testid="world-settings">
       <div className="city-seg">{(['lagos', 'day', 'dusk', 'night'] as const).map((m) => <button key={m} onClick={() => setTimeMode(m)} className={timeMode === m ? 'on' : ''}>{m === 'lagos' ? `Lagos ${clock.t}` : m}</button>)}</div>
       <div className="city-seg">{(['drone', 'street'] as const).map((m) => <button key={m} data-testid={`view-${m}`} onClick={() => { setView(m); emit('view', m); }} className={view === m ? 'on' : ''}>{m}</button>)}<span className="px-1 text-char/55">camera</span></div>
       <div className="city-seg">{(['low', 'med', 'high'] as const).map((m) => <button key={m} onClick={() => { setQuality(m); localStorage.setItem('city-quality', m); }} className={quality === m ? 'on' : ''} data-testid={`q-${m}`}>{m}</button>)}<span className="px-1 text-char/55">quality</span></div>

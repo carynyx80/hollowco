@@ -105,7 +105,7 @@ export const Building = memo(function Building({ s, onPick, focus, pulse, quiet,
     const p = Math.max(0, 1 - (now - pulse) / 1600); if (glow.current) glow.current.emissiveIntensity = 0.35 + ENV.night * 0.7 + p * 4 + (focus || hover ? 0.6 : 0); if (light.current) light.current.intensity = p * 60; });
   const [, d] = DIMS[s.plot.style]; const dist = DISTRICT_INFO[s.plot.district]; const lit = hl === s.plot.district;
   return <group position={[s.x, 0.2, s.z - s.face * SETBACK]} rotation-y={s.face > 0 ? 0 : Math.PI}
-    onClick={(e) => { e.stopPropagation(); onPick(s); }} onPointerOver={(e) => { e.stopPropagation(); setHover(true); document.body.style.cursor = 'pointer'; }} onPointerOut={() => { setHover(false); document.body.style.cursor = ''; }}>
+    onClick={(e) => { e.stopPropagation(); if (e.delta > 6) return; onPick(s); }} onPointerOver={(e) => { e.stopPropagation(); setHover(true); document.body.style.cursor = 'pointer'; }} onPointerOut={() => { setHover(false); document.body.style.cursor = ''; }}>
     <group ref={g}><Body s={s} h={s.h} glow={glow} /></group>
     <pointLight ref={light} position={[0, 2, d / 2 + 2]} color={GOLD} intensity={0} distance={10} />
     {rising && <><Sparkles count={70} scale={[7, s.h + 2, 7]} position={[0, s.h / 2, 0]} size={5} speed={2} color={GOLD} />
