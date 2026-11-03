@@ -7,8 +7,11 @@ const url = env('DATABASE_URL');
 const pool = url ? new pg.Pool({ connectionString: url, ssl: url.includes('railway.internal') || url.includes('localhost') ? false : { rejectUnauthorized: false } }) : null;
 const mem: Record<string, Map<string, Row>> = Object.fromEntries(TABLES.map((t) => [t, new Map()]));
 export const dbMode = pool ? 'postgres' : 'memory';
+export const sql = pool;
 export async function init() {
   if (!pool) return;
+  await pool.query(`create table if not exists carts (user_id text primary key, updated timestamptz not null default now())`);
+  await pool.query(`create table if not exists cart_items (user_id text not null references carts(user_id) on delete cascade, shop_id text not null, product_id text not null, qty int not null check (qty between 1 and 5), added timestamptz not null default now(), primary key (user_id, shop_id, product_id))`);
   for (const t of TABLES) await pool.query(`create table if not exists ${t} (id text primary key, created timestamptz not null default now(), data jsonb not null)`);
 }
 export async function put(t: T, id: string, data: any) {

@@ -10,9 +10,10 @@ import { useToast } from '@/components/Toast';
 import { AuthForm } from '@/components/AuthForm';
 import { PayButton, OrderResult } from '@/components/PayButton';
 import { CartButton } from '@/components/cart/GlobalCart';
+import { cart as gcart } from '@/lib/cart';
 import { CountUp } from '@/components/Cinema';
 import { Catalogue } from '@/components/catalogue/Catalogue';
-import { BANK, DISTRICT_INFO, DOCK, PITCH, SHORE, arcPath, bounds, detectQuality, emit, faceOf, heightOf, pathLen, plotXZ, streetPath, type CityShop, type P, type Quality, type Site } from './layout';
+import { BANK, CART_AT, DISTRICT_INFO, DOCK, PITCH, SHORE, arcPath, bounds, detectQuality, emit, faceOf, heightOf, pathLen, plotXZ, streetPath, type CityShop, type P, type Quality, type Site } from './layout';
 
 const Scene = dynamic(() => import('./Scene'), { ssr: false, loading: () => <div className="absolute inset-0 grid place-items-center"><div className="city-loader"><span />Raising the city…</div></div> });
 const LedgerPanel = dynamic(() => import('@/app/ledger/page'), { ssr: false, loading: () => <div className="p-6 space-y-3"><div className="shimmer h-24" /><div className="shimmer h-72" /></div> });
@@ -117,6 +118,7 @@ export default function City({ lowPower = false, deep }: { lowPower?: boolean; d
   const openShop = (s: CityShop, pid?: string) => { setFocus(s.id); flyShop(s, true); setPanel({ k: 'shop', id: s.id }); if (pid) setTimeout(() => setCat({ shopId: s.id, pid }), 900); };
   const deepDone = useRef(false); useEffect(() => { if (deepDone.current || !deep?.shop || !shops.length) return; deepDone.current = true; const s = shops.find((x) => x.id === deep.shop); if (!s) { toast('That store isn’t in the city (yet)', 'err'); return; } setTimeout(() => openShop(s, deep.product), 600); }, [shops, deep]); // eslint-disable-line react-hooks/exhaustive-deps
   const pickDistrict = (d: string | null) => { setHl(d); if (!d) { emit('fly', HOME); return; } const ss = shops.filter((s) => s.plot.district === d); if (!ss.length) return; const cx = ss.reduce((a, s) => a + s.x, 0) / ss.length, cz = ss.reduce((a, s) => a + s.z, 0) / ss.length; emit('fly', { pos: [cx + 20, 42, cz + 46], look: [cx, 2, cz], ms: 2400 }); };
+  const openCartBld = () => { emit('fly', { pos: [CART_AT[0] + 4, 13, CART_AT[1] + 26], look: [CART_AT[0], 11, CART_AT[1]], ms: 1600 }); setPanel(null); setTimeout(() => gcart.openCart(), 900); };
   const openBank = () => { emit('fly', { pos: [BANK[0] + 6, 16, BANK[1] + 22], look: [BANK[0] + 6, 11, BANK[1]] }); setPanel({ k: 'ledger' }); };
   function openHq() {
     if (!user) { setPanel({ k: 'signin' }); return; }
@@ -135,7 +137,7 @@ export default function City({ lowPower = false, deep }: { lowPower?: boolean; d
   const wide = panel && ['ledger', 'hq'].includes(panel.k);
 
   return <div className="city-root" data-testid="city">
-    <div className="absolute inset-0"><Scene shops={shops} sites={sites} focus={focus} pulses={pulses} bankHot={bankHot} paused={!!panel} frozen={!!cat} hour={hour} quality={lowPower ? 'low' : quality} hl={hl} onDistrict={(d) => pickDistrict(hl === d ? null : d)} onShop={(s) => openShop(s)} onBank={openBank} onBeacon={() => setPanel({ k: 'about' })} onGuard={() => setPanel({ k: 'jail' })} /></div>
+    <div className="absolute inset-0"><Scene shops={shops} sites={sites} focus={focus} pulses={pulses} bankHot={bankHot} paused={!!panel} frozen={!!cat} hour={hour} quality={lowPower ? 'low' : quality} hl={hl} onDistrict={(d) => pickDistrict(hl === d ? null : d)} onShop={(s) => openShop(s)} onCart={openCartBld} onBank={openBank} onBeacon={() => setPanel({ k: 'about' })} onGuard={() => setPanel({ k: 'jail' })} /></div>
 
     {/* HUD: city P&L */}
     <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: .4 }} className="city-glass absolute left-4 top-4 w-[270px] p-4 hidden md:block" data-testid="city-pnl">
@@ -164,7 +166,7 @@ export default function City({ lowPower = false, deep }: { lowPower?: boolean; d
         <button onClick={simulate} disabled={busy === 'sim'} className="btn-primary h-10 text-sm" data-testid="city-sim">{busy === 'sim' ? 'Customer walking in…' : 'Simulate a sale'}</button>
         <button onClick={openBank} className="btn-ghost h-10 text-sm" data-testid="city-bank">§ Bank</button>
         <button onClick={() => setPanel({ k: 'jail' })} className="btn-ghost h-10 text-sm" data-testid="city-jail"> Jailbreak</button>
-        <CartButton className="hud" />{user ? <button onClick={openHq} className="btn-coral h-10 text-sm" data-testid="city-hq">Fly into my HQ</button> : <button onClick={() => setPanel({ k: 'signin' })} className="btn-coral h-10 text-sm" data-testid="city-signin">Sign in</button>}
+        <CartButton className="hud" onClick={openCartBld} />{user ? <button onClick={openHq} className="btn-coral h-10 text-sm" data-testid="city-hq">Fly into my HQ</button> : <button onClick={() => setPanel({ k: 'signin' })} className="btn-coral h-10 text-sm" data-testid="city-signin">Sign in</button>}
         <button onClick={() => { setSound((s) => !s); if (!sound) blip(660); }} className="btn-ghost h-10 w-10 !px-0 text-sm" aria-label={sound ? 'Mute' : 'Sound on'} title="Ambient sound">{sound ? 'On' : 'Off'}</button>
       </div>
     </motion.div>
@@ -221,7 +223,7 @@ function ProductPanel({ shopId, pid, onBack }: { shopId: string; pid: string; on
   return <div className="p-6"><button onClick={onBack} className="text-xs text-char/55 hover:text-char">← {d.shop.name}</button>
     <div className="mt-3 flex gap-4"><img src={p.image} alt={p.title} className="h-32 w-32 rounded-xl object-cover" /><div><span className="chip">{p.category}</span><h2 className="mt-2 text-xl font-semibold">{p.title}</h2>{p.comingSoon ? <p className="text-xl font-semibold uppercase tracking-wider text-char/60" data-testid="coming-soon">Coming soon</p> : <p className="text-2xl font-semibold text-coral-600">{usd(p.price)}</p>}</div></div>
     <p className="mt-4 text-sm text-char/65 line-clamp-4">{p.description}</p>
-    {p.comingSoon ? <p className="mt-5 rounded-xl border border-black/[.08] px-4 py-3 text-sm text-char/70">Coming soon — this product isn’t available to buy yet.</p> : <><div className="mt-5">{order ? <OrderResult order={order} /> : <PayButton shopId={shopId} productId={p.id} onDone={done} onError={(m) => toast(m, 'err')} />}</div>
+    {p.comingSoon ? <p className="mt-5 rounded-xl border border-black/[.08] px-4 py-3 text-sm text-char/70">Coming soon — this product isn’t available to buy yet.</p> : <><button className="btn-coral mt-5 w-full" data-testid="panel-add-to-cart" onClick={() => { if (gcart.add({ shopId, productId: p.id, title: p.title, price: p.price, image: p.image, digital: !!p.digital, kind: p.kind, shopName: d.shop.name, shopLogo: d.shop.logo, comingSoon: p.comingSoon })) toast('Added to your Cart', 'ok'); }}>Add to cart</button><div className="mt-3">{order ? <OrderResult order={order} /> : <PayButton shopId={shopId} productId={p.id} onDone={done} onError={(m) => toast(m, 'err')} />}</div>
     <p className="mt-2 text-[11px] text-char/55">PayPal sandbox — sandbox account or test card (card form: set Country/Region to United States, use a US billing address, then “Pay now as guest”). Every real capture lights up the city.</p></>}</div>;
 }
 function JailPanel({ busy, onSend }: { busy: boolean; onSend: (m: string) => void }) {

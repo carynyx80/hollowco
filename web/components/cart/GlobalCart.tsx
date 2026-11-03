@@ -7,9 +7,9 @@ import { PayButton } from '@/components/PayButton';
 import { Progress } from './Progress';
 const Svg = ({ children }: { children: React.ReactNode }) => <svg viewBox="0 0 24 24" aria-hidden>{children}</svg>;
 const Bag = () => <Svg><path d="M5 8h14l-1 12H6L5 8z" /><path d="M9 8V6a3 3 0 016 0v2" /></Svg>;
-export function CartButton({ className = '' }: { className?: string }) {
+export function CartButton({ className = '', onClick }: { className?: string; onClick?: () => void }) {
   const c = useCart();
-  return <button className={`hc-cartbtn ${className}`} onClick={() => cart.openCart()} aria-label={`Cart, ${c.count} items`} data-testid="global-cart-btn"><Bag />{c.count > 0 && <b data-testid="global-cart-count">{c.count}</b>}</button>;
+  return <button className={`hc-cartbtn ${className}`} onClick={() => (onClick ? onClick() : cart.openCart())} aria-label={`Cart, ${c.count} items`} data-testid="global-cart-btn"><Bag />{c.count > 0 && <b data-testid="global-cart-count">{c.count}</b>}</button>;
 }
 function Qty({ v, set }: { v: number; set: (n: number) => void }) {
   return <div className="cat-qty" role="group" aria-label="Quantity"><button onClick={() => set(v - 1)} aria-label="Decrease quantity"><Svg><path d="M5 12h14" /></Svg></button><span aria-live="polite">{v}</span><button onClick={() => set(Math.min(MAX_QTY, v + 1))} aria-label="Increase quantity"><Svg><path d="M12 5v14M5 12h14" /></Svg></button></div>;

@@ -7,6 +7,7 @@ export const plotXZ = (gx: number, gz: number): [number, number] => [lotC(gx), l
 export const faceOf = (gz: number) => (((gz % 2) + 2) % 2 ? 1 : -1);
 /** Buildings sit this far back from the lot centre, away from their street, leaving a real sidewalk. */
 export const SETBACK = 0.7;
+export const CART_AT: [number, number] = [9.5, -9.5];
 export const BANK: [number, number] = [-9.5, -9.5];
 export const SHORE = 40.5; // quay edge (promenade street at z=38)
 export const DOCK: [number, number] = [0, 48];

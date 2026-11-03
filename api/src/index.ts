@@ -14,6 +14,7 @@ import { createShop, fulfil, id, jailbreak, ledger, ledgerView, refreshPayouts }
 import { LIMITS } from './guardrails.js';
 import { checkShopQuota, takeAction, isDemo, SHOP_LIMITS } from './limits.js';
 import { usageSnapshot } from './ai.js';
+import * as carts from './cart.js';
 import { assignPlot, releasePlot, backfillPlots, displayName, DISTRICTS } from './city.js';
 
 const app = express();
@@ -56,6 +57,11 @@ app.get('/me/dashboard', wrap(async (q: any, r: any) => {
   r.json({ user: auth.publicUser(u), shops: shops.map((s) => ({ id: s.id, name: s.name, tagline: s.tagline, logo: s.logo, colors: s.colors, createdAt: s.createdAt, products: s.products.filter((p: any) => !p.comingSoon).length,
     revenue: orders.filter((o: any) => o.shop === s.name).reduce((a: number, o: any) => a + o.revenue, 0) })), totals, orders, payouts, events, jobs: [...jobs.entries()].filter(([, j]: any) => j.ownerId === u.id && j.status === 'running').map(([id, j]: any) => ({ id, log: j.log })) });
 }));
+// Per-account cart: auth required, keyed only by the session's user id.
+const noStore = (r: any) => r.set('Cache-Control', 'private, no-store');
+app.get('/cart', wrap(async (q: any, r: any) => { const u = await need(q); noStore(r); r.json(await carts.getCart(u.id)); }));
+app.put('/cart', wrap(async (q: any, r: any) => { const u = await need(q); noStore(r); if (!Array.isArray(q.body?.lines)) throw new Error('lines[] required'); r.json(await carts.putCart(u.id, q.body.lines, q.body.merge === true)); }));
+app.delete('/cart', wrap(async (q: any, r: any) => { const u = await need(q); noStore(r); r.json(await carts.clearCart(u.id)); }));
 const CATS: Record<string, string> = { ebook: 'E-books', tshirt: 'T-shirts', mug: 'Mugs', comingsoon: 'Coming soon' };
 app.get('/marketplace', wrap(async (q: any, r: any) => {
   const term = String(q.query.q || '').toLowerCase().slice(0, 100), cat = String(q.query.category || '');
@@ -110,13 +116,14 @@ app.post('/orders', wrap(async (q: any, r: any) => {
     if (items.length) units.push({ shop, items });
   }
   if (!units.length) throw new Error('empty cart');
+  const buyerId = (await me(q))?.id || undefined;
   const sum = (it: any[]) => Math.round(it.reduce((s: number, i: any) => s + i.price * i.qty, 0) * 100) / 100;
   const now = new Date().toISOString();
   if (units.length === 1) {
     const { shop, items } = units[0]; const orderId = id('o');
     const pp = await createOrder(items, orderId);
     if (!pp.ok) throw new Error('PayPal create failed: ' + (pp.j.message || pp.status));
-    await db.put('orders', orderId, { id: orderId, shopId: shop.id, items, total: sum(items), paypalOrderId: pp.j.id, status: pp.j.status, createdAt: now });
+    await db.put('orders', orderId, { id: orderId, shopId: shop.id, items, total: sum(items), paypalOrderId: pp.j.id, status: pp.j.status, createdAt: now, buyerId });
     await db.put('orders', 'pp_' + pp.j.id, { ref: orderId });
     return r.json({ orderId, paypalOrderId: pp.j.id, approve: pp.j.links?.find((l: any) => l.rel === 'approve' || l.rel === 'payer-action')?.href });
   }
@@ -124,7 +131,7 @@ app.post('/orders', wrap(async (q: any, r: any) => {
   if (!pp.ok) throw new Error('PayPal create failed: ' + (pp.j.details?.[0]?.description || pp.j.message || pp.status));
   const cid = id('c'); const children: string[] = [];
   for (const u of units) { const oid = id('o'); children.push(oid); await db.put('orders', oid, { id: oid, parent: cid, shopId: u.shop.id, items: u.items, total: sum(u.items), paypalOrderId: pp.j.id, status: pp.j.status, createdAt: now }); }
-  await db.put('orders', cid, { id: cid, checkout: true, children, total: sum(units.flatMap((u) => u.items)), paypalOrderId: pp.j.id, status: pp.j.status, createdAt: now });
+  await db.put('orders', cid, { id: cid, checkout: true, children, total: sum(units.flatMap((u) => u.items)), paypalOrderId: pp.j.id, status: pp.j.status, createdAt: now, buyerId });
   await db.put('orders', 'pp_' + pp.j.id, { ref: cid });
   r.json({ orderId: cid, paypalOrderId: pp.j.id, stores: units.length });
 }));
@@ -174,6 +181,10 @@ async function syncOrder(ppId: string, tryCapture: boolean) {
       if (j?.payment_source) o.paymentSource = Object.keys(j.payment_source)[0];
     } else applyUnit(o, j, units[0], ship);
     await db.put('orders', o.id, o);
+    if (o.status === 'COMPLETED' && o.buyerId) {
+      const kids = o.checkout ? await Promise.all(o.children.map((cid: string) => db.get('orders', cid))) : [o];
+      await carts.removePurchased(o.buyerId, kids.flatMap((c: any) => c.items.map((i: any) => ({ shopId: c.shopId, productId: i.productId })))).catch((e) => console.error('cart clear', e.message));
+    }
   }
   if (o.checkout) { for (const cid of o.children) { const c = await db.get('orders', cid); if (c.status === 'COMPLETED') await fulfil(cid); } return await db.get('orders', o.id); }
   return o.status === 'COMPLETED' ? await fulfil(o.id) : o;

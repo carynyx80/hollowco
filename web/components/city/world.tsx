@@ -10,7 +10,8 @@ import { grassTex, paveTex, roadTex, zebraTex } from './tex';
 const on = (t: string, f: (d: any) => void) => { const h = (e: any) => f(e.detail); bus.addEventListener(t, h); return () => bus.removeEventListener(t, h); };
 const hash = (n: number) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 const isPlaza = (kx: number, kz: number) => (kx === -1 || kx === 0) && (kz === -1 || kz === 0);
-export const isPark = (kx: number, kz: number) => isPlaza(kx, kz) && !(kx === -1 && kz === -1);
+export const isCartLot = (kx: number, kz: number) => kx === 0 && kz === -1;
+export const isPark = (kx: number, kz: number) => isPlaza(kx, kz) && !(kx === -1 && kz === -1) && !isCartLot(kx, kz);
 function useInst(ref: React.RefObject<THREE.InstancedMesh | null>, mats: THREE.Matrix4[], colors?: THREE.Color[]) {
   useEffect(() => { const r = ref.current; if (!r) return; mats.forEach((m, i) => r.setMatrixAt(i, m)); if (colors) colors.forEach((c, i) => r.setColorAt(i, c)); r.count = mats.length; r.instanceMatrix.needsUpdate = true; if (r.instanceColor) r.instanceColor.needsUpdate = true; r.computeBoundingSphere(); }, [ref, mats, colors]);
 }

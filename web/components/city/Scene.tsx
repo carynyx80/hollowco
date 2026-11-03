@@ -6,8 +6,9 @@ import { Bloom, BrightnessContrast, EffectComposer, HueSaturation, N8AO, Vignett
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { HDRI, preloadImages } from './assets';
 import { Cars, FillerCity, Pedestrians, StreetProps, fillerLots } from './actors';
-import { isPark } from './world';
-import { BANK, DISTRICT_INFO, DOCK, ENV, PITCH, QUALITY, SHORE, bounds, bus, samplePath, type CityShop, type P, type Packet, type Quality, type Site } from './layout';
+import { isCartLot, isPark } from './world';
+import { useCart } from '@/lib/cart';
+import { BANK, CART_AT, DISTRICT_INFO, DOCK, ENV, PITCH, QUALITY, SHORE, bounds, bus, samplePath, type CityShop, type P, type Packet, type Quality, type Site } from './layout';
 import { Ground, Lamps, Trees, Water } from './world';
 import { Buildings } from './buildings';
 import { facadeBox, facadeLit, facadeMap, TILE } from './tex';
@@ -56,6 +57,47 @@ function Bank({ onPick, hot }: { onPick: () => void; hot: number }) {
     <mesh ref={crown} position={[0, 28.8, -0.8]}><torusGeometry args={[1.3, 0.16, 12, 48]} /><meshBasicMaterial color={glow(GOLD, 2)} toneMapped={false} /></mesh>
     <pointLight position={[0, 27, -0.8]} color={GOLD} intensity={70} distance={26} />
     <Billboard position={[0, 31.5, -0.8]}><Html center zIndexRange={[10, 0]}><button className="city-tag" style={{ borderColor: GOLD + '99' }} onClick={onPick} data-testid="bank-tag"><b style={{ color: GOLD }}>§ HollowCo Bank</b><span>public ledger · click to audit</span></button></Html></Billboard>
+  </group>;
+}
+/* ---------- the Cart: a department store on the plaza. One building for everyone; the badge is drawn client-side from
+   THIS viewer's own cart (account cart from the server, or this browser's guest cart), so no one sees another account's items. */
+let cartSignT: THREE.CanvasTexture | null = null;
+function cartSign() {
+  if (cartSignT) return cartSignT;
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 320; const g = c.getContext('2d')!;
+  g.fillStyle = '#0E0D0B'; g.beginPath(); g.roundRect(8, 8, 1008, 304, 40); g.fill();
+  g.lineWidth = 12; g.strokeStyle = '#B8975A'; g.shadowColor = '#D9B56E'; g.shadowBlur = 30; g.beginPath(); g.roundRect(18, 18, 988, 284, 32); g.stroke();
+  g.font = '700 220px "Iowan Old Style", Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#F9F8F5'; g.shadowColor = '#F3DCA8'; g.shadowBlur = 36; g.fillText('Cart', 512, 172);
+  cartSignT = new THREE.CanvasTexture(c); cartSignT.colorSpace = THREE.SRGBColorSpace; cartSignT.anisotropy = 8; return cartSignT;
+}
+function CartBuilding({ onPick }: { onPick: () => void }) {
+  const { count, mode } = useCart(); const sign = useMemo(cartSign, []);
+  const glass = useMemo(() => new THREE.MeshStandardMaterial({ map: facadeMap('glass'), emissiveMap: facadeLit('glass'), emissive: '#ffd9a0', color: '#efe4cc', metalness: 0.6, roughness: 0.2 }), []);
+  const signM = useRef<THREE.MeshBasicMaterial>(null);
+  useFrame(() => { glass.emissiveIntensity = 0.25 + ENV.night * 1.2; if (signM.current) signM.current.color.setScalar(1.15 + ENV.night * 0.9); });
+  const stone = <meshStandardMaterial color="#ECEAE3" roughness={0.65} />; const ink = <meshStandardMaterial color="#2a2722" roughness={0.5} metalness={0.3} />;
+  const brass = <meshStandardMaterial color="#B8975A" metalness={0.85} roughness={0.25} />;
+  const pick = (e: any) => { e.stopPropagation(); onPick(); };
+  return <group position={[CART_AT[0], 0.2, CART_AT[1]]} onClick={pick} onPointerOver={() => (document.body.style.cursor = 'pointer')} onPointerOut={() => (document.body.style.cursor = '')}>
+    <mesh position={[0, 0.1, 0]} receiveShadow><boxGeometry args={[13.6, 0.2, 13.6]} /><meshStandardMaterial color="#d9d3c4" roughness={0.9} /></mesh>
+    {/* plinth + two-storey arcade + glass upper floors */}
+    <mesh position={[0, 2.4, -0.6]} castShadow receiveShadow><boxGeometry args={[12, 4.4, 9]} />{stone}</mesh>
+    {[-4.8, -2.4, 0, 2.4, 4.8].map((x) => <mesh key={x} position={[x, 2.2, 3.95]} castShadow><boxGeometry args={[0.5, 4, 0.5]} />{stone}</mesh>)}
+    {[-3.6, -1.2, 1.2, 3.6].map((x) => <mesh key={'w' + x} position={[x, 1.9, 3.75]}><boxGeometry args={[2, 3.2, 0.1]} /><meshStandardMaterial color="#1a1814" emissive="#ffcf86" emissiveIntensity={0.7} metalness={0.4} roughness={0.15} /></mesh>)}
+    <mesh position={[0, 4.15, 4.6]} rotation={[0.32, 0, 0]} castShadow><boxGeometry args={[12.4, 0.12, 1.8]} /><meshStandardMaterial color="#0E0D0B" roughness={0.6} /></mesh>
+    <mesh position={[0, 4.75, 3.95]} castShadow><boxGeometry args={[12.6, 0.5, 0.6]} />{brass}</mesh>
+    <mesh position={[0, 9.4, -1.2]} geometry={facadeBox(11, 9, 7.6, TILE.glass[0], TILE.glass[1])} material={glass} castShadow />
+    <mesh position={[0, 14.1, -1.2]} castShadow><boxGeometry args={[11.6, 0.5, 8.2]} />{ink}</mesh>
+    {/* the illuminated sign: "Cart" */}
+    <mesh position={[0, 16.6, 1.8]} castShadow><boxGeometry args={[10.6, 3.5, 0.4]} />{ink}</mesh>
+    <mesh position={[0, 16.6, 2.02]}><planeGeometry args={[10.2, 3.19]} /><meshBasicMaterial ref={signM} map={sign} toneMapped={false} /></mesh>
+    {[-4.2, 4.2].map((x) => <mesh key={'p' + x} position={[x, 14.8, 1.8]}><boxGeometry args={[0.25, 1.2, 0.25]} />{brass}</mesh>)}
+    <pointLight position={[0, 16, 5]} color="#F3DCA8" intensity={60} distance={22} />
+    <pointLight position={[0, 3.5, 7]} color="#ffcf86" intensity={25} distance={14} />
+    {/* item-count badge — this viewer's own cart only */}
+    <mesh position={[5.3, 18.3, 2.1]}><circleGeometry args={[1.1, 40]} /><meshBasicMaterial color={glow('#B8975A', 1.6)} toneMapped={false} /></mesh>
+    <Html position={[5.3, 18.3, 2.3]} center transform scale={0.9} zIndexRange={[11, 0]}><span className="cart-badge-3d" data-testid="cart-building-badge" style={{ color: '#0E0D0B', font: '700 30px Inter, system-ui, sans-serif' }}>{count}</span></Html>
+    <Billboard position={[0, 21, 0]}><Html center zIndexRange={[10, 0]}><button className="city-tag" style={{ borderColor: '#B8975A99' }} onClick={onPick} data-testid="cart-building-tag"><b style={{ color: '#B8975A' }}>Cart</b><span data-testid="cart-building-count">Your cart · {count} item{count === 1 ? '' : 's'}{mode === 'guest' ? ' · guest' : ''}</span></button></Html></Billboard>
   </group>;
 }
 function Dock() {
@@ -206,7 +248,7 @@ function Loading({ ready }: { ready: number }) {
 }
 
 export type SceneProps = { shops: CityShop[]; sites: Site[]; focus?: string | null; pulses: Record<string, number>; bankHot: number; paused: boolean; frozen?: boolean; hour: number; quality: Quality; hl: string | null;
-  onShop: (s: CityShop) => void; onBank: () => void; onBeacon: () => void; onGuard: () => void; onDistrict: (d: string) => void };
+  onShop: (s: CityShop) => void; onBank: () => void; onCart: () => void; onBeacon: () => void; onGuard: () => void; onDistrict: (d: string) => void };
 export default function CityScene(p: SceneProps) {
   const [ready, setReady] = useState(0); useEffect(() => { preloadImages((d, n) => setReady(d / n)).then(() => setReady(1)); }, []);
   return <>{ready >= 1 && <World {...p} />}<Loading ready={ready} /></>;
@@ -215,7 +257,7 @@ function World(p: SceneProps) {
   const Q = QUALITY[p.quality];
   const b = useMemo(() => bounds(p.shops), [p.shops]);
   const ob = useMemo(() => ({ ...b, kx0: b.kx0 - 2, kx1: b.kx1 + 2, kz0: b.kz0 - 2 }), [b]);
-  const fill = useMemo(() => fillerLots(b, ob, p.shops, isPark), [b, ob, p.shops]);
+  const fill = useMemo(() => fillerLots(b, ob, p.shops, (kx: number, kz: number) => isPark(kx, kz) || isCartLot(kx, kz)), [b, ob, p.shops]);
   const filled = useMemo(() => new Set(fill.map((f) => f.key)), [fill]);
   const peds = p.quality === 'low' ? 18 : p.quality === 'med' ? 36 : 56; const cars = p.quality === 'low' ? 16 : p.quality === 'med' ? 30 : 44;
   const guards = useMemo<[number, number][]>(() => [[b.kx0 * PITCH - 4, b.kz0 * PITCH - 4], [(b.kx1 + 1) * PITCH + 4, b.kz0 * PITCH - 4], [b.kx0 * PITCH - 4, SHORE - 2], [(b.kx1 + 1) * PITCH + 4, SHORE - 2]], [b]);
@@ -227,7 +269,7 @@ function World(p: SceneProps) {
     <Ground b={ob} shops={p.shops} /><Water b={ob} /><Lamps b={ob} /><Trees b={ob} shops={p.shops} density={Q.trees} filled={filled} />
     <FillerCity items={fill} /><StreetProps b={ob} />
     <Suspense fallback={null}><Cars b={ob} count={cars} /><Pedestrians b={b} count={peds} shops={p.shops} /></Suspense>
-    <Beacon onPick={p.onBeacon} /><Bank onPick={p.onBank} hot={p.bankHot} /><Guards onPick={p.onGuard} at={guards} /><Dock />
+    <Beacon onPick={p.onBeacon} /><Bank onPick={p.onBank} hot={p.bankHot} /><CartBuilding onPick={p.onCart} /><Guards onPick={p.onGuard} at={guards} /><Dock />
     <Buildings shops={p.shops} detail={Q.detail} focus={p.focus} pulses={p.pulses} onPick={p.onShop} quiet={p.paused} hl={p.hl} />
     {p.sites.map((s) => <ConstructionSite key={s.shopId} s={s} />)}
     <DistrictLabels shops={p.shops} hl={p.hl} onPick={p.onDistrict} />
