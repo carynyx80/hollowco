@@ -4,6 +4,9 @@ const API_ORIGIN = (process.env.API_ORIGIN || process.env.NEXT_PUBLIC_API_URL ||
 const nextConfig: NextConfig = {
   images: { formats: ['image/avif', 'image/webp'], minimumCacheTTL: 31536000, localPatterns: [{ pathname: '/api/assets/**' }, { pathname: '/**' }] },
   async redirects() { return [
+    { source: "/city", destination: "/", permanent: false },
+    { source: "/login", destination: "/signin", permanent: false },
+    { source: "/cart", destination: "/?cart=1", permanent: false },
     { source: "/marketplace", destination: "/", permanent: false },
     { source: "/classic", destination: "/", permanent: false },
     { source: "/classic/:path*", destination: "/", permanent: false },

@@ -17,6 +17,7 @@ function Qty({ v, set }: { v: number; set: (n: number) => void }) {
 // The one cart sheet for the whole site: grouped by store, per-store subtotal, grand total, ONE PayPal checkout.
 export function GlobalCart() {
   const c = useCart(); const over = c.stores.length > MAX_STORES;
+  useEffect(() => { const u = new URL(window.location.href); if (u.searchParams.get('cart') === '1') { cart.openCart(); u.searchParams.delete('cart'); window.history.replaceState(null, '', u.pathname + u.search + u.hash); } }, []);
   useEffect(() => { if (!c.open) return; const k = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopImmediatePropagation(); cart.close(); } }; window.addEventListener('keydown', k, true); return () => window.removeEventListener('keydown', k, true); }, [c.open]);
   return <AnimatePresence>{c.open && <motion.div className="cat-overlay hc-cart-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
     {c.orderId ? <motion.div className="cat-panel" initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} role="dialog" aria-label="Order progress"><div className="cat-scroll"><Progress orderId={c.orderId} ppId={c.ppId} onDone={() => cart.close()} /></div></motion.div> : <>
