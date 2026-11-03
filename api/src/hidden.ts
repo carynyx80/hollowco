@@ -8,9 +8,10 @@ import { env } from './env.js';
 const DEFAULT_HIDDEN = [
   'shop_2cc5e2b30267', 'shop_a1045913ac7e', 'shop_417da43283f6', // "Nurse…" limit-test shops (u_e77e737325315042)
   'shop_e353edffa8d2', // duplicate Eko Time (shop_92cbffe14b7c is kept)
+  'shop_eec882a491b1', 'shop_ef852e047209', 'shop_5cb87a42d404', 'shop_75b5ac84bc98', 'shop_1d29a715cca1', // test shops: City Greenery, Neon Nocturne, Founder Store, Rainy Day Reads, Easy Green
 ];
 const HIDDEN_OWNERS = ['u_e77e737325315042'];
-const KEEP = new Set(['shop_3211ffb30858', 'shop_0883badb22ca', 'shop_92cbffe14b7c', ...(env('SHOWCASE_SHOP_IDS') || '').split(',').map((s) => s.trim()).filter(Boolean)]); // showcase shops never auto-hidden
+const KEEP = new Set(['shop_3211ffb30858', 'shop_0883badb22ca', 'shop_92cbffe14b7c', 'shop_34d91012f69f', ...(env('SHOWCASE_SHOP_IDS') || '').split(',').map((s) => s.trim()).filter(Boolean)]); // showcase shops never auto-hidden
 const TEST_EMAIL = /^test\+.*@example\.com$/i;
 
 export async function migrate() {
@@ -66,5 +67,5 @@ export async function publicLedger(v: any) {
 }
 export async function publicRows<T extends { data: any }>(rows: T[]): Promise<T[]> {
   const hid = await hiddenSet(); if (!hid.size) return rows; const hn = await hiddenNames(hid);
-  return rows.filter((r) => !rowHidden(r.data, hid, hn));
+  return rows.filter((r: any) => !(r.id && hid.has(r.id)) && !rowHidden(r.data, hid, hn)); // shop rows: match by row id (shop data has no shopId)
 }
