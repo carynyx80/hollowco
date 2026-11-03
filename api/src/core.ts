@@ -228,7 +228,7 @@ export async function founderOp(kind: 'reconcile' | 'invoice' | 'order', opts: {
   return { kind, ok: !!c && !/^error|"ok":false/i.test(String(c.result)), result: c?.result, calls };
 }
 export async function ledgerView() {
-  const rows = (await db.list('ledger', 5000)).map((r) => r.data);
+  const rows = (await db.list('ledger', 5000)).map((r) => r.data).map((d: any) => (Array.isArray(d.reasons) ? { ...d, reasons: d.reasons.map((s: any) => String(s).replace('% of order revenue (', '% of order margin (')) } : d)); // historic rows: the base was always margin; old wording said revenue
   const byOrder = new Map<string, any>();
   for (const r of rows) {
     if (!r.orderId || r.kind === 'capture_failed') continue;

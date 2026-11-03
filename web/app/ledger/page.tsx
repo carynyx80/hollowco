@@ -36,6 +36,27 @@ export default function Ledger() {
   return (
     <div className="mx-auto max-w-6xl px-5 py-10 space-y-8">
       <div><p className="eyebrow">Transparency</p><h1 className="font-display text-4xl  mt-1">Live public P&amp;L</h1><p className="text-char/60 mt-2">Every cent in and out of every HollowCo company, from real PayPal sandbox orders. Refreshes every 5s.</p></div>
+      {mobile ? <>
+        {t ? <div className="card p-4 flex items-baseline justify-between gap-3" data-testid="ledger-mini"><div><div className="text-[11px] uppercase tracking-wider text-char/60">Revenue</div><div className="text-xl font-semibold tabular-nums">{money(t.revenue)}</div></div><div className="text-right"><div className="text-[11px] uppercase tracking-wider text-char/60">Profit · {t.orders} orders</div><div className="text-xl font-semibold tabular-nums">{money(t.profit)}</div></div></div> : <Skel h={72} />}
+      <section><h2 className="font-semibold mb-2">Event log (incl. blocked proposals and PayPal Agent Toolkit calls)</h2>
+        <label className="text-xs text-char/60 flex items-center gap-2 mb-2"><input type="checkbox" checked={showSim} onChange={(e) => setShowSim(e.target.checked)} /> Include test / simulated rows</label>
+        {mobile ? (d ? <><ul className="space-y-2">{[...events].sort((a: any, b: any) => String(b.at).localeCompare(String(a.at))).slice(0, mShow).map((e: any, i: number) => <li key={i} className="rounded-md border border-black/[.08] bg-white p-3 text-xs">
+          <div className="flex justify-between gap-2"><span className={`font-mono uppercase ${e.kind === 'rejected' ? 'text-[#A6452F]' : e.kind === 'agent_tool' ? 'text-brass' : 'text-char/70'}`}>{e.kind}{(e.sim || e.test) && ' · sim'}</span><span className="text-char/60">{when(e.at)}</span></div>
+          <div className="mt-1"><b>{e.shop}</b>{e.amount != null && <span className="tabular-nums"> {money(e.amount)}</span>}</div><div className="text-char/60 break-words">{detail(e)}</div></li>)}</ul>{events.length > mShow && <button className="btn w-full h-11 mt-3 hover:bg-black/[.04]" onClick={() => setMShow((n) => n + 20)}>Show 20 more entries ({events.length - mShow} left)</button>}</> : <Skel h={300} />)
+          : grid(events, [
+          { field: 'at', headerName: 'Time', sort: 'desc', width: 150, valueFormatter: time }, { field: 'kind', width: 130, cellStyle: (p: any) => (p.value === 'rejected' ? { color: '#A6452F', fontWeight: 700 } : p.value === 'agent_tool' ? { color: '#8C6F3C', fontWeight: 700 } : null) },
+          { field: 'shop', width: 200, tooltipField: 'shop' }, { field: 'agent', width: 100 }, { field: 'amount', valueFormatter: usd, width: 100 },
+          { headerName: 'Detail', flex: 1, minWidth: 300, tooltipValueGetter: (p: any) => detail(p.data), valueGetter: (p: any) => `${p.data.sim || p.data.test ? '[SIMULATED] ' : ''}${detail(p.data)}`.replace('[SIMULATED] [SIMULATED]', '[SIMULATED]') }], 420)}</section>
+        {[['Full totals & profit per order', <div key="s" className="space-y-4 pt-3">      {t ? <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {[['Revenue', t.revenue], ['PayPal fees', t.fees], ['Supplier cost', t.supplierCost], ['Agent payouts', t.payouts], ['Profit', t.profit]].map(([k, v]) =>
+          <div key={k as string} className="card p-5"><div className="text-xs text-char/60">{k}</div><div className="text-2xl font-semibold tabular-nums mt-1">{money(v)}</div></div>)}
+      </div> : <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[0, 1, 2, 3].map((i) => <div key={i} className="card p-5 h-[84px] animate-pulse" />)}</div>}
+      {st && <p className="text-xs text-char/60" data-testid="sim-note">Totals count {t.orders} real sandbox order{t.orders === 1 ? '' : 's'} only. {st.orders} test/simulated order{st.orders === 1 ? '' : 's'} ({money(st.revenue)}, no money moved) are excluded and listed separately below.</p>}
+      <section><h2 className="font-semibold mb-2">Profit per order</h2>
+        {mobile ? (d ? <OrderCards rows={real} empty="No real orders yet." /> : <Skel h={240} />) : grid(real, orderCols, 320)}</section>
+</div>], ['Try to trick the founder', <div key="a" className="pt-3"><AgentProof /></div>], ...(fake.length ? [['Test & simulated orders (excluded)', <div key="f" className="pt-3"><OrderCards rows={fake} empty="" /></div>]] : [])].map(([k, body]: any) =>
+          <details key={k} className="card group"><summary className="flex h-12 cursor-pointer list-none items-center justify-between px-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-[#8C6F3C]">{k}<span aria-hidden className="text-char/60 transition-transform group-open:rotate-45">+</span></summary><div className="px-4 pb-4">{body}</div></details>)}
+      </> : <>
       {t ? <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[['Revenue', t.revenue], ['PayPal fees', t.fees], ['Supplier cost', t.supplierCost], ['Agent payouts', t.payouts], ['Profit', t.profit]].map(([k, v]) =>
           <div key={k as string} className="card p-5"><div className="text-xs text-char/60">{k}</div><div className="text-2xl font-semibold tabular-nums mt-1">{money(v)}</div></div>)}
@@ -55,6 +76,7 @@ export default function Ledger() {
           { headerName: 'Detail', flex: 1, minWidth: 300, tooltipValueGetter: (p: any) => detail(p.data), valueGetter: (p: any) => `${p.data.sim || p.data.test ? '[SIMULATED] ' : ''}${detail(p.data)}`.replace('[SIMULATED] [SIMULATED]', '[SIMULATED]') }], 420)}</section>
       {fake.length > 0 && <section><h2 className="font-semibold mb-1">Test &amp; simulated orders <span className="text-xs font-normal text-char/60">— excluded from all totals, no money moved</span></h2>
         {mobile ? <OrderCards rows={fake} empty="" /> : grid(fake, orderCols, 260)}</section>}
+      </>}
     </div>
   );
 }

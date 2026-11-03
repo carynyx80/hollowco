@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { PnLBar } from '@/components/StorePnL';
 import { REPLAY_SHOP } from '@/lib/replay';
+import { ImpactExtras } from '@/components/ImpactExtras';
 const m = (n: any) => `$${Number(n || 0).toFixed(2)}`;
 const when = (v: string) => new Date(v).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 export default function Impact() {
@@ -43,6 +44,7 @@ export default function Impact() {
         {!x.live && <p className="mt-1 text-[10px] uppercase tracking-[.14em] text-char/60">Recomputed from this order’s ledger rows</p>}</li>)}</ul>
       {d.decisions.length > 3 && <button className="btn h-9 mt-3 hover:bg-black/[.04]" aria-expanded={all} aria-controls="memos" onClick={() => setAll(!all)}>{all ? 'Show fewer' : `Show ${d.decisions.length - 3} more memos`}</button>}</section>}
 
+    <ImpactExtras />
     <section aria-labelledby="why" className="grid md:grid-cols-3 gap-4"><h2 id="why" className="sr-only">Why this can work in the real world</h2>
       {[['Works where PayPal works', 'PayPal checkout and Payouts operate across 200+ markets, so a seller in Lagos or Manila can take card payments from buyers abroad without building a payments stack.'], ['Digital first, no inventory', 'E-books and guides are written on demand and delivered instantly as PDF — zero stock, near-100% gross margin before fees. Print-on-demand covers physical goods with no upfront cost.'], ['Guardrails before autonomy', 'The AI only proposes. Prices, payout recipients, per-task and daily caps, and a 30%-of-margin staff budget are checked in code, and every blocked attempt is logged.']].map(([h, b]) =>
         <div key={h} className="card p-5"><h3 className="font-medium">{h}</h3><p className="text-sm text-char/60 mt-1">{b}</p></div>)}

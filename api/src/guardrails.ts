@@ -10,7 +10,8 @@ export const floorPrice = (kind: string, p: number) => Math.max(MIN_PRICE[kind] 
 export const LIMITS = {
   minPrice: 1, maxPrice: 60,
   maxPayoutPerTask: 5,
-  maxPayoutPctOfRevenue: 0.3,
+  maxPayoutPctOfMargin: 0.3,
+  get maxPayoutPctOfRevenue() { return this.maxPayoutPctOfMargin; }, // legacy alias; base is margin (revenue − PayPal fee − supplier)
   dailyPayoutCap: 50,
   allowedRecipients: [STAFF_PAYEE],
   allowedCurrencies: ['USD'],
@@ -22,13 +23,13 @@ export function checkPrice(p: any): Verdict {
   else { if (p < LIMITS.minPrice) r.push(`price ${p} below min ${LIMITS.minPrice}`); if (p > LIMITS.maxPrice) r.push(`price ${p} above max ${LIMITS.maxPrice}`); }
   return r.length ? { ok: false, reasons: r } : { ok: true };
 }
-export function checkPayout(p: { recipient: any; amount: any; currency?: any }, orderRevenue: number, paidToday: number, paidThisOrder: number): Verdict {
+export function checkPayout(p: { recipient: any; amount: any; currency?: any }, orderMargin: number, paidToday: number, paidThisOrder: number): Verdict {
   const r: string[] = [];
   const a = p.amount;
   if (typeof a !== 'number' || !Number.isFinite(a) || a <= 0) r.push('amount must be a positive number');
   else {
     if (a > LIMITS.maxPayoutPerTask) r.push(`amount ${a} exceeds max per task ${LIMITS.maxPayoutPerTask}`);
-    if (paidThisOrder + a > orderRevenue * LIMITS.maxPayoutPctOfRevenue) r.push(`payouts would exceed ${LIMITS.maxPayoutPctOfRevenue * 100}% of order revenue (${orderRevenue.toFixed(2)})`);
+    if (paidThisOrder + a > orderMargin * LIMITS.maxPayoutPctOfMargin) r.push(`payouts would exceed ${LIMITS.maxPayoutPctOfMargin * 100}% of order margin (${orderMargin.toFixed(2)})`);
     if (paidToday + a > LIMITS.dailyPayoutCap) r.push(`would exceed daily payout cap ${LIMITS.dailyPayoutCap}`);
   }
   if (!LIMITS.allowedRecipients.includes(String(p.recipient).toLowerCase())) r.push(`recipient ${String(p.recipient).slice(0, 80)} not allowlisted`);

@@ -51,7 +51,7 @@ export function DashboardView({ embedded = false }: { embedded?: boolean }) {
       <Link href="/" className="text-sm text-char/60 hover:text-char">Fly to your buildings in the city →</Link>
     </motion.div>
     <motion.div variants={riseV}><HollowOffice events={officeEvents} shopId={d?.shops?.[0]?.id} totals={t} jobLog={job?.log} pending={sim} onSimulate={simulate} simBusy={sim} onJailbreak={jailbreak} title="The Hollow Office" scope="your HQ · live" /></motion.div>
-    <motion.div variants={riseV}><AgentProof compact /></motion.div>
+    <motion.div variants={riseV}><div className="hidden md:block"><AgentProof compact /></div><details className="md:hidden card group" data-testid="trick-collapse"><summary className="flex h-12 cursor-pointer list-none items-center justify-between px-4 text-sm font-medium">Try to trick the founder<span aria-hidden className="text-char/60 transition-transform group-open:rotate-45">+</span></summary><div className="px-3 pb-3"><AgentProof compact /></div></details></motion.div>
     <motion.p variants={riseV} className="text-xs text-char/60 -mt-5">Public view for sharing: <Link className="underline" href={d?.shops?.[0]?.id ? `/office/${d.shops[0].id}` : '/office'}>{d?.shops?.[0]?.id ? `/office/${d.shops[0].id}` : '/office'}</Link></motion.p>
     <motion.section variants={riseV} className="grid lg:grid-cols-[1fr_1.35fr] gap-5 items-stretch">
       <div className="card p-6 flex flex-col gap-5" data-testid="founder">
@@ -60,10 +60,10 @@ export function DashboardView({ embedded = false }: { embedded?: boolean }) {
         <div className="grid grid-cols-3 gap-2.5 text-center">
           {[['Companies', d?.shops?.length], ['Orders', t?.orders], ['Profit', t && usd(t.profit)]].map(([k, v]) => <div key={k as string} className="rounded-xl bg-sand border border-black/[.08] p-3"><p className="text-lg font-semibold tabular-nums">{v ?? '–'}</p><p className="text-[11px] text-char/60">{k}</p></div>)}
         </div>
-        <div><p className="text-[10px] uppercase tracking-[.16em] text-char/60 mb-2">Staff · 0 humans</p>
+        <div className="hidden sm:block"><p className="text-[10px] uppercase tracking-[.16em] text-char/60 mb-2">Staff · 0 humans</p>
           <ul className="grid grid-cols-2 gap-2 text-xs">{[['W', 'Writer', 'e-books', '#A9B4A6'], ['D', 'Designer', 'logos & merch', '#B98A7A'], ['⬡', 'Supplier', 'Printful drafts', '#D2A066'], ['§', 'Accountant', 'guardrails', '#8FAE84']].map(([i, n, r, c]) =>
             <li key={n} className="flex items-center gap-2 rounded-xl bg-sand border border-black/[.08] px-2.5 py-2"><span className="grid h-7 w-7 place-items-center rounded-full border" style={{ borderColor: c + '70', color: c }}>{i}</span><span><span className="font-medium">{n}</span><br /><span className="text-char/60">{r}</span></span></li>)}</ul></div>
-        <p className="mt-auto text-xs text-char/60 leading-relaxed border-t border-black/[.08] pt-4">The founder can propose any payout — code only executes ones within $5/task, 30% of revenue and $50/day.</p>
+        <p className="hidden sm:block mt-auto text-xs text-char/60 leading-relaxed border-t border-black/[.08] pt-4">The founder can propose any payout — code only executes ones within $5/task, 30% of each order’s margin (after PayPal fee and supplier) and $50/day.</p>
       </div>
       <div className="card p-6 flex flex-col">
         <p className="font-medium">Instruct your founder</p><p className="text-sm text-char/60 mb-4">Describe a business — by voice or text. It’ll be live in about a minute.</p>

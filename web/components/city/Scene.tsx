@@ -8,6 +8,7 @@ import { HDRI, preloadImages } from './assets';
 import { Cars, FillerCity, Pedestrians, StreetProps, fillerLots } from './actors';
 import { isCartLot, isPark } from './world';
 import { useCart } from '@/lib/cart';
+import { api } from '@/lib/api';
 import { BANK, CART_AT, DISTRICT_INFO, DOCK, ENV, PITCH, QUALITY, SHORE, bounds, bus, samplePath, type CityShop, type P, type Packet, type Quality, type Site } from './layout';
 import { Ground, Lamps, Trees, Water } from './world';
 import { Buildings } from './buildings';
@@ -139,7 +140,16 @@ function DistrictLabels({ shops, hl, onPick }: { shops: CityShop[]; hl: string |
   if (fade <= 0) return null;
   return <>{Object.entries(c).map(([k, v]) => { const info = DISTRICT_INFO[k]; if (!info) return null; return <Billboard key={k} position={[v.x / v.n, (v.h || 10) + 16, v.z / v.n]}><Html center zIndexRange={[9, 0]} className="city-label"><button className="city-district" style={{ borderColor: info.color, color: info.color, opacity: fade * (hl && hl !== k ? 0.35 : 0.92), pointerEvents: fade < 0.4 ? 'none' : 'auto' }} onClick={() => onPick(k)} data-testid={`district-${k}`}>{info.icon} {info.label}<small>{v.n} stores</small></button></Html></Billboard>; })}</>;
 }
-function Beacon({ onPick }: { onPick: () => void }) {
+/* Founder thinking: real, non-simulated ledger events (decision memos, payouts, blocked proposals) surfaced over the beacon. Nothing is generated client-side. */
+function useFounderThoughts() {
+  const [items, setItems] = useState<{ k: string; t: string; at: string; shop?: string }[]>([]); const [i, setI] = useState(0);
+  useEffect(() => { let on = true; const load = () => api('/ledger').then((d: any) => { if (!on) return; const ev = (d?.events || []).filter((e: any) => !e.sim && !e.test && ['decision', 'payout', 'rejected', 'refund', 'revenue'].includes(e.kind)).sort((a: any, b: any) => String(b.at).localeCompare(String(a.at))).slice(0, 8);
+    setItems(ev.map((e: any) => ({ k: e.kind, at: e.at, shop: e.shop, t: e.kind === 'decision' ? String(e.detail || '').split('. ').slice(0, 2).join('. ') : e.kind === 'payout' ? `Paid ${e.agent || 'staff'} $${Number(e.amount || 0).toFixed(2)}${e.reason ? ` — “${String(e.reason).slice(0, 60)}”` : ''}` : e.kind === 'revenue' ? `Sale captured: $${Number(e.amount || 0).toFixed(2)} via PayPal checkout` : e.kind === 'refund' ? `Refunded $${Number(e.amount || 0).toFixed(2)} via PayPal` : `Blocked: ${(e.reasons || []).join('; ').slice(0, 110)}` })).filter((x: any) => x.t)); }).catch(() => {});
+    load(); const a = setInterval(load, 30000); const b = setInterval(() => setI((n) => n + 1), 7000); return () => { on = false; clearInterval(a); clearInterval(b); }; }, []);
+  return items.length ? items[i % items.length] : null;
+}
+function Beacon({ onPick, quiet }: { onPick: () => void; quiet?: boolean }) {
+  const th = useFounderThoughts();
   const ring = useRef<THREE.Group>(null); const dot = useRef<THREE.Mesh>(null); const beam = useRef<THREE.MeshBasicMaterial>(null);
   useFrame(({ clock }) => { const t = clock.elapsedTime; if (ring.current) ring.current.rotation.y = t * 0.35; if (dot.current) dot.current.position.y = -1.2 + Math.abs(Math.sin(t * 1.6)) * 0.5; if (beam.current) beam.current.opacity = 0.09 + Math.sin(t * 2) * 0.03; });
   return <group onClick={(e) => { e.stopPropagation(); if (e.delta > 6) return; onPick(); }}>
@@ -152,6 +162,7 @@ function Beacon({ onPick }: { onPick: () => void }) {
     <pointLight position={[0, 18, 0]} color={IRIS} intensity={260} distance={60} decay={2} />
     <mesh position={[0, 40, 0]}><cylinderGeometry args={[0.4, 2.4, 44, 24, 1, true]} /><meshBasicMaterial ref={beam} color={IRIS} transparent opacity={0.1} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} /></mesh>
     <Sparkles count={60} scale={[10, 22, 10]} position={[0, 11, 0]} size={3} speed={0.4} color={CYAN} />
+    {th && !quiet && <Billboard position={[0, 24.5, 0]}><Html center distanceFactor={44} zIndexRange={[9, 0]} className="city-label"><div key={th.at + th.k} className={`city-bubble founder-thought ${th.k === 'rejected' ? 'city-bubble-red' : ''}`} data-testid="founder-thought" role="status" aria-live="polite"><b>Founder · {th.k === 'decision' ? 'decision memo' : th.k === 'rejected' ? 'blocked by code' : th.k}{th.shop ? ` · ${th.shop}` : ''}</b><span>{th.t}</span><span className="founder-thought-at">{new Date(th.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · real ledger row</span></div></Html></Billboard>}
   </group>;
 }
 
@@ -274,7 +285,7 @@ function World(p: SceneProps) {
     <FillerCity items={fill} /><StreetProps b={ob} />
     {stage >= 1 && <Suspense fallback={null}><Cars b={ob} count={cars} /></Suspense>}
     {stage >= 2 && <Suspense fallback={null}><Pedestrians b={b} count={peds} shops={p.shops} kinds={p.quality === 'high' ? 8 : p.quality === 'med' ? 5 : 3} /></Suspense>}
-    <Beacon onPick={p.onBeacon} /><Bank onPick={p.onBank} hot={p.bankHot} /><CartBuilding onPick={p.onCart} /><Guards onPick={p.onGuard} at={guards} /><Dock />
+    <Beacon onPick={p.onBeacon} quiet={p.paused} /><Bank onPick={p.onBank} hot={p.bankHot} /><CartBuilding onPick={p.onCart} /><Guards onPick={p.onGuard} at={guards} /><Dock />
     <Buildings shops={p.shops} detail={Q.detail} focus={p.focus} pulses={p.pulses} onPick={p.onShop} quiet={p.paused} hl={p.hl} />
     {p.sites.map((s) => <ConstructionSite key={s.shopId} s={s} />)}
     <DistrictLabels shops={p.shops} hl={p.hl} onPick={p.onDistrict} />
