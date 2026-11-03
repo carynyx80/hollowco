@@ -215,7 +215,7 @@ function ProductPanel({ shopId, pid, onBack }: { shopId: string; pid: string; on
     <div className="mt-3 flex gap-4"><img src={p.image} alt={p.title} className="h-32 w-32 rounded-xl object-cover" /><div><span className="chip">{p.category}</span><h2 className="mt-2 text-xl font-semibold">{p.title}</h2><p className="text-2xl font-semibold text-coral-600">{usd(p.price)}</p></div></div>
     <p className="mt-4 text-sm text-char/65 line-clamp-4">{p.description}</p>
     <div className="mt-5">{order ? <OrderResult order={order} /> : <PayButton shopId={shopId} productId={p.id} onDone={done} onError={(m) => toast(m, 'err')} />}</div>
-    <p className="mt-2 text-[11px] text-char/45">PayPal sandbox — sandbox account or test card. Every real capture lights up the city.</p></div>;
+    <p className="mt-2 text-[11px] text-char/45">PayPal sandbox — sandbox account or test card (card form: set Country/Region to United States, use a US billing address, then “Pay now as guest”). Every real capture lights up the city.</p></div>;
 }
 function JailPanel({ busy, onSend }: { busy: boolean; onSend: (m: string) => void }) {
   const [m, setM] = useState(ATTACK);

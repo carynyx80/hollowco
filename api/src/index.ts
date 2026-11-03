@@ -35,7 +35,7 @@ const pub = (s: any) => s && ({ ...s, products: s.products.map(({ content, ...p 
 app.get('/', (_q, r) => r.json({ name: 'HollowCo API', ok: true }));
 app.get('/health', (_q, r) => r.json({ ok: true, db: db.dbMode, ai: aiMode(), supplier: printfulMode(), paypalEnv: env('PAYPAL_ENV', 'sandbox'), paypalClientId: env('PAYPAL_CLIENT_ID'), limits: LIMITS }));
 app.get('/limits', wrap(async (q: any, r: any) => { const u = await me(q); let mine: any = null; if (u) { try { mine = await shopQuota(u); } catch (e: any) { mine = { blocked: e.message }; } } r.json({ shops: SHOP_LIMITS(), mine, usage: usageSnapshot() }); }));
-app.get('/config', (_q, r) => r.json({ paypalClientId: env('PAYPAL_CLIENT_ID'), ai: aiMode(), supplier: printfulMode() }));
+app.get('/config', (_q, r) => r.json({ paypalClientId: env('PAYPAL_CLIENT_ID'), paypalEnv: env('PAYPAL_ENV', 'sandbox'), ai: aiMode(), supplier: printfulMode() }));
 const jobs = new Map<string, { status: string; log: string[]; shopId?: string; error?: string; started: number; ownerId?: string }>();
 app.post('/auth/signup', wrap(async (q: any, r: any) => { const u = await auth.signup(q.body.email, q.body.password, q.body.name); r.cookie(auth.COOKIE, await auth.newSession(u.id), auth.cookieOpts()); r.json({ user: auth.publicUser(u) }); }));
 app.post('/auth/signin', wrap(async (q: any, r: any) => { const u = await auth.signin(q.body.email, q.body.password); r.cookie(auth.COOKIE, await auth.newSession(u.id), auth.cookieOpts()); r.json({ user: auth.publicUser(u) }); }));

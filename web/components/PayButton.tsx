@@ -10,7 +10,10 @@ export function PayButton({ shopId, productId, onDone, onError }: { shopId: stri
     let cancelled = false;
     (async () => {
       const cfg = await api('/config');
-      const paypal = await loadScript({ clientId: cfg.paypalClientId, currency: 'USD', intent: 'capture', components: 'buttons', enableFunding: 'card' } as any);
+      const paypal = await loadScript({ clientId: cfg.paypalClientId, currency: 'USD', intent: 'capture', components: 'buttons', enableFunding: 'card',
+        // Sandbox only: pin buyer country to US so the guest card option renders and test cards are evaluated as US cards
+        // regardless of the visitor's IP (e.g. Lagos). PayPal rejects buyer-country in live, so it is never sent there.
+        ...(cfg.paypalEnv !== 'live' ? { buyerCountry: 'US' } : {}) } as any);
       if (cancelled || !paypal?.Buttons || !ref.current) return;
       ref.current.innerHTML = '';
       await paypal.Buttons({
