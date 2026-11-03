@@ -211,7 +211,7 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
       </div>
     </div>
     <div className="grid lg:grid-cols-[1fr_290px]">
-      <div className="relative bg-[radial-gradient(ellipse_at_50%_40%,#141210,#0E0D0B_75%)]">
+      <div className="relative bg-[radial-gradient(ellipse_at_50%_40%,#FFFFFF,#ECEAE3_80%)]">
         <svg viewBox={`${VX} ${VY} ${W} ${H}`} className="w-full h-auto block select-none" role="img" aria-label="Isometric office: AI founder, writer, designer, guard bot, PayPal vault and Printful dock">
           <defs>
             <linearGradient id="hoWallL" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#181611" /><stop offset="1" stopColor="#12100d" /></linearGradient>
@@ -296,17 +296,17 @@ export function HollowOffice({ events, shopId, totals, jobLog, pending, onSimula
         </svg>
         {/* speech bubbles (HTML for wrapping) */}
         <AnimatePresence>{(Object.keys(st.bubbles) as Actor[]).map((a) => { const b = st.bubbles[a]!; const p = iso(...st.pos[a]); return <motion.div key={a + b.t} initial={{ opacity: 0, y: 8, scale: 0.92 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduce ? 0 : 0.25 }} data-testid={`bubble-${a}`}
-          className={`absolute z-10 -translate-x-1/2 -translate-y-full max-w-[260px] w-max rounded-xl border px-3 py-2 text-[11px] leading-snug shadow-xl backdrop-blur pointer-events-none ${b.tone === 'warn' ? 'border-red-400/60 bg-[#2a0d14]/95 text-red-100' : b.tone === 'think' ? 'border-coral/50 bg-[#18150f]/95 text-char/90 italic' : 'border-black/[.08] bg-[#ECEAE3]/95 text-char/90'}`}
+          className={`absolute z-10 -translate-x-1/2 -translate-y-full max-w-[260px] w-max rounded-xl border px-3 py-2 text-[11px] leading-snug shadow-xl backdrop-blur pointer-events-none ${b.tone === 'warn' ? 'border-red-400/60 bg-[#F6E3DD]/95 text-red-100' : b.tone === 'think' ? 'border-coral/50 bg-white/95 text-char/90 italic' : 'border-black/[.08] bg-[#ECEAE3]/95 text-char/90'}`}
           style={{ ...pct([p[0], p[1] - 104]) }}>{b.tone === 'think' && <span className="not-italic mr-1">…</span>}{b.t}</motion.div>; })}</AnimatePresence>
         {/* HUD */}
         <div className="absolute left-3 top-3 grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]" data-testid="office-hud">
-          {[['Revenue', pl.revenue, '#C9B27C'], ['Costs', pl.supplierCost, '#D2A066'], ['Payouts', pl.payouts, '#8FAE84'], ['Profit', pl.profit, pl.profit < 0 ? '#C0624A' : '#0E0D0B']].map(([k, v, c]) => <div key={k as string} className="rounded-lg border border-black/[.08] bg-black/55 backdrop-blur px-2.5 py-1.5"><p className="text-char/50">{k}</p><p className="font-semibold tabular-nums text-sm" style={{ color: c as string }}>{usd(v as number)}</p></div>)}
+          {[['Revenue', pl.revenue, '#C9B27C'], ['Costs', pl.supplierCost, '#D2A066'], ['Payouts', pl.payouts, '#8FAE84'], ['Profit', pl.profit, pl.profit < 0 ? '#C0624A' : '#0E0D0B']].map(([k, v, c]) => <div key={k as string} className="rounded-lg border border-black/[.08] bg-white/85 text-char backdrop-blur px-2.5 py-1.5"><p className="text-char/50">{k}</p><p className="font-semibold tabular-nums text-sm" style={{ color: c as string }}>{usd(v as number)}</p></div>)}
         </div>
-        <div className="absolute right-3 top-3 w-56 rounded-lg border border-black/[.08] bg-black/55 backdrop-blur p-2 text-[11px] font-mono" data-testid="office-ticker">
+        <div className="absolute right-3 top-3 w-56 rounded-lg border border-black/[.08] bg-white/85 text-char backdrop-blur p-2 text-[11px] font-mono" data-testid="office-ticker">
           <p className="text-[9px] uppercase tracking-[.16em] text-char/55 mb-1">Mini ledger</p>
           <AnimatePresence initial={false}>{ticker.length ? ticker.map((t) => <motion.p key={t.id} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} className="truncate" style={{ color: t.c }}>{t.t}</motion.p>) : <p className="text-char/55">Waiting for money to move…</p>}</AnimatePresence>
         </div>
-        <AnimatePresence>{st.caption && <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-black/[.08] bg-black/70 backdrop-blur px-4 py-1.5 text-xs" data-testid="office-caption">{st.alarm && <span className="text-red-400 mr-1">● ALARM</span>}{st.caption}</motion.div>}</AnimatePresence>
+        <AnimatePresence>{st.caption && <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-black/[.08] bg-white/90 text-char backdrop-blur px-4 py-1.5 text-xs" data-testid="office-caption">{st.alarm && <span className="text-red-400 mr-1">● ALARM</span>}{st.caption}</motion.div>}</AnimatePresence>
       </div>
       {/* side: event feed + prompt box */}
       <div className="border-t lg:border-t-0 lg:border-l border-black/[.08] p-4 flex flex-col gap-4 min-h-0">
