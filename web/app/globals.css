@@ -250,3 +250,22 @@ h1.font-display, .font-display.text-4xl, .font-display.text-5xl { font-weight: 5
 .hc-store-n { font: 500 18px/1.1 var(--font-serif), serif; color: #0E0D0B; } .hc-store-o { font-size: 11.5px; color: #77736A; }
 .hc-store-sub { font: 500 13px var(--font-num), monospace; color: #0E0D0B; }
 .cat-store-h { display: flex; align-items: center; gap: 8px; margin: 14px 0 6px; font-size: 13px; color: #0E0D0B; } .cat-store-h img { width: 22px; height: 22px; border-radius: 999px; object-fit: cover; }
+
+/* ── First-visit hero ─────────────────────────────────────────── */
+.hero-veil{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:1.25rem;background:linear-gradient(180deg,rgba(14,13,11,.30),rgba(14,13,11,.62));backdrop-filter:blur(3px);animation:hero-in .45s ease-out both}
+.hero-card{position:relative;width:min(640px,100%);background:#F9F8F5;color:#0E0D0B;border:1px solid rgba(184,151,90,.45);border-radius:22px;padding:clamp(1.5rem,4vw,2.75rem);box-shadow:0 30px 80px -20px rgba(14,13,11,.55)}
+.hero-kicker{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:.7rem;letter-spacing:.22em;text-transform:uppercase;color:#B8975A}
+.hero-h{font-family:'Cormorant Garamond',Georgia,serif;font-weight:500;font-size:clamp(1.9rem,5.4vw,3.1rem);line-height:1.06;margin:.6rem 0 1.5rem;letter-spacing:-.01em}
+.hero-h em{color:#B8975A;font-style:italic}
+.hero-ctas{display:flex;flex-wrap:wrap;gap:.6rem}
+.hero-btn{font-family:'Inter Tight',system-ui,sans-serif;font-size:.92rem;font-weight:500;height:2.9rem;padding:0 1.2rem;border-radius:999px;display:inline-flex;align-items:center;border:1px solid rgba(14,13,11,.16);background:#ECEAE3;color:#0E0D0B;transition:transform .15s,background .15s}
+.hero-btn:hover{transform:translateY(-1px)}
+.hero-btn-primary{background:#0E0D0B;color:#F9F8F5;border-color:#0E0D0B}
+.hero-btn-ghost{background:transparent}
+.hero-foot{margin-top:1.4rem;font-family:'Inter Tight',system-ui,sans-serif;font-size:.8rem;color:rgba(14,13,11,.62)}
+.hero-foot a{color:#0E0D0B;text-decoration:underline;text-underline-offset:3px}
+.hero-x{position:absolute;top:.9rem;right:1rem;width:2.25rem;height:2.25rem;border-radius:999px;font-size:1.4rem;line-height:1;color:rgba(14,13,11,.55)}
+.hero-x:hover{background:#ECEAE3;color:#0E0D0B}
+@media (max-width:480px){.hero-veil{place-items:end center;padding:.75rem}.hero-ctas{flex-direction:column}.hero-btn{justify-content:center;width:100%}}
+@keyframes hero-in{from{opacity:0}to{opacity:1}}
+.city-root canvas{touch-action:none}

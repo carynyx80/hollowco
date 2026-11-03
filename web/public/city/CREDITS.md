@@ -22,9 +22,10 @@
 asphalt_02, red_brick_03, brick_wall_02, concrete_wall_008, painted_plaster_wall, square_floor_patern_01 (1k, WebP);
 HDRI potsdamer_platz_1k.hdr.
 
-## Trees (poly.pizza, CC0, Quaternius)
-- tree0 Tree — https://poly.pizza/m/2paAm1ja4w
-- tree1 Tree — https://poly.pizza/m/9nvGuZlbpE
-- tree2 Tree — https://poly.pizza/m/1BkD9JnKrE
-- tree3 Autumn Tree — https://poly.pizza/m/2lRubrT6Na
-- tree4 Palm Tree — https://poly.pizza/m/A6cKJYFsIb
+## Trees (Poly Haven, CC0) — https://polyhaven.com/license
+Photo-scanned models baked offline (scripted orthographic render, alpha cutout, 512 px WebP) into crossed-quad billboard impostors:
+- tree0 Jacaranda Tree — https://polyhaven.com/a/jacaranda_tree
+- tree1 Island Tree 02 — https://polyhaven.com/a/island_tree_02
+- tree2 Searsia Lucida (shrubs) — https://polyhaven.com/a/searsia_lucida
+- tree3 Tree Small 02 — https://polyhaven.com/a/tree_small_02
+Files: /city/tex/tree0–3.webp (the earlier stylised Quaternius tree GLBs were removed).

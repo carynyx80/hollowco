@@ -167,12 +167,13 @@ const PED_H = 1.0, WALK = 1.05; // world units ≈ 2 m; walk speed in units/s
 type Mode = 'walk' | 'idle' | 'path' | 'off';
 type Ped = { obj: THREE.Object3D; mixer: THREE.AnimationMixer; walk: THREE.AnimationAction; idle: THREE.AnimationAction; mode: Mode; anim: 'walk' | 'idle' | '';
   ax: 0 | 1; line: number; off: number; p: number; v: number; lo: number; hi: number; path?: P[]; t0: number; dur: number; fadeIn: boolean; fadeOut: boolean; face: number; idleUntil: number };
-export function Pedestrians({ b, count, shops }: { b: Bounds; count: number; shops: CityShop[] }) {
-  const gltfs = useGLTF(PEDS) as any[]; const { camera } = useThree();
+export function Pedestrians({ b, count, shops, kinds = 8 }: { b: Bounds; count: number; shops: CityShop[]; kinds?: number }) {
+  // fewer distinct rigs on weaker GPUs: fewer downloads, shared skeleton templates
+  const urls = useMemo(() => PEDS.slice(0, Math.max(1, Math.min(PEDS.length, kinds))), [kinds]); const gltfs = useGLTF(urls) as any[]; const { camera } = useThree();
   const base = useMemo(() => gltfs.map((g) => { const s = g.scene as THREE.Object3D; s.updateMatrixWorld(true); const box = new THREE.Box3().setFromObject(s, true); const h = box.max.y - box.min.y || 1;
     s.traverse((o: any) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; const m = o.material as THREE.MeshStandardMaterial; if (m) { m.roughness = Math.max(0.65, m.roughness ?? 0.8); m.metalness = 0; } } });
     return { scene: s, k: PED_H / h, y0: -box.min.y * (PED_H / h), clips: g.animations as THREE.AnimationClip[] }; }), [gltfs]);
-  const SLOTS = 14; const total = count + SLOTS;
+  const SLOTS = 10; const total = count + SLOTS;
   const peds = useMemo<Ped[]>(() => { const { xs, zs } = lines(b);
     return Array.from({ length: total }, (_, i) => { const B = base[i % base.length]; const obj = skClone(B.scene); obj.scale.setScalar(B.k * (0.94 + hash(i * 1.3) * 0.12));
       const wrap = new THREE.Group(); wrap.add(obj); obj.position.y = B.y0;
@@ -212,4 +213,4 @@ export function Pedestrians({ b, count, shops }: { b: Bounds; count: number; sho
   });
   return <group>{peds.map((p, i) => <primitive key={i} object={p.obj} />)}</group>;
 }
-PEDS.forEach((u) => useGLTF.preload(u)); CARS.forEach((u) => useGLTF.preload(u));
+// no module-level preload: traffic and people stream in after the streets are drawn (see Scene stage)

@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { api, usd } from '@/lib/api';
+import { api, usd, thumb } from '@/lib/api';
 const Check = () => <svg viewBox="0 0 24 24" aria-hidden><path d="M5 12l5 5 9-10" /></svg>;
 // Order progress, driven by the real order record (GET /orders/:id). A global-cart checkout has one block of steps per store.
 export function Progress({ orderId, ppId, onDone }: { orderId: string; ppId?: string; onDone: () => void }) {
@@ -43,7 +43,7 @@ export function Progress({ orderId, ppId, onDone }: { orderId: string; ppId?: st
       <p className="cat-ord">Order #{orderId.slice(2, 10).toUpperCase()} · {o ? usd(o.total) : '…'}{caps.length ? ` · capture ${caps[0]}` : ''}</p></div>
     <div className="cat-progh"><h2>Progress</h2><span>{shown < flat.length || !o ? 'Live' : 'Complete'}</span></div>
     {groups.map((g, gi) => <div key={gi} data-testid={g.head ? 'store-progress' : undefined}>
-      {g.head && <p className="cat-store-h">{g.head.logo && <img src={g.head.logo} alt="" />}<b>{g.head.name}</b></p>}
+      {g.head && <p className="cat-store-h">{g.head.logo && <img src={thumb(g.head.logo, 64)} alt="" />}<b>{g.head.name}</b></p>}
       <ol className="cat-steps">{g.steps.map((s) => { const i = n++; const st = i < shown ? 'done' : i === shown ? 'now' : 'todo'; return <li key={i} className={st} data-testid={`step-${i}`} data-state={st}><span className="dot">{st === 'done' ? <Check /> : null}</span><div><p>{s.t}</p><small>{s.d}</small></div></li>; })}</ol></div>)}
     {o?.failure && o.status !== 'COMPLETED' && <p className="cat-err">{o.failure}</p>}
     {shown >= 2 && o?.downloads?.map((d: any) => <a key={d.pdf} className="cat-cta brass" href={'/api' + d.pdf} data-testid="cat-download">Download {d.title}</a>)}

@@ -1,4 +1,5 @@
 import { assetUrl } from './layout';
+import { thumb } from '@/lib/api';
 import { img, type TexName } from './assets';
 // Procedural textures (no network): facades, roads, signage. Generated once and shared.
 import * as THREE from 'three';
@@ -84,7 +85,7 @@ export function signTex(id: string, name: string, owner: string, accent: string,
     t.needsUpdate = true;
   };
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; draw();
-  if (logo) { const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => draw(im); im.src = assetUrl(logo); }
+  if (logo) { const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => draw(im); im.onerror = () => { im.onerror = null; im.src = assetUrl(logo); }; im.src = thumb(logo, 256) || assetUrl(logo); }
   signs.set(key, t); return t;
 }
 /** BoxGeometry whose side UVs are in world units / tile size, so facade textures don't stretch. */

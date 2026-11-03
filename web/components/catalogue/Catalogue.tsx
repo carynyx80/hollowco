@@ -1,7 +1,7 @@
 'use client';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { api, usd } from '@/lib/api';
+import { api, usd, thumb } from '@/lib/api';
 import { Progress } from '@/components/cart/Progress';
 import { useCart, cart as gcart } from '@/lib/cart';
 
@@ -51,7 +51,7 @@ export function Catalogue({ shopId, initialProduct, onClose }: { shopId: string;
   const recs = products.filter((p) => !p.comingSoon).slice().sort((a, b) => b.price - a.price).slice(0, 4);
 
   const card = (p: Prod) => <div key={p.id} className="cat-card" data-testid="cat-card">
-    <div className="cat-plate"><button className="cat-plate-btn" onClick={() => go({ k: 'product', pid: p.id })} aria-label={`Open ${p.title}`}>{p.image && <img src={p.image} alt="" />}</button>
+    <div className="cat-plate"><button className="cat-plate-btn" onClick={() => go({ k: 'product', pid: p.id })} aria-label={`Open ${p.title}`}>{p.image && <img src={thumb(p.image, 640)} alt="" loading="lazy" decoding="async" />}</button>
       <button className={`cat-heart ${wish.includes(p.id) ? 'on' : ''}`} onClick={() => toggleWish(p.id)} aria-pressed={wish.includes(p.id)} aria-label={wish.includes(p.id) ? 'Remove from wishlist' : 'Add to wishlist'} data-testid="cat-heart"><Ic d={I.heart} fill={wish.includes(p.id)} /></button>
       {p.comingSoon ? <span className="cat-soon">Coming soon</span> : <button className="cat-add" onClick={() => add(p)} aria-label={`Add ${p.title} to cart`} data-testid="cat-quick-add"><Ic d={I.plus} /></button>}</div>
     <button className="cat-meta" onClick={() => go({ k: 'product', pid: p.id })}><span className="cat-title">{p.title}</span><span className="cat-price">{p.comingSoon ? 'Coming soon' : usd(p.price)}</span></button>
@@ -68,7 +68,7 @@ export function Catalogue({ shopId, initialProduct, onClose }: { shopId: string;
     <div className="cat-pills" role="tablist" aria-label="Categories">{cats.map((c) => <button key={c} role="tab" aria-selected={cat === c} className={`cat-pill ${cat === c ? 'on' : ''}`} onClick={() => setCat(c)} data-testid={`cat-pill-${c}`}>{c === 'all' ? 'All' : KIND[c]}</button>)}</div>
     {screen.mode === 'wish' && <p className="cat-sec">Your wishlist</p>}
     {shown.length ? <div className="cat-grid" data-testid="cat-grid">{shown.map(card)}</div> : <div className="cat-empty">{screen.mode === 'wish' ? 'Tap the heart on anything you love — it’s saved on this device.' : 'Nothing matches that yet.'}</div>}
-    {screen.mode !== 'wish' && !term && recs.length > 1 && <><p className="cat-sec">We recommend</p><div className="cat-row">{recs.map((p) => <button key={p.id} className="cat-rec" onClick={() => go({ k: 'product', pid: p.id })}><span className="cat-rec-img">{p.image && <img src={p.image} alt="" />}</span><span className="cat-title">{p.title}</span><span className="cat-price">{usd(p.price)}</span></button>)}</div></>}
+    {screen.mode !== 'wish' && !term && recs.length > 1 && <><p className="cat-sec">We recommend</p><div className="cat-row">{recs.map((p) => <button key={p.id} className="cat-rec" onClick={() => go({ k: 'product', pid: p.id })}><span className="cat-rec-img">{p.image && <img src={thumb(p.image, 640)} alt="" loading="lazy" decoding="async" />}</span><span className="cat-title">{p.title}</span><span className="cat-price">{usd(p.price)}</span></button>)}</div></>}
   </div>;
   else if (screen.k === 'product') body = <ProductView p={byId(screen.pid)} wished={wish.includes(screen.pid)} onWish={() => toggleWish(screen.pid)} onAdd={add} more={products.filter((x) => x.id !== screen.pid && !x.comingSoon).slice(0, 4)} onOpen={(pid) => go({ k: 'product', pid })} />;
   else body = <Progress orderId={screen.orderId} ppId={screen.ppId} onDone={onClose} />;
@@ -78,7 +78,7 @@ export function Catalogue({ shopId, initialProduct, onClose }: { shopId: string;
     <motion.div ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`${shop?.name || 'Shop'} catalogue`} className="cat-panel" initial={{ y: 40, scale: .97, opacity: 0 }} animate={{ y: 0, scale: 1, opacity: 1, transition: { type: 'spring', stiffness: 300, damping: 30 } }} exit={{ y: 30, opacity: 0, transition: { duration: .2 } }}>
       <header className="cat-top">
         <button className="cat-ic" onClick={back} aria-label={screen.k === 'product' ? 'Back' : 'Close catalogue'} data-testid="cat-back"><Ic d={screen.k === 'product' ? I.back : I.x} /></button>
-        {title ? <span className="cat-toptitle">{title}</span> : <span className="cat-brand">{shop?.logo && <img src={shop.logo} alt="" />}{shop?.name}</span>}
+        {title ? <span className="cat-toptitle">{title}</span> : <span className="cat-brand">{shop?.logo && <img src={thumb(shop.logo, 64)} alt="" />}{shop?.name}</span>}
         {screen.k === 'progress' ? <span className="cat-ic-ghost" /> : <button className="cat-ic" onClick={() => gcart.openCart()} aria-label={`Cart, ${count} items`} data-testid="cat-cart-btn"><Ic d={I.bag} />{count > 0 && <b className="cat-badge">{count}</b>}</button>}
       </header>
       <div className="cat-scroll"><AnimatePresence mode="wait" custom={dir} initial={false}><motion.div key={screen.k + ((screen as any).pid || (screen as any).mode || '')} custom={dir} variants={slide} initial="initial" animate="animate" exit="exit">{body}</motion.div></AnimatePresence></div>
@@ -100,14 +100,14 @@ function ProductView({ p, wished, onWish, onAdd, more, onOpen }: { p?: Prod; wis
   if (!p) return <div className="cat-empty">That piece isn’t in this catalogue.</div>;
   const s = specOf(p);
   return <div className="cat-pad" data-testid="cat-product">
-    <div className="cat-hero">{p.image && <img src={p.image} alt={p.title} />}<button className={`cat-heart ${wished ? 'on' : ''}`} onClick={onWish} aria-pressed={wished} aria-label="Wishlist"><Ic d={I.heart} fill={wished} /></button></div>
+    <div className="cat-hero">{p.image && <img src={thumb(p.image, 1080)} alt={p.title} />}<button className={`cat-heart ${wished ? 'on' : ''}`} onClick={onWish} aria-pressed={wished} aria-label="Wishlist"><Ic d={I.heart} fill={wished} /></button></div>
     <div className="cat-ptop"><h1 className="cat-h2">{p.title}</h1><span className="cat-pprice" data-testid="cat-price">{p.comingSoon ? 'Coming soon' : usd(p.price)}</span></div>
     <p className="cat-specline">{s.line}</p>
     {p.description && <p className="cat-desc">{p.description}</p>}
     {!p.comingSoon && <div className="cat-specs"><div><dt>{p.digital ? 'Format' : 'Material'}</dt><dd>{s.material}</dd></div><div><dt>Fulfilment</dt><dd>{s.fulfil}</dd></div><div><dt>Delivery</dt><dd>{s.delivery}</dd></div></div>}
     {p.comingSoon ? <p className="cat-soonbox" data-testid="coming-soon">Coming soon — this piece isn’t available to buy yet.</p>
       : <div className="cat-buy"><Qty v={n} set={setN} /><button className="cat-cta" onClick={() => onAdd(p, n)} data-testid="cat-add">Add to cart – {usd(p.price * n)}</button></div>}
-    {more.length > 0 && <><p className="cat-sec">You may also like</p><div className="cat-row">{more.map((m) => <button key={m.id} className="cat-rec" onClick={() => onOpen(m.id)}><span className="cat-rec-img">{m.image && <img src={m.image} alt="" />}</span><span className="cat-title">{m.title}</span><span className="cat-price">{usd(m.price)}</span></button>)}</div></>}
+    {more.length > 0 && <><p className="cat-sec">You may also like</p><div className="cat-row">{more.map((m) => <button key={m.id} className="cat-rec" onClick={() => onOpen(m.id)}><span className="cat-rec-img">{m.image && <img src={thumb(m.image, 384)} alt="" loading="lazy" />}</span><span className="cat-title">{m.title}</span><span className="cat-price">{usd(m.price)}</span></button>)}</div></>}
   </div>;
 }
 

@@ -9,7 +9,7 @@ import { Ring } from '@/components/Logo';
 import { Composer } from '@/components/Composer';
 import { HollowOffice } from '@/components/HollowOffice';
 import { useToast } from '@/components/Toast';
-import { api, usd } from '@/lib/api';
+import { api, usd, thumb } from '@/lib/api';
 import { useAuth } from '@/components/Auth';
 const ago = (s: string) => { const m = Math.round((Date.now() - new Date(s).getTime()) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago`; };
 const KIND: Record<string, string> = { shop_created: 'Opened shop', revenue: 'Sale', supplier_cost: 'Supplier order', payout: 'Agent payout', rejected: 'Guardrail blocked', capture_failed: 'Capture failed', payout_reversed: 'Payout reversed' };
@@ -84,7 +84,7 @@ export function DashboardView({ embedded = false }: { embedded?: boolean }) {
       {!d ? <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{[0, 1, 2].map((i) => <div key={i} className="skeleton h-28" />)}</div>
         : d.shops.length === 0 ? <div className="card p-10 text-center border-dashed"><Ring size={40} /><p className="mt-3 font-medium">No companies yet</p><p className="text-sm text-char/55">Give your founder an idea above to open your first shop.</p></div>
         : <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="shops">{d.shops.map((s: any) => <Link key={s.id} href={`/s/${s.id}`} className="card lift p-5 flex gap-4 items-center">
-          <img src={s.logo} alt="" className="h-14 w-14 rounded-xl object-cover bg-sand" style={{ outline: `3px solid ${s.colors?.[1]}33` }} />
+          <img src={thumb(s.logo, 128)} alt="" className="h-14 w-14 rounded-xl object-cover bg-sand" style={{ outline: `3px solid ${s.colors?.[1]}33` }} />
           <div className="min-w-0"><p className="font-medium truncate">{s.name}</p><p className="text-xs text-char/55 truncate">{s.tagline}</p><p className="text-xs mt-1 text-char/55">{s.products} products · {usd(s.revenue)} sales</p></div></Link>)}</div>}
     </motion.section>
     <motion.section variants={riseV} className="grid lg:grid-cols-2 gap-5">

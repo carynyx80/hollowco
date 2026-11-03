@@ -1,7 +1,7 @@
 'use client';
 import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Billboard, Environment, Html, OrbitControls, Sky, Sparkles, Stars, useProgress } from '@react-three/drei';
+import { Billboard, Environment, Html, OrbitControls, PerformanceMonitor, Sky, Sparkles, Stars, useProgress } from '@react-three/drei';
 import { Bloom, BrightnessContrast, EffectComposer, HueSaturation, N8AO, Vignette } from '@react-three/postprocessing';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { HDRI, preloadImages } from './assets';
@@ -237,8 +237,9 @@ function clampToRoad(v: THREE.Vector3) {
 
 /* Ink & Brass loading screen (textures, HDRI, people and car models stream in lazily). */
 function Loading({ ready }: { ready: number }) {
-  const { active, progress } = useProgress(); const [gone, setGone] = useState(false); const pct = Math.round(ready < 1 ? ready * 30 : 30 + progress * 0.7);
-  const done = ready >= 1 && !active && progress >= 100; useEffect(() => { if (!done) { setGone(false); return; } const t = setTimeout(() => setGone(true), 700); return () => clearTimeout(t); }, [done]);
+  const { active, progress } = useProgress(); const [gone, setGone] = useState(false); const pct = Math.round(ready < 1 ? ready * 90 : 100);
+  // progressive: the veil lifts as soon as streets + buildings can draw; people, cars and the HDRI stream in afterwards
+  const done = ready >= 1; useEffect(() => { if (!done) { setGone(false); return; } const t = setTimeout(() => setGone(true), 700); return () => clearTimeout(t); }, [done]);
   if (gone) return null;
   return <div className={`city-loading ${done ? 'city-loading-out' : ''}`} data-testid="city-loading"><div className="city-loading-inner">
     <p className="city-loading-eyebrow">HollowCo City</p><p className="city-loading-title">Raising the streets</p>
@@ -248,7 +249,7 @@ function Loading({ ready }: { ready: number }) {
 }
 
 export type SceneProps = { shops: CityShop[]; sites: Site[]; focus?: string | null; pulses: Record<string, number>; bankHot: number; paused: boolean; frozen?: boolean; hour: number; quality: Quality; hl: string | null;
-  onShop: (s: CityShop) => void; onBank: () => void; onCart: () => void; onBeacon: () => void; onGuard: () => void; onDistrict: (d: string) => void };
+  onShop: (s: CityShop) => void; onBank: () => void; onCart: () => void; onBeacon: () => void; onGuard: () => void; onDistrict: (d: string) => void; onDecline?: () => void };
 export default function CityScene(p: SceneProps) {
   const [ready, setReady] = useState(0); useEffect(() => { preloadImages((d, n) => setReady(d / n)).then(() => setReady(1)); }, []);
   return <>{ready >= 1 && <World {...p} />}<Loading ready={ready} /></>;
@@ -259,16 +260,20 @@ function World(p: SceneProps) {
   const ob = useMemo(() => ({ ...b, kx0: b.kx0 - 2, kx1: b.kx1 + 2, kz0: b.kz0 - 2 }), [b]);
   const fill = useMemo(() => fillerLots(b, ob, p.shops, (kx: number, kz: number) => isPark(kx, kz) || isCartLot(kx, kz)), [b, ob, p.shops]);
   const filled = useMemo(() => new Set(fill.map((f) => f.key)), [fill]);
-  const peds = p.quality === 'low' ? 18 : p.quality === 'med' ? 36 : 56; const cars = p.quality === 'low' ? 16 : p.quality === 'med' ? 30 : 44;
+  const peds = p.quality === 'low' ? 8 : p.quality === 'med' ? 20 : 36; const cars = p.quality === 'low' ? 12 : p.quality === 'med' ? 24 : 40;
+  const [stage, setStage] = useState(0); // 0 = streets & buildings, 1 = + traffic & HDRI, 2 = + pedestrians
+  useEffect(() => { const a = setTimeout(() => setStage(1), 700), c = setTimeout(() => setStage(2), 2200); return () => { clearTimeout(a); clearTimeout(c); }; }, []);
   const guards = useMemo<[number, number][]>(() => [[b.kx0 * PITCH - 4, b.kz0 * PITCH - 4], [(b.kx1 + 1) * PITCH + 4, b.kz0 * PITCH - 4], [b.kx0 * PITCH - 4, SHORE - 2], [(b.kx1 + 1) * PITCH + 4, SHORE - 2]], [b]);
   const night = 1 - THREE.MathUtils.smoothstep(Math.sin(((p.hour - 6) / 12) * Math.PI), -0.12, 0.3);
   return <Canvas frameloop={p.frozen ? 'never' : 'always'} shadows={Q.shadows > 0 ? 'soft' : false} dpr={[1, Q.dpr]} gl={{ antialias: !Q.bloom, powerPreference: 'high-performance' }} camera={{ position: [38, 20, 62], fov: 50, near: 0.3, far: 700 }}
     onCreated={({ gl }) => { gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = 0.95; }} data-testid="city-canvas">
     <Daylight hour={p.hour} q={p.quality} />
-    {Q.env && <Environment files={HDRI} background={false} environmentIntensity={0.18 + (1 - night) * 0.75} />}
+    <PerformanceMonitor flipflops={2} onDecline={p.onDecline} />
+    {Q.env && stage >= 1 && <Suspense fallback={null}><Environment files={HDRI} background={false} environmentIntensity={0.18 + (1 - night) * 0.75} /></Suspense>}
     <Ground b={ob} shops={p.shops} /><Water b={ob} /><Lamps b={ob} /><Trees b={ob} shops={p.shops} density={Q.trees} filled={filled} />
     <FillerCity items={fill} /><StreetProps b={ob} />
-    <Suspense fallback={null}><Cars b={ob} count={cars} /><Pedestrians b={b} count={peds} shops={p.shops} /></Suspense>
+    {stage >= 1 && <Suspense fallback={null}><Cars b={ob} count={cars} /></Suspense>}
+    {stage >= 2 && <Suspense fallback={null}><Pedestrians b={b} count={peds} shops={p.shops} kinds={p.quality === 'high' ? 8 : p.quality === 'med' ? 5 : 3} /></Suspense>}
     <Beacon onPick={p.onBeacon} /><Bank onPick={p.onBank} hot={p.bankHot} /><CartBuilding onPick={p.onCart} /><Guards onPick={p.onGuard} at={guards} /><Dock />
     <Buildings shops={p.shops} detail={Q.detail} focus={p.focus} pulses={p.pulses} onPick={p.onShop} quiet={p.paused} hl={p.hl} />
     {p.sites.map((s) => <ConstructionSite key={s.shopId} s={s} />)}

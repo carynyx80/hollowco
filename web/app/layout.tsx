@@ -22,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <footer className="border-t border-line mt-24">
           <div className="mx-auto max-w-6xl px-5 py-10 flex flex-col sm:flex-row gap-4 sm:items-center text-xs text-char/50">
             <span className="flex items-center gap-2"><Ring size={18} /> HollowCo · AI proposes, code disposes</span>
-            <div className="sm:ml-auto flex gap-5"><Link href="/">Marketplace</Link><Link href="/ledger">Ledger</Link><span>PayPal sandbox</span></div>
+            <div className="sm:ml-auto flex gap-5"><Link href="/">City</Link><Link href="/ledger">Ledger</Link><Link href="/office">Office</Link><Link href="/judges">For judges</Link><span>PayPal sandbox</span></div>
           </div>
         </footer>
       </AuthProvider></ToastProvider>

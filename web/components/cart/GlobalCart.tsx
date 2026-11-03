@@ -2,7 +2,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect } from 'react';
 import { useCart, cart, MAX_STORES, MAX_QTY } from '@/lib/cart';
-import { usd } from '@/lib/api';
+import { usd, thumb } from '@/lib/api';
 import { PayButton } from '@/components/PayButton';
 import { Progress } from './Progress';
 const Svg = ({ children }: { children: React.ReactNode }) => <svg viewBox="0 0 24 24" aria-hidden>{children}</svg>;
@@ -25,8 +25,8 @@ export function GlobalCart() {
       <div className="cat-grab" /><div className="cat-sheet-head"><div><p className="cat-eyebrow">Your bag · {c.stores.length} {c.stores.length === 1 ? 'store' : 'stores'}</p><h2 className="cat-h2">{c.count} {c.count === 1 ? 'piece' : 'pieces'}</h2></div><button className="cat-ic" onClick={() => cart.close()} aria-label="Close bag"><Svg><path d="M6 6l12 12M18 6L6 18" /></Svg></button></div>
       {!c.lines.length ? <div className="cat-empty">Your bag is empty. Walk into any store in the city and add something you love.</div> : <>
         {c.stores.map((g) => <div key={g.shopId} className="hc-store" data-testid="cart-store" data-shop={g.shopId}>
-          <div className="hc-store-h">{g.shopLogo ? <img src={g.shopLogo} alt="" /> : <span />}<div className="flex-1 min-w-0"><p className="hc-store-n">{g.shopName}</p><p className="hc-store-o">by {g.owner || 'HollowCo'}</p></div><span className="hc-store-sub" data-testid="store-subtotal">{usd(g.subtotal)}</span></div>
-          {g.lines.map((l) => <div key={l.productId} className="cat-line" data-testid="cat-line"><span className="cat-line-img">{l.image && <img src={l.image} alt="" />}</span><div className="flex-1 min-w-0"><p className="cat-line-t">{l.title}</p><p className="cat-line-s">{l.digital ? 'Instant download · PDF' : 'Printful · ships 5–8 days'}</p>
+          <div className="hc-store-h">{g.shopLogo ? <img src={thumb(g.shopLogo, 64)} alt="" /> : <span />}<div className="flex-1 min-w-0"><p className="hc-store-n">{g.shopName}</p><p className="hc-store-o">by {g.owner || 'HollowCo'}</p></div><span className="hc-store-sub" data-testid="store-subtotal">{usd(g.subtotal)}</span></div>
+          {g.lines.map((l) => <div key={l.productId} className="cat-line" data-testid="cat-line"><span className="cat-line-img">{l.image && <img src={thumb(l.image, 128)} alt="" />}</span><div className="flex-1 min-w-0"><p className="cat-line-t">{l.title}</p><p className="cat-line-s">{l.digital ? 'Instant download · PDF' : 'Printful · ships 5–8 days'}</p>
             <Qty v={l.qty} set={(n) => cart.setQty(l.shopId, l.productId, n)} /></div><span className="cat-line-p">{usd(l.price * l.qty)}</span></div>)}
         </div>)}
         <dl className="cat-sum">{c.stores.map((g) => <div key={g.shopId}><dt>{g.shopName}</dt><dd>{usd(g.subtotal)}</dd></div>)}{c.lines.some((l) => !l.digital) && <div><dt>Shipping (Printful)</dt><dd>Included</dd></div>}<div className="tot"><dt>Total</dt><dd data-testid="cat-total">{usd(c.total)}</dd></div></dl>

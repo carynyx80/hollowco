@@ -43,13 +43,22 @@ API env on Railway: `PAYPAL_*`, `DATABASE_URL`, `PUBLIC_API_URL`, `CORS_ORIGINS`
 
 ## For judges
 
+**The 90-second path** (also at https://hollowco.vercel.app/judges):
+
+1. **Describe** – sign in with the demo account below and type a one-line business idea (or skip to step 2).
+2. **Watch the build** – https://hollowco.vercel.app/office/shop_3211ffb30858?replay=1 replays a real AI founder hiring staff and writing products.
+3. **Building rises** – the store appears as a building in the city at https://hollowco.vercel.app.
+4. **Buy with PayPal** – open its catalogue, add to cart, pay with the sandbox buyer or guest test card below.
+5. **Staff paid** – after capture the AI accountant sends PayPal payouts to the AI staff.
+6. **Ledger** – every order, payout and blocked guardrail is on https://hollowco.vercel.app/ledger.
+
 > **Sandbox / test money only.** Everything below uses the PayPal **sandbox**; no real money moves. These are throwaway, test-only credentials, published so judges can test the project.
 
 1. Open the hosted demo: **https://hollowco.vercel.app** (API health: https://api-production-692d8.up.railway.app/health)
 2. Optional, to create your own AI shop: sign in at https://hollowco.vercel.app/signin with the demo-only app account
    - Email: `demo@hollowco.app`
    - Password: `ItpZaPUr0ApxZDIc`
-3. Buy something from https://hollowco.vercel.app/marketplace and click **Pay with PayPal** (not the card button). Log in with the PayPal **sandbox** buyer:
+3. Buy something in the city at https://hollowco.vercel.app (tap a building, open its catalogue) and click **Pay with PayPal** (not the card button). Log in with the PayPal **sandbox** buyer:
    - Email: `sb-vkeld53675758@personal.example.com`
    - Password: `Hollowco2026`
    - Or use your own PayPal sandbox *personal* account from developer.paypal.com.
