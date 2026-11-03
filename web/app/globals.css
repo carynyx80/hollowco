@@ -254,7 +254,7 @@ h1.font-display, .font-display.text-4xl, .font-display.text-5xl { font-weight: 5
 /* ── First-visit hero ─────────────────────────────────────────── */
 .hero-veil{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:1.25rem;background:linear-gradient(180deg,rgba(14,13,11,.04) 0%,rgba(14,13,11,.10) 55%,rgba(14,13,11,.34) 100%);animation:hero-in .45s ease-out both}
 .hero-card{position:relative;width:min(640px,100%);background:#F9F8F5;color:#0E0D0B;border:1px solid rgba(184,151,90,.45);border-radius:22px;padding:clamp(1.5rem,4vw,2.75rem);box-shadow:0 30px 80px -20px rgba(14,13,11,.55)}
-.hero-kicker{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:.7rem;letter-spacing:.22em;text-transform:uppercase;color:#B8975A}
+.hero-kicker{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:.7rem;letter-spacing:.22em;text-transform:uppercase;color:#8C6F3C;padding-right:2.5rem}
 .hero-h{font-family:'Cormorant Garamond',Georgia,serif;font-weight:500;font-size:clamp(1.9rem,5.4vw,3.1rem);line-height:1.06;margin:.6rem 0 1.5rem;letter-spacing:-.01em}
 .hero-h em{color:#B8975A;font-style:italic}
 .hero-ctas{display:flex;flex-wrap:wrap;gap:.6rem}
@@ -264,12 +264,13 @@ h1.font-display, .font-display.text-4xl, .font-display.text-5xl { font-weight: 5
 .hero-btn-ghost{background:transparent}
 .hero-foot{margin-top:1.4rem;font-family:'Inter Tight',system-ui,sans-serif;font-size:.8rem;color:rgba(14,13,11,.62)}
 .hero-foot a{color:#0E0D0B;text-decoration:underline;text-underline-offset:3px}
-.hero-x{position:absolute;top:.9rem;right:1rem;width:2.25rem;height:2.25rem;border-radius:999px;font-size:1.4rem;line-height:1;color:rgba(14,13,11,.62)}
+.hero-x{position:absolute;top:.9rem;right:1rem;width:2.25rem;height:2.25rem;border-radius:999px;font-size:1.4rem;line-height:1;color:rgba(14,13,11,.7)}
+.hero-x:focus-visible{outline:2px solid #B8975A;outline-offset:2px}
 .hero-x:hover{background:#ECEAE3;color:#0E0D0B}
 @media (max-width:480px){.hero-veil{place-items:end center;padding:.75rem}.hero-ctas{flex-direction:column}.hero-btn{justify-content:center;width:100%}}
 @keyframes hero-in{from{opacity:0}to{opacity:1}}
 .city-root canvas{touch-action:none}
-@media (max-width:480px){.cat-entry{flex-wrap:wrap}.cat-entry .k{letter-spacing:.12em}.cat-entry-btn{width:100%;justify-content:center}}
+@media (max-width:480px){.cat-entry{flex-wrap:nowrap;gap:10px;padding:10px 10px 10px 14px}.cat-entry-cover{display:none}.cat-entry h3{font-size:20px}.cat-entry .s{display:none}.cat-entry .k{letter-spacing:.12em}.cat-entry-btn{height:40px;padding:0 14px}}
 
 .city-poster { background: #0E0D0B url('/city-capture.jpg') center / cover no-repeat; }
 
