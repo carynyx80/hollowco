@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { loadScript } from '@paypal/paypal-js';
 import { api, usd } from '@/lib/api';
 type St = { kind: 'idle' } | { kind: 'processing' } | { kind: 'cancelled' } | { kind: 'declined'; msg: string } | { kind: 'error'; msg: string };
-export function PayButton({ shopId, productId, items, color = 'white', onDone, onError }: { shopId: string; productId?: string; items?: { productId: string; qty: number }[]; color?: 'white' | 'gold' | 'black'; onDone: (o: any, recover?: { orderId: string; ppId: string }) => void; onError?: (m: string) => void }) {
-  const ref = useRef<HTMLDivElement>(null); const ours = useRef<string>(''); const cb = useRef({ onDone, onError, items }); cb.current = { onDone, onError, items };
+export function PayButton({ shopId, productId, items, stores, color = 'white', onDone, onError }: { shopId: string; productId?: string; items?: { productId: string; qty: number }[]; stores?: { shopId: string; items: { productId: string; qty: number }[] }[]; color?: 'white' | 'gold' | 'black'; onDone: (o: any, recover?: { orderId: string; ppId: string }) => void; onError?: (m: string) => void }) {
+  const ref = useRef<HTMLDivElement>(null); const ours = useRef<string>(''); const cb = useRef({ onDone, onError, items, stores }); cb.current = { onDone, onError, items, stores };
   const [ready, setReady] = useState(false); const [st, setSt] = useState<St>({ kind: 'idle' }); const [nonce, setNonce] = useState(0);
   useEffect(() => {
     let cancelled = false;
@@ -18,7 +18,7 @@ export function PayButton({ shopId, productId, items, color = 'white', onDone, o
       ref.current.innerHTML = '';
       await paypal.Buttons({
         style: { layout: 'vertical', height: 48, shape: 'pill', color, tagline: false },
-        createOrder: async () => { setSt({ kind: 'idle' }); const o = await api('/orders', { method: 'POST', body: JSON.stringify({ shopId, items: cb.current.items?.length ? cb.current.items : [{ productId, qty: 1 }] }) }); ours.current = o.orderId; return o.paypalOrderId; },
+        createOrder: async () => { setSt({ kind: 'idle' }); const o = await api('/orders', { method: 'POST', body: JSON.stringify(cb.current.stores?.length ? { stores: cb.current.stores } : { shopId, items: cb.current.items?.length ? cb.current.items : [{ productId, qty: 1 }] }) }); ours.current = o.orderId; return o.paypalOrderId; },
         onApprove: async (d: any, actions: any) => {
           setSt({ kind: 'processing' });
           try { cb.current.onDone(await api(`/orders/${d.orderID}/capture`, { method: 'POST' })); }

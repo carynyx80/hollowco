@@ -2,7 +2,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, usd } from '@/lib/api';
-import { PayButton } from '@/components/PayButton';
+import { Progress } from '@/components/cart/Progress';
+import { useCart, cart as gcart } from '@/lib/cart';
 
 type Prod = { id: string; title: string; kind: string; digital: boolean; price: number; comingSoon?: boolean; description?: string; image?: string };
 type Shop = { id: string; name: string; tagline?: string; logo?: string; owner?: string; products: Prod[] };
@@ -30,19 +31,17 @@ export function Catalogue({ shopId, initialProduct, onClose }: { shopId: string;
   const [shop, setShop] = useState<Shop | null>(null); const [err, setErr] = useState('');
   const [screen, setScreen] = useState<Screen>(initialProduct ? { k: 'product', pid: initialProduct } : { k: 'home' }); const [dir, setDir] = useState(1);
   const [q, setQ] = useState(''); const [cat, setCat] = useState('all');
-  const [wish, setWish] = useState<string[]>([]); const [cart, setCart] = useState<Line[]>([]); const [cartOpen, setCartOpen] = useState(false);
+  const [wish, setWish] = useState<string[]>([]); const gc = useCart(); const cartOpen = gc.open;
   const [toast, setToast] = useState(''); const searchRef = useRef<HTMLInputElement>(null); const panelRef = useRef<HTMLDivElement>(null);
-  useEffect(() => { api(`/shops/${shopId}`).then(setShop).catch((e) => setErr(e.message)); setWish(ls.get('hc:wish', [])); setCart(ls.get(`hc:cart:${shopId}`, [])); }, [shopId]);
-  const saveCart = (c: Line[]) => { setCart(c); ls.set(`hc:cart:${shopId}`, c); };
+  useEffect(() => { api(`/shops/${shopId}`).then(setShop).catch((e) => setErr(e.message)); setWish(ls.get('hc:wish', [])); }, [shopId]);
   const go = (s: Screen, d = 1) => { setDir(d); setScreen(s); panelRef.current?.querySelector('.cat-scroll')?.scrollTo({ top: 0 }); };
   const flash = (m: string) => { setToast(m); setTimeout(() => setToast(''), 1800); };
   const products = useMemo(() => (shop?.products || []).filter((p) => !(p.comingSoon && !p.image)), [shop]);
   const byId = (id: string) => products.find((p) => p.id === id);
-  const add = (p: Prod, n = 1) => { if (p.comingSoon) return; const c = [...cart]; const l = c.find((x) => x.productId === p.id); if (l) l.qty = Math.min(5, l.qty + n); else c.push({ productId: p.id, qty: Math.min(5, n) }); saveCart(c); flash('Added to cart'); };
+  const add = (p: Prod, n = 1) => { if (p.comingSoon || !shop) return; if (gcart.add({ shopId, productId: p.id, title: p.title, price: p.price, image: p.image, digital: p.digital, kind: p.kind, shopName: shop.name, shopLogo: shop.logo, owner: shop.owner, comingSoon: p.comingSoon }, n)) flash('Added to cart'); };
   const toggleWish = (id: string) => { const w = wish.includes(id) ? wish.filter((x) => x !== id) : [...wish, id]; setWish(w); ls.set('hc:wish', w); };
-  const lines = cart.map((l) => ({ ...l, p: byId(l.productId) })).filter((l) => l.p && !l.p.comingSoon) as (Line & { p: Prod })[];
-  const count = lines.reduce((s, l) => s + l.qty, 0); const total = lines.reduce((s, l) => s + l.qty * l.p.price, 0);
-  const back = useCallback(() => { if (cartOpen) setCartOpen(false); else if (screen.k === 'product') go({ k: 'home' }, -1); else onClose(); }, [cartOpen, screen, onClose]); // eslint-disable-line react-hooks/exhaustive-deps
+    const count = gc.count;
+  const back = useCallback(() => { if (cartOpen) return; else if (screen.k === 'product') go({ k: 'home' }, -1); else onClose(); }, [cartOpen, screen, onClose]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); back(); } }; window.addEventListener('keydown', k, true); return () => window.removeEventListener('keydown', k, true); }, [back]);
   useEffect(() => { panelRef.current?.focus(); }, []);
 
@@ -80,28 +79,14 @@ export function Catalogue({ shopId, initialProduct, onClose }: { shopId: string;
       <header className="cat-top">
         <button className="cat-ic" onClick={back} aria-label={screen.k === 'product' ? 'Back' : 'Close catalogue'} data-testid="cat-back"><Ic d={screen.k === 'product' ? I.back : I.x} /></button>
         {title ? <span className="cat-toptitle">{title}</span> : <span className="cat-brand">{shop?.logo && <img src={shop.logo} alt="" />}{shop?.name}</span>}
-        {screen.k === 'progress' ? <span className="cat-ic-ghost" /> : <button className="cat-ic" onClick={() => setCartOpen(true)} aria-label={`Cart, ${count} items`} data-testid="cat-cart-btn"><Ic d={I.bag} />{count > 0 && <b className="cat-badge">{count}</b>}</button>}
+        {screen.k === 'progress' ? <span className="cat-ic-ghost" /> : <button className="cat-ic" onClick={() => gcart.openCart()} aria-label={`Cart, ${count} items`} data-testid="cat-cart-btn"><Ic d={I.bag} />{count > 0 && <b className="cat-badge">{count}</b>}</button>}
       </header>
       <div className="cat-scroll"><AnimatePresence mode="wait" custom={dir} initial={false}><motion.div key={screen.k + ((screen as any).pid || (screen as any).mode || '')} custom={dir} variants={slide} initial="initial" animate="animate" exit="exit">{body}</motion.div></AnimatePresence></div>
       {screen.k === 'home' && <nav className="cat-dock" aria-label="Catalogue">
         {([['home', 'Home', I.home], ['search', 'Search', I.search], ['wish', 'Wishlist', I.heart]] as const).map(([k, l, d]) => { const on = k === 'home' ? !screen.mode : screen.mode === k; return <button key={k} className={on ? 'on' : ''} aria-current={on} onClick={() => { go({ k: 'home', mode: k === 'home' ? undefined : k }, 0); if (k === 'search') setTimeout(() => searchRef.current?.focus(), 250); }} data-testid={`cat-dock-${k}`}><Ic d={d} />{on && <span>{l}</span>}</button>; })}
-        <button onClick={() => setCartOpen(true)} aria-label={`Cart, ${count} items`} data-testid="cat-dock-cart"><Ic d={I.bag} />{count > 0 && <b className="cat-badge">{count}</b>}</button>
+        <button onClick={() => gcart.openCart()} aria-label={`Cart, ${count} items`} data-testid="cat-dock-cart"><Ic d={I.bag} />{count > 0 && <b className="cat-badge">{count}</b>}</button>
       </nav>}
       <AnimatePresence>{toast && <motion.div className="cat-toast" role="status" initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 10, opacity: 0 }} data-testid="cat-toast"><Ic d={I.check} />{toast}</motion.div>}</AnimatePresence>
-      <AnimatePresence>{cartOpen && <>
-        <motion.div className="cat-scrim" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setCartOpen(false)} />
-        <motion.section className="cat-sheet" role="dialog" aria-label="Your bag" initial={{ y: '100%' }} animate={{ y: 0, transition: { type: 'spring', stiffness: 320, damping: 34 } }} exit={{ y: '100%', transition: { duration: .22 } }} data-testid="cat-cart">
-          <div className="cat-grab" /><div className="cat-sheet-head"><div><p className="cat-eyebrow">Your bag</p><h2 className="cat-h2">{count} {count === 1 ? 'piece' : 'pieces'}</h2></div><button className="cat-ic" onClick={() => setCartOpen(false)} aria-label="Close bag"><Ic d={I.x} /></button></div>
-          {!lines.length ? <div className="cat-empty">Your bag is empty.</div> : <>
-            {lines.map((l) => <div key={l.productId} className="cat-line" data-testid="cat-line"><span className="cat-line-img">{l.p.image && <img src={l.p.image} alt="" />}</span><div className="flex-1 min-w-0"><p className="cat-line-t">{l.p.title}</p><p className="cat-line-s">{specOf(l.p).fulfil}{l.p.digital ? ' · PDF' : ' · ships ' + specOf(l.p).delivery}</p>
-              <Qty v={l.qty} set={(n) => saveCart(n ? cart.map((x) => x.productId === l.productId ? { ...x, qty: n } : x) : cart.filter((x) => x.productId !== l.productId))} min={0} /></div><span className="cat-line-p">{usd(l.p.price * l.qty)}</span></div>)}
-            <dl className="cat-sum"><div><dt>Subtotal</dt><dd>{usd(total)}</dd></div>{lines.some((l) => !l.p.digital) && <div><dt>Shipping (Printful)</dt><dd>Included</dd></div>}<div className="tot"><dt>Total</dt><dd data-testid="cat-total">{usd(total)}</dd></div></dl>
-            <div className="cat-pay"><p className="cat-pay-h"><span>Secure payment · PayPal</span><span className="cat-chip">sandbox</span></p>
-              <PayButton key={JSON.stringify(cart)} shopId={shopId} items={lines.map((l) => ({ productId: l.productId, qty: l.qty }))} color="gold"
-                onDone={(o, rec) => { saveCart([]); setCartOpen(false); go(o ? { k: 'progress', orderId: o.id } : { k: 'progress', orderId: rec!.orderId, ppId: rec!.ppId }); }} onError={(m) => flash(m.slice(0, 80))} />
-              <p className="cat-fine">Test card: set Country to United States, use a US billing address, then “Pay now as guest”.</p></div>
-          </>}
-        </motion.section></>}</AnimatePresence>
     </motion.div>
   </motion.div>;
 }
@@ -126,45 +111,3 @@ function ProductView({ p, wished, onWish, onAdd, more, onOpen }: { p?: Prod; wis
   </div>;
 }
 
-// Order progress: every step is driven by the real order record (GET /orders/:id), revealed one at a time.
-function Progress({ orderId, ppId, onDone }: { orderId: string; ppId?: string; onDone: () => void }) {
-  const [o, setO] = useState<any>(null); const [err, setErr] = useState(''); const [shown, setShown] = useState(0);
-  useEffect(() => {
-    let stop = false;
-    (async () => {
-      for (let i = 0; i < 40 && !stop; i++) {
-        try {
-          let x = await api(`/orders/${orderId}`);
-          if (x.status !== 'COMPLETED' && (ppId || x.paypalOrderId)) x = await api(`/orders/pp/${ppId || x.paypalOrderId}?capture=1`).catch((e) => ({ ...x, failure: e.message }));
-          if (!stop) setO(x);
-          const paid = (x.payouts || []).length > 0 && x.payouts.every((p: any) => ['SUCCESS', 'SIMULATED', 'DRAFT'].includes(p.status) || p.reversed);
-          if (x.status === 'COMPLETED' && Array.isArray(x.payouts) && (paid || i > 12)) return;
-          if (x.failure && x.status !== 'COMPLETED' && i > 2) return;
-        } catch (e: any) { if (!stop) setErr(e.message); return; }
-        await new Promise((r) => setTimeout(r, 3000));
-      }
-    })();
-    return () => { stop = true; };
-  }, [orderId, ppId]);
-  const physical = (o?.items || []).filter((i: any) => !i.digital); const digital = (o?.items || []).filter((i: any) => i.digital);
-  const sup = o?.supplier || []; const pays = o?.payouts || [];
-  const steps = [
-    { t: 'Payment received', d: o?.captureStatus ? <>Captured via PayPal · <code data-testid="capture-status">CAPTURE {o.captureStatus}</code></> : o?.status === 'COMPLETED' ? 'Captured via PayPal' : 'Waiting for PayPal…', done: o?.status === 'COMPLETED' },
-    { t: 'Order created', d: o ? [...physical.map((i: any) => `${i.name} → Printful`), ...digital.map((i: any) => `${i.name} → PDF ready`)].join(' · ') : '…', done: o?.status === 'COMPLETED' && Array.isArray(o?.supplier) },
-    { t: 'AI staff fulfilling', d: sup.length ? sup.map((s: any) => `${s.mode === 'simulated' ? 'Simulated supplier' : 'Printful draft'} #${s.id ?? '—'} (${s.status})`).join(' · ') + (digital.length ? ' · e-book delivered' : '') : digital.length ? 'Writer agent delivered your e-book' : 'Staff are packing your order…', done: Array.isArray(o?.payouts) },
-    { t: 'Staff paid via PayPal Payouts', d: pays.length ? pays.map((p: any) => `${p.agent} ${usd(p.amount)} · ${p.method} ${p.status}`).join(' · ') : Array.isArray(o?.payouts) ? 'No payout — blocked by guardrails (see ledger)' : 'Wages released once fulfilment completes', done: Array.isArray(o?.payouts) && (pays.length === 0 || pays.some((p: any) => p.ok !== false)) },
-  ];
-  const real = steps.findIndex((s) => !s.done); const target = real === -1 ? steps.length : real;
-  useEffect(() => { if (shown >= target) return; const t = setTimeout(() => setShown((s) => s + 1), 900); return () => clearTimeout(t); }, [shown, target]);
-  if (err) return <div className="cat-empty">We couldn’t load that order. <span>{err}</span></div>;
-  return <div className="cat-pad" data-testid="cat-progress">
-    <div className="cat-thanks"><p className="cat-eyebrow">Thank you</p><h1 className="cat-h2">{o?.status === 'COMPLETED' ? <>Your order is<br />on its way.</> : o?.failure ? 'Payment didn’t complete.' : <>Confirming your<br />payment…</>}</h1>
-      <p className="cat-ord">Order #{orderId.slice(2, 10).toUpperCase()} · {o ? usd(o.total) : '…'}</p></div>
-    <div className="cat-progh"><h2>Progress</h2><span>{shown < steps.length ? 'Live' : 'Complete'}</span></div>
-    <ol className="cat-steps">{steps.map((s, i) => { const st = i < shown ? 'done' : i === shown ? 'now' : 'todo'; return <li key={s.t} className={st} data-testid={`step-${i}`} data-state={st}><span className="dot">{st === 'done' ? <Ic d={I.check} /> : null}</span><div><p>{s.t}</p><small>{s.d}</small></div></li>; })}</ol>
-    {o?.failure && o.status !== 'COMPLETED' && <p className="cat-err">{o.failure}</p>}
-    {shown >= 2 && o?.downloads?.map((d: any) => <a key={d.pdf} className="cat-cta brass" href={'/api' + d.pdf} data-testid="cat-download">Download {d.title}</a>)}
-    {shown >= steps.length && <button className="cat-cta ghost" onClick={onDone} data-testid="cat-done">Done</button>}
-    <a className="cat-link" href="/ledger">See it on the public ledger →</a>
-  </div>;
-}

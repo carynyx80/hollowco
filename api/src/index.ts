@@ -9,7 +9,7 @@ import * as db from './db.js';
 import { env } from './env.js';
 import { aiMode } from './ai.js';
 import { printfulMode } from './printful.js';
-import { createOrder, captureOrder, getOrder } from './paypal.js';
+import { createOrder, createMultiOrder, captureOrder, getOrder } from './paypal.js';
 import { createShop, fulfil, id, jailbreak, ledger, ledgerView, refreshPayouts } from './core.js';
 import { LIMITS } from './guardrails.js';
 import { checkShopQuota, takeAction, isDemo, SHOP_LIMITS } from './limits.js';
@@ -91,23 +91,62 @@ app.get('/assets/:id', wrap(async (q: any, r: any) => {
   const a = await db.get('assets', q.params.id); if (!a) return r.status(404).end();
   r.setHeader('Content-Type', a.mime); r.setHeader('Cache-Control', 'public, max-age=31536000, immutable'); r.end(Buffer.from(a.b64, 'base64'));
 }));
+export const MAX_STORES = 10;
+// Checkout. Accepts { shopId, items } (one store) or { stores: [{ shopId, items }] } (global cart).
+// One store -> one order (as before). Several stores -> a parent checkout with one child order per store,
+// paid by ONE PayPal order that has one purchase_unit per store (reference_id = shop id).
 app.post('/orders', wrap(async (q: any, r: any) => {
-  const shop = await db.get('shops', q.body.shopId); if (!shop) throw new Error('shop not found');
-  const items = (q.body.items || []).slice(0, 10).map((i: any) => {
-    const p = shop.products.find((x: any) => x.id === i.productId);
-    if (!p || p.comingSoon) throw new Error('product unavailable');
-    return { productId: p.id, name: p.title, price: p.price, qty: Math.max(1, Math.min(5, Number(i.qty) || 1)), digital: p.digital, sku: p.id };
-  });
-  if (!items.length) throw new Error('empty cart');
-  const orderId = id('o');
-  const pp = await createOrder(items, orderId);
-  if (!pp.ok) throw new Error('PayPal create failed: ' + (pp.j.message || pp.status));
-  const total = items.reduce((s: number, i: any) => s + i.price * i.qty, 0);
-  await db.put('orders', orderId, { id: orderId, shopId: shop.id, items, total, paypalOrderId: pp.j.id, status: pp.j.status, createdAt: new Date().toISOString() });
-  await db.put('orders', 'pp_' + pp.j.id, { ref: orderId });
-  r.json({ orderId, paypalOrderId: pp.j.id, approve: pp.j.links?.find((l: any) => l.rel === 'approve' || l.rel === 'payer-action')?.href });
+  const groups: { shopId: string; items: any[] }[] = Array.isArray(q.body.stores) ? q.body.stores : [{ shopId: q.body.shopId, items: q.body.items || [] }];
+  const merged = new Map<string, any[]>(); for (const g of groups) merged.set(String(g.shopId), [...(merged.get(String(g.shopId)) || []), ...(g.items || [])]);
+  if (merged.size > MAX_STORES) { const e: any = new Error(`PayPal allows at most ${MAX_STORES} stores per checkout — remove ${merged.size - MAX_STORES} store(s) from your cart and check out the rest separately.`); e.status = 422; throw e; }
+  const units: { shop: any; items: any[] }[] = [];
+  for (const [sid, raw] of merged) {
+    const shop = await db.get('shops', sid); if (!shop) throw new Error('shop not found');
+    const items = raw.slice(0, 10).map((i: any) => {
+      const p = shop.products.find((x: any) => x.id === i.productId);
+      if (!p || p.comingSoon) throw new Error('product unavailable');
+      return { productId: p.id, name: p.title, price: p.price, qty: Math.max(1, Math.min(5, Number(i.qty) || 1)), digital: p.digital, sku: p.id };
+    });
+    if (items.length) units.push({ shop, items });
+  }
+  if (!units.length) throw new Error('empty cart');
+  const sum = (it: any[]) => Math.round(it.reduce((s: number, i: any) => s + i.price * i.qty, 0) * 100) / 100;
+  const now = new Date().toISOString();
+  if (units.length === 1) {
+    const { shop, items } = units[0]; const orderId = id('o');
+    const pp = await createOrder(items, orderId);
+    if (!pp.ok) throw new Error('PayPal create failed: ' + (pp.j.message || pp.status));
+    await db.put('orders', orderId, { id: orderId, shopId: shop.id, items, total: sum(items), paypalOrderId: pp.j.id, status: pp.j.status, createdAt: now });
+    await db.put('orders', 'pp_' + pp.j.id, { ref: orderId });
+    return r.json({ orderId, paypalOrderId: pp.j.id, approve: pp.j.links?.find((l: any) => l.rel === 'approve' || l.rel === 'payer-action')?.href });
+  }
+  const pp = await createMultiOrder(units.map((u) => ({ ref: u.shop.id, items: u.items })));
+  if (!pp.ok) throw new Error('PayPal create failed: ' + (pp.j.details?.[0]?.description || pp.j.message || pp.status));
+  const cid = id('c'); const children: string[] = [];
+  for (const u of units) { const oid = id('o'); children.push(oid); await db.put('orders', oid, { id: oid, parent: cid, shopId: u.shop.id, items: u.items, total: sum(u.items), paypalOrderId: pp.j.id, status: pp.j.status, createdAt: now }); }
+  await db.put('orders', cid, { id: cid, checkout: true, children, total: sum(units.flatMap((u) => u.items)), paypalOrderId: pp.j.id, status: pp.j.status, createdAt: now });
+  await db.put('orders', 'pp_' + pp.j.id, { ref: cid });
+  r.json({ orderId: cid, paypalOrderId: pp.j.id, stores: units.length });
 }));
-const orderView = async (o: any) => (await refreshPayouts(o).catch(() => o), { shop: await db.get('shops', o.shopId).then((s: any) => s && { id: s.id, name: s.name, logo: s.logo }).catch(() => null), paypalOrderId: o.paypalOrderId, captureId: o.captureId, captureStatus: o.captureStatus, payer: o.payer, paymentSource: o.paymentSource, simulated: !!o.simulated, failure: o.failure, createdAt: o.createdAt, id: o.id, status: o.status, total: o.total, items: o.items, supplier: o.supplier, payouts: o.payouts, downloads: o.status === 'COMPLETED' ? o.items.filter((i: any) => i.digital).map((i: any) => ({ title: i.name, pdf: `/download/${o.id}/${i.productId}.pdf`, md: `/download/${o.id}/${i.productId}.md` })) : [] });
+const orderView = async (o: any): Promise<any> => o?.checkout ? checkoutView(o) : (await refreshPayouts(o).catch(() => o), { shop: await db.get('shops', o.shopId).then((s: any) => s && { id: s.id, name: s.name, logo: s.logo }).catch(() => null), paypalOrderId: o.paypalOrderId, captureId: o.captureId, captureStatus: o.captureStatus, payer: o.payer, paymentSource: o.paymentSource, simulated: !!o.simulated, failure: o.failure, createdAt: o.createdAt, id: o.id, status: o.status, total: o.total, items: o.items, supplier: o.supplier, payouts: o.payouts, downloads: o.status === 'COMPLETED' ? o.items.filter((i: any) => i.digital).map((i: any) => ({ title: i.name, pdf: `/download/${o.id}/${i.productId}.pdf`, md: `/download/${o.id}/${i.productId}.md` })) : [] });
+async function checkoutView(c: any) {
+  const stores = await Promise.all(c.children.map(async (cid: string) => orderView(await db.get('orders', cid))));
+  const all = (k: string) => stores.some((s: any) => Array.isArray(s[k])) ? stores.flatMap((s: any) => s[k] || []) : undefined;
+  return { id: c.id, checkout: true, paypalOrderId: c.paypalOrderId, status: c.status, failure: c.failure, total: c.total, createdAt: c.createdAt, payer: c.payer, paymentSource: c.paymentSource,
+    captureStatus: stores.every((s: any) => s.captureStatus === 'COMPLETED') ? 'COMPLETED' : stores.find((s: any) => s.captureStatus)?.captureStatus, captureIds: stores.map((s: any) => s.captureId).filter(Boolean),
+    items: stores.flatMap((s: any) => s.items), downloads: stores.flatMap((s: any) => s.downloads), supplier: all('supplier'), payouts: stores.every((s: any) => Array.isArray(s.payouts)) ? stores.flatMap((s: any) => s.payouts) : undefined, stores };
+}
+// Apply one PayPal purchase_unit (its capture + shipping) to a store order.
+function applyUnit(o: any, j: any, pu: any, ship: any) {
+  const cap = pu?.payments?.captures?.[0];
+  if (j?.status) o.status = j.status === 'COMPLETED' && cap?.status !== 'COMPLETED' && cap?.status !== 'PENDING' ? 'FAILED' : j.status;
+  if (cap) { o.captureId = cap.id; o.captureStatus = cap.status; o.capturedAmount = Number(cap.amount?.value ?? o.total); }
+  if (j?.payer) o.payer = { email: j.payer.email_address, name: [j.payer.name?.given_name, j.payer.name?.surname].filter(Boolean).join(' ') };
+  if (j?.payment_source) o.paymentSource = Object.keys(j.payment_source)[0];
+  // Ship physical items to the address the buyer gave PayPal (Printful drafts only; never confirmed). One address for every store.
+  const sh = pu?.shipping?.address?.address_line_1 ? pu.shipping : ship;
+  if (sh?.address?.address_line_1 && !o.shipping) o.shipping = { name: String(sh.name?.full_name || o.payer?.name || 'HollowCo Buyer').slice(0, 80), address1: sh.address.address_line_1, address2: sh.address.address_line_2, city: sh.address.admin_area_2, state_code: sh.address.admin_area_1, country_code: sh.address.country_code, zip: sh.address.postal_code };
+}
 // Pull the authoritative state from PayPal and apply it. Used by capture, return-handling and webhooks (idempotent).
 async function syncOrder(ppId: string, tryCapture: boolean) {
   const ref = await db.get('orders', 'pp_' + ppId); if (!ref) { const e: any = new Error('order not found'); e.status = 404; throw e; }
@@ -120,22 +159,23 @@ async function syncOrder(ppId: string, tryCapture: boolean) {
       if (c.ok) j = c.j;
       else if (issue === 'ORDER_ALREADY_CAPTURED') j = (await getOrder(ppId)).j;
       else {
-        await ledger('capture_failed', { orderId: o.id, shopId: o.shopId, detail: issue });
+        await ledger('capture_failed', { orderId: o.id, shopId: o.shopId, detail: issue + (o.checkout ? ` (checkout of ${o.children.length} stores)` : '') });
         o.failure = issue; await db.put('orders', o.id, o);
         const e: any = new Error(issue === 'INSTRUMENT_DECLINED' ? 'Your card or PayPal funding source was declined. Please try another.' : 'Payment could not be captured: ' + issue);
         e.status = 422; e.issue = issue; throw e;
       }
     } else j = (await getOrder(ppId)).j;
-    const cap = j?.purchase_units?.[0]?.payments?.captures?.[0];
-    if (j?.status) o.status = j.status === 'COMPLETED' && cap?.status !== 'COMPLETED' && cap?.status !== 'PENDING' ? 'FAILED' : j.status;
-    if (cap) { o.captureId = cap.id; o.captureStatus = cap.status; o.capturedAmount = Number(cap.amount?.value ?? o.total); }
-    if (j?.payer) o.payer = { email: j.payer.email_address, name: [j.payer.name?.given_name, j.payer.name?.surname].filter(Boolean).join(' ') };
-    if (j?.payment_source) o.paymentSource = Object.keys(j.payment_source)[0];
-    // Ship physical items to the address the buyer gave PayPal (Printful drafts only; never confirmed).
-    const sh = j?.purchase_units?.[0]?.shipping;
-    if (sh?.address?.address_line_1 && !o.shipping) o.shipping = { name: String(sh.name?.full_name || o.payer?.name || 'HollowCo Buyer').slice(0, 80), address1: sh.address.address_line_1, address2: sh.address.address_line_2, city: sh.address.admin_area_2, state_code: sh.address.admin_area_1, country_code: sh.address.country_code, zip: sh.address.postal_code };
+    const units: any[] = j?.purchase_units || []; const ship = units.find((u) => u.shipping?.address?.address_line_1)?.shipping;
+    if (o.checkout) {
+      for (const cid of o.children) { const c = await db.get('orders', cid); if (c.status === 'COMPLETED') continue; applyUnit(c, j, units.find((u) => u.reference_id === c.shopId), ship); await db.put('orders', cid, c); }
+      const kids = await Promise.all(o.children.map((cid: string) => db.get('orders', cid)));
+      o.status = kids.every((c: any) => c.status === 'COMPLETED') ? 'COMPLETED' : kids.some((c: any) => c.status === 'FAILED') ? 'FAILED' : j?.status || o.status;
+      if (j?.payer) o.payer = { email: j.payer.email_address, name: [j.payer.name?.given_name, j.payer.name?.surname].filter(Boolean).join(' ') };
+      if (j?.payment_source) o.paymentSource = Object.keys(j.payment_source)[0];
+    } else applyUnit(o, j, units[0], ship);
     await db.put('orders', o.id, o);
   }
+  if (o.checkout) { for (const cid of o.children) { const c = await db.get('orders', cid); if (c.status === 'COMPLETED') await fulfil(cid); } return await db.get('orders', o.id); }
   return o.status === 'COMPLETED' ? await fulfil(o.id) : o;
 }
 app.post('/orders/:ppId/capture', async (q: any, r: any) => {
@@ -171,7 +211,7 @@ app.post('/simulate/order', wrap(async (q: any, r: any) => {
   await db.put('orders', orderId, { id: orderId, shopId: shop.id, items, total: p.price, status: 'COMPLETED', simulated: true, test: true, payer: { name: 'Simulated Customer', email: 'simulated@hollowco.app' }, paymentSource: 'simulated', createdAt: new Date().toISOString() });
   r.json(await orderView(await fulfil(orderId)));
 }));
-app.get('/orders/:id', wrap(async (q: any, r: any) => { const o = await db.get('orders', q.params.id); o?.items ? r.json(await orderView(o)) : r.status(404).json({ error: 'not found' }); }));
+app.get('/orders/:id', wrap(async (q: any, r: any) => { const o = await db.get('orders', q.params.id); (o?.items || o?.checkout) ? r.json(await orderView(o)) : r.status(404).json({ error: 'not found' }); }));
 app.get('/download/:orderId/:file', wrap(async (q: any, r: any) => {
   const o = await db.get('orders', q.params.orderId);
   const [pid, ext] = q.params.file.split('.');

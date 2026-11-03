@@ -6,6 +6,7 @@ import { Nav } from '@/components/Nav';
 import { AuthProvider } from '@/components/Auth';
 import { ToastProvider } from '@/components/Toast';
 import { Ring } from '@/components/Logo';
+import { GlobalCart } from '@/components/cart/GlobalCart';
 const ui = Inter_Tight({ subsets: ['latin'], variable: '--font-ui', display: 'swap' });
 const serif = Cormorant_Garamond({ subsets: ['latin'], weight: ['400', '500', '600'], style: ['normal', 'italic'], variable: '--font-serif', display: 'swap' });
 const mono = IBM_Plex_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-num', display: 'swap' });
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <ToastProvider><AuthProvider>
         <Nav />
         <main className="flex-1">{children}</main>
+        <GlobalCart />
         <footer className="border-t border-line mt-24">
           <div className="mx-auto max-w-6xl px-5 py-10 flex flex-col sm:flex-row gap-4 sm:items-center text-xs text-char/50">
             <span className="flex items-center gap-2"><Ring size={18} /> HollowCo · AI proposes, code disposes</span>

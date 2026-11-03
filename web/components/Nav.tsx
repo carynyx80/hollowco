@@ -6,6 +6,7 @@ import { Wordmark } from './Logo';
 import { useAuth } from './Auth';
 import { useToast } from './Toast';
 import { api } from '@/lib/api';
+import { CartButton } from './cart/GlobalCart';
 export function Nav() {
   const { user, loading, setUser } = useAuth(); const path = usePathname(); const router = useRouter(); const toast = useToast();
   const [open, setOpen] = useState(false);
@@ -18,7 +19,8 @@ export function Nav() {
         <div className="hidden md:flex gap-1 text-sm">
           {links.map(([h, l]) => <Link key={h} href={h} className={`rounded-full px-3 py-1.5 transition ${(h === '/' ? path === '/' : path.startsWith(h)) ? 'bg-white/[.07] text-white font-medium' : 'text-char/60 hover:text-char'}`}>{l}</Link>)}
         </div>
-        <div className="ml-auto hidden md:flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2 md:order-none"><CartButton /></div>
+        <div className="hidden md:flex items-center gap-2">
           {loading ? <div className="skeleton h-9 w-40" /> : user ? <>
             <span className="text-xs text-char/50 mr-2">by {user.displayName || user.name}</span>
             <button onClick={out} className="btn-ghost h-9">Sign out</button>
@@ -27,7 +29,7 @@ export function Nav() {
             <Link href={path === '/' ? '/?panel=signup' : '/signup'} className="btn-primary h-9">Get started</Link>
           </>}
         </div>
-        <button className="ml-auto md:hidden btn-ghost h-9 px-3" onClick={() => setOpen(!open)} aria-label="Menu">☰</button>
+        <button className="md:hidden btn-ghost h-9 px-3" onClick={() => setOpen(!open)} aria-label="Menu">☰</button>
       </nav>
       {open && <div className="md:hidden border-t border-line px-5 py-3 flex flex-col gap-1 text-sm bg-cream" onClick={() => setOpen(false)}>
         {links.map(([h, l]) => <Link key={h} href={h} className="py-2">{l}</Link>)}

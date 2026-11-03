@@ -19,16 +19,18 @@ export async function pp(method: string, path: string, body?: any, extra: Record
   return { ok: r.ok, status: r.status, j };
 }
 export const money = (n: number) => n.toFixed(2);
-export async function createOrder(items: { name: string; price: number; qty: number; digital: boolean; sku: string }[], ref: string) {
-  const total = items.reduce((s, i) => s + i.price * i.qty, 0);
-  return pp('POST', '/v2/checkout/orders', {
-    intent: 'CAPTURE',
-    purchase_units: [{
-      reference_id: ref.slice(0, 256),
-      amount: { currency_code: 'USD', value: money(total), breakdown: { item_total: { currency_code: 'USD', value: money(total) } } },
-      items: items.map((i) => ({ name: i.name.slice(0, 127), sku: i.sku, quantity: String(i.qty), category: i.digital ? 'DIGITAL_GOODS' : 'PHYSICAL_GOODS', unit_amount: { currency_code: 'USD', value: money(i.price) } })),
-    }],
-  });
+type PPItem = { name: string; price: number; qty: number; digital: boolean; sku: string };
+const unit = (ref: string, items: PPItem[]) => { const total = items.reduce((s, i) => s + i.price * i.qty, 0); return {
+  reference_id: ref.slice(0, 256),
+  amount: { currency_code: 'USD', value: money(total), breakdown: { item_total: { currency_code: 'USD', value: money(total) } } },
+  items: items.map((i) => ({ name: i.name.slice(0, 127), sku: i.sku, quantity: String(i.qty), category: i.digital ? 'DIGITAL_GOODS' : 'PHYSICAL_GOODS', unit_amount: { currency_code: 'USD', value: money(i.price) } })),
+}; };
+export async function createOrder(items: PPItem[], ref: string) {
+  return pp('POST', '/v2/checkout/orders', { intent: 'CAPTURE', purchase_units: [unit(ref, items)] });
+}
+// One PayPal order, one purchase_unit per store (reference_id = shop id). PayPal allows at most 10 units.
+export async function createMultiOrder(units: { ref: string; items: PPItem[] }[]) {
+  return pp('POST', '/v2/checkout/orders', { intent: 'CAPTURE', purchase_units: units.map((u) => unit(u.ref, u.items)) });
 }
 export const captureOrder = (id: string) => pp('POST', `/v2/checkout/orders/${encodeURIComponent(id)}/capture`, {}, { Prefer: 'return=representation' });
 export const getOrder = (id: string) => pp('GET', `/v2/checkout/orders/${encodeURIComponent(id)}`);

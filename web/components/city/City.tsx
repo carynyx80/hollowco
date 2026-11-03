@@ -9,6 +9,7 @@ import { useAuth } from '@/components/Auth';
 import { useToast } from '@/components/Toast';
 import { AuthForm } from '@/components/AuthForm';
 import { PayButton, OrderResult } from '@/components/PayButton';
+import { CartButton } from '@/components/cart/GlobalCart';
 import { CountUp } from '@/components/Cinema';
 import { Catalogue } from '@/components/catalogue/Catalogue';
 import { BANK, DISTRICT_INFO, DOCK, PITCH, SHORE, arcPath, bounds, detectQuality, emit, faceOf, heightOf, pathLen, plotXZ, streetPath, type CityShop, type P, type Quality, type Site } from './layout';
@@ -163,7 +164,7 @@ export default function City({ lowPower = false, deep }: { lowPower?: boolean; d
         <button onClick={simulate} disabled={busy === 'sim'} className="btn-primary h-10 text-sm" data-testid="city-sim">{busy === 'sim' ? 'Customer walking in…' : 'Simulate a sale'}</button>
         <button onClick={openBank} className="btn-ghost h-10 text-sm" data-testid="city-bank">§ Bank</button>
         <button onClick={() => setPanel({ k: 'jail' })} className="btn-ghost h-10 text-sm" data-testid="city-jail"> Jailbreak</button>
-        {user ? <button onClick={openHq} className="btn-coral h-10 text-sm" data-testid="city-hq">Fly into my HQ</button> : <button onClick={() => setPanel({ k: 'signin' })} className="btn-coral h-10 text-sm" data-testid="city-signin">Sign in</button>}
+        <CartButton className="hud" />{user ? <button onClick={openHq} className="btn-coral h-10 text-sm" data-testid="city-hq">Fly into my HQ</button> : <button onClick={() => setPanel({ k: 'signin' })} className="btn-coral h-10 text-sm" data-testid="city-signin">Sign in</button>}
         <button onClick={() => { setSound((s) => !s); if (!sound) blip(660); }} className="btn-ghost h-10 w-10 !px-0 text-sm" aria-label={sound ? 'Mute' : 'Sound on'} title="Ambient sound">{sound ? 'On' : 'Off'}</button>
       </div>
     </motion.div>
