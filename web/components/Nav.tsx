@@ -10,7 +10,7 @@ import { CartButton } from './cart/GlobalCart';
 export function Nav() {
   const { user, loading, setUser } = useAuth(); const path = usePathname(); const router = useRouter(); const toast = useToast();
   const [open, setOpen] = useState(false);
-  const links = [['/', 'City'], ['/impact', 'Why it matters'], ['/ledger', 'Ledger'], ['/judges', 'For judges'], ...(user ? [['/dashboard', 'Dashboard']] : [])];
+  const links = [['/', 'City'], ['/impact', 'Why it matters'], ['/ledger', 'Ledger'], ['/judges', 'For judges'], ...(user ? [['/dashboard', 'Dashboard'], ['/how-to-use', 'How to use']] : [])];
   async function out() { const req = api('/auth/signout', { method: 'POST' }).catch(() => {}); await req; setUser(null); router.push('/'); router.refresh(); toast('Signed out', 'ok'); }
   return (
     <header className="sticky top-0 z-40 border-b border-black/[.08] bg-cream/60 backdrop-blur-xl">
