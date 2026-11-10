@@ -10,6 +10,7 @@ const DEFAULT_HIDDEN = [
   'shop_2cc5e2b30267', 'shop_a1045913ac7e', 'shop_417da43283f6', // "Nurse…" limit-test shops (u_e77e737325315042)
   'shop_e353edffa8d2', // duplicate Eko Time (shop_92cbffe14b7c is kept)
   'shop_eec882a491b1', 'shop_ef852e047209', 'shop_5cb87a42d404', 'shop_75b5ac84bc98', 'shop_1d29a715cca1', // test shops: City Greenery, Neon Nocturne, Founder Store, Rainy Day Reads, Easy Green
+  'shop_1de0859422cb', 'shop_3c1efc5948f8', 'shop_303c6cde9509', // test shops: Solo Femme Travels, Cozy Sourdough, Sprout Handmade Co
 ];
 const HIDDEN_OWNERS = ['u_e77e737325315042'];
 const KEEP = new Set(['shop_3211ffb30858', 'shop_0883badb22ca', 'shop_92cbffe14b7c', 'shop_34d91012f69f', ...(env('SHOWCASE_SHOP_IDS') || '').split(',').map((s) => s.trim()).filter(Boolean)]); // showcase shops never auto-hidden
