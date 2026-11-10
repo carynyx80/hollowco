@@ -18,9 +18,9 @@ export default function Judges() {
       <Step n={3} t="The building rises">The new store appears as a building in <Link className="underline" href="/">the city</Link>. Tap it to open its catalogue.</Step>
       <Step n={4} t="Buy with PayPal">Add a product and pick either path. Both are PayPal <b>sandbox</b>, no real money.
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
-          <div data-testid="judge-buyer"><p className="font-mono text-[11px] uppercase tracking-[.16em] text-[#8C6F3C] mb-1.5">A · Pay with PayPal (sandbox buyer)</p>
+          <div data-testid="judge-buyer" className="min-w-0"><p className="font-mono text-[11px] uppercase tracking-[.16em] text-[#8C6F3C] mb-1.5">A · Pay with PayPal (sandbox buyer)</p>
             <div className="grid gap-1.5"><CopyField label="Email" value={BUYER.email} testid="copy-buyer-email" /><CopyField label="Password" value={BUYER.password} testid="copy-buyer-pass" /></div></div>
-          <div data-testid="judge-card"><p className="font-mono text-[11px] uppercase tracking-[.16em] text-[#8C6F3C] mb-1.5">B · Guest card (no login)</p>
+          <div data-testid="judge-card" className="min-w-0"><p className="font-mono text-[11px] uppercase tracking-[.16em] text-[#8C6F3C] mb-1.5">B · Guest card (no login)</p>
             <div className="grid gap-1.5"><CopyField label="Visa" value={CARD.shown} copy={CARD.number} testid="copy-card" /><div className="grid grid-cols-2 gap-1.5"><CopyField label="Expiry" value={CARD.exp} /><CopyField label="CVV" value={CARD.cvv} /></div></div>
             <p className="mt-1.5 text-xs text-char/60">Country <b>United States</b>, e.g. 123 Main St, San Jose, CA 95131.</p></div>
         </div>
