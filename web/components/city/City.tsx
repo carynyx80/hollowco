@@ -14,6 +14,7 @@ import { cart as gcart } from '@/lib/cart';
 import { CountUp } from '@/components/Cinema';
 import { Catalogue } from '@/components/catalogue/Catalogue';
 import { BANK, CART_AT, DISTRICT_INFO, DOCK, PITCH, SHORE, arcPath, bounds, detectQuality, emit, faceOf, heightOf, pathLen, plotXZ, streetPath, type CityShop, type P, type Quality, type Site } from './layout';
+import { thoughtKind, thoughtStamp, useFounderThoughts, useMaxMd } from './useFounderThoughts';
 
 const Scene = dynamic(() => import('./Scene'), { ssr: false, loading: () => <div className="absolute inset-0 grid place-items-center"><div className="city-loader"><span />Raising the city…</div></div> });
 const LedgerPanel = dynamic(() => import('@/app/ledger/page'), { ssr: false, loading: () => <div className="p-6 space-y-3"><div className="shimmer h-24" /><div className="shimmer h-72" /></div> });
@@ -135,6 +136,8 @@ export default function City({ lowPower = false, deep }: { lowPower?: boolean; d
     } catch (e: any) { toast(e.message, 'err'); } finally { setBusy(''); }
   }
   const matches = q.trim() ? shops.filter((s) => (s.name + ' ' + (s.tagline || '') + ' ' + s.owner + ' ' + (DISTRICT_INFO[s.plot.district]?.label || '')).toLowerCase().includes(q.trim().toLowerCase())).slice(0, 7) : [];
+  const founderThought = useFounderThoughts();
+  const mobile = useMaxMd();
   const wide = panel && ['ledger', 'hq'].includes(panel.k);
   const featured = [...shops].sort((a: any, b: any) => (b.plot.district === 'books' ? 1 : 0) - (a.plot.district === 'books' ? 1 : 0) || (b.revenue || 0) - (a.revenue || 0)).slice(0, 6);
 
@@ -168,6 +171,7 @@ export default function City({ lowPower = false, deep }: { lowPower?: boolean; d
 
     {/* HUD: command dock */}
     <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .6 }} className={`absolute bottom-4 left-1/2 -translate-x-1/2 w-[min(96vw,1000px)] ${panel || cat ? 'max-md:hidden' : ''}`} data-testid="city-dock">
+      {mobile && founderThought && <div key={founderThought.at + founderThought.k} className={`founder-chip ${founderThought.k === 'rejected' ? 'founder-chip-red' : ''}`} data-testid="founder-thought" role="status" aria-live="polite"><p className="founder-chip-kicker">Founder · {thoughtKind(founderThought.k)}{founderThought.shop ? ` · ${founderThought.shop}` : ''}</p><p className="founder-chip-body">{founderThought.t}</p><p className="founder-chip-at">{thoughtStamp(founderThought.at)} · real ledger row</p></div>}
       {matches.length > 0 && <div className="city-glass mb-2 p-1.5">{matches.map((s) => <button key={s.id} onClick={() => { setQ(''); openShop(s); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-black/[.04]"><img src={thumb(s.logo, 64)} alt="" className="h-6 w-6 rounded object-cover" /><span className="flex-1 truncate">{s.name} <span className="text-char/60">by {s.owner}</span></span><span className="text-xs text-char/60">{DISTRICT_INFO[s.plot.district]?.icon} fly →</span></button>)}</div>}
       <div className="city-glass flex flex-wrap items-center gap-2 p-2">
         <div className="relative flex-1 min-w-[150px] max-sm:basis-full"><input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && matches[0]) { setQ(''); openShop(matches[0]); } }} placeholder={`Search ${shops.length} stores, owners, districts — fly there`} className="input !h-10 !bg-sand !text-sm" data-testid="city-search" /></div>

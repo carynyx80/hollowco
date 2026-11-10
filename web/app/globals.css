@@ -289,3 +289,16 @@ html.hero-open .city-glass,html.hero-open [data-testid=city-dock],html.hero-open
 .founder-thought .founder-thought-at { font: 10px/1.3 var(--font-mono), monospace; color: #6B675E; }
 @keyframes thought-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .founder-thought { animation: none; } }
+
+/* Mobile founder feed: leave the 3D beacon clear and sit the thought in the dock, full width, 2-line clamp. */
+@media (max-width: 767px) {
+  .founder-thought { display: none !important; }
+}
+.founder-chip { display: flex; flex-direction: column; gap: 2px; width: 100%; margin-bottom: 8px; padding: 10px 12px; border-radius: 6px; border: 1px solid rgba(184,151,90,.6); background: rgba(249,248,245,0.94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #0E0D0B; }
+.founder-chip-kicker { font: 500 10px/1.3 var(--font-mono), 'IBM Plex Mono', monospace; letter-spacing: .08em; text-transform: uppercase; color: #8C6F3C; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.founder-chip-body { margin: 0; font: 500 13px/1.35 var(--font-ui), 'Inter Tight', sans-serif; color: #0E0D0B; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.founder-chip-at { margin: 0; font: 10px/1.3 var(--font-mono), 'IBM Plex Mono', monospace; color: #6B675E; }
+.founder-chip-red { border-color: rgba(192,98,74,.7); }
+.founder-chip-red .founder-chip-kicker { color: #7A281A; }
+.founder-chip-red .founder-chip-body { color: #7A281A; }
+@media (prefers-reduced-motion: reduce) { .founder-chip { animation: none; } }
